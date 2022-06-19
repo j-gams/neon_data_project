@@ -1,20 +1,33 @@
-### Use this to visually inspect whether the clipped raster data files have been created successfully
-### Pass file paths as command line arguments
-### script loads files and plots them
+### WHAT DOES THIS CODE DO?
+### - opens specified geotif files
+### - plots them
+### - Use this to visually inspect whether the clipped raster data files have been created successfully
 
-### example usage: python check_clip.py srtm_raw/srtm_clipped.tif nlcd_raw/nlcd_clipped.tif
+### REQUIREMENTS
+### - Packages
+###   - matplotlib
+###   - seaborn
+###   - shapely
+###   - rioxarray
+###   - xarray
+
+### command line arguments:
+### raster data path(s)     [list as many file paths as needed]
+
+### Usage Example:
+### python check_clip.py ../raw_data/srtm_raw/srtm_clipped.tif ../raw_data/nlcd_raw/nlcd_clipped.tif
 
 import sys
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
-import numpy as np
-from shapely.geometry import mapping
+#from shapely.geometry import mapping
 import rioxarray as rxr
 import xarray as xr
 
 sns.set(font_scale=1.5)
 
+### get file names from command line arguments
 fnames = []
 files = []
 if len(sys.argv) == 1:
@@ -23,6 +36,8 @@ if len(sys.argv) == 1:
 else:
     for i in range(1, len(sys.argv)):
         fnames.append(sys.argv[i])
+
+### load each file sequentially. Plot it. Remove it from memory
 for fname in fnames:
     data_name = fname.split('/')[-1]
     rxr_data = rxr.open_rasterio(fname, masked=True).squeeze()

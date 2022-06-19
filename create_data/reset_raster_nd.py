@@ -1,3 +1,18 @@
+### WHAT DOES THIS CODE DO?
+### - sets nodata value of a specified geotif file to a specified value
+
+### REQUIREMENTS
+### - Packages
+###   - rioxarray
+###   - xarray
+
+### command line arguments:
+### file name       [provide a filename, required]
+### nodata value    [provide a nodata value, required]
+
+### Usage Example:
+### python reset_rasted_nd.py ../raw_data/srtm_raw/srtm_clipped.tif 0
+
 import sys
 import rioxarray as rxr
 import xarray as xr

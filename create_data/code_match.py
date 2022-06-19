@@ -27,8 +27,6 @@
 ### visualize data          [-v "all", "none", or comma separated indices of data]
 ### verbosity               [-q {0, 1, 2}, optional (default 2, verbose)]          
 
-# test conda activate code_match; cd work/earthlab/munge_data/; python code_match.py nlcd_raw/reduced_nlcd.tif,srtm_raw/combined.tif nlcd_raw/nlcd_clipped.tif,srtm_raw/srtm_clipped.tif Neon_3D_AOI/NEON_3D_Boundary.shp -v none -q 2
-
 ### Usage Example:
 ### python code_match.py ../raw_data/nlcd_raw/reduced_nlcd.tif,../raw_data/srtm_raw/combined.tif ../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/srtm_raw/srtm_clipped.tif ../raw_data/neon_aoi/NEON_3D_Boundary.shp -v none -q 2
 ### above   reduced_nlcd.tif and combined.tif are nlcd and srtm raster inputs
