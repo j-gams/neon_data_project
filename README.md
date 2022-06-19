@@ -2,7 +2,8 @@
 
 file status:
 - create_data
-  - code_match: need to readjust for new file structure; commented; up-to-date
+  - code_match.py: up-to-date
+  - tif_merge_convert.py: up-to-date
   - check_clip: need to readjust for new file structure; not commented; up-to-date
   - reset_raster_nd: need to readjust for new file structure; not commented; up-to-date
   - analyze_clipped: need to readjust for new file structure; not commented; not up-to-date
