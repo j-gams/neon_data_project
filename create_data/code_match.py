@@ -18,7 +18,7 @@
 ###   - xarray
 ###   - geopandas
 ### - Directory Structure
-###   - must provide directory "figures/data" in parent directory of this file
+###   - must provide directory "figures/data" in parent directory of this file's parent directory
 
 ### command line arguments:
 ### raster data path(s)     [comma separated, required]
@@ -30,7 +30,7 @@
 # test conda activate code_match; cd work/earthlab/munge_data/; python code_match.py nlcd_raw/reduced_nlcd.tif,srtm_raw/combined.tif nlcd_raw/nlcd_clipped.tif,srtm_raw/srtm_clipped.tif Neon_3D_AOI/NEON_3D_Boundary.shp -v none -q 2
 
 ### Usage Example:
-### python code_match.py nlcd_raw/reduced_nlcd.tif,srtm_raw/combined.tif nlcd_raw/nlcd_clipped.tif,srtm_raw/srtm_clipped.tif Neon_3D_AOI/NEON_3D_Boundary.shp -v none -q 2
+### python code_match.py ../raw_data/nlcd_raw/reduced_nlcd.tif,../raw_data/srtm_raw/combined.tif ../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/srtm_raw/srtm_clipped.tif ../raw_data/neon_aoi/NEON_3D_Boundary.shp -v none -q 2
 ### above   reduced_nlcd.tif and combined.tif are nlcd and srtm raster inputs
 ###         nlcd_clipped.tif and srtm_clipped.tif are the output files
 ###         Neon_3D_boundary.shp is the bound/area of interest
@@ -56,35 +56,25 @@ else:
         print("number of output locations must be the same as number of input locations")
         init_ok = False
     bounding_loc = sys.argv[3]
-    if len(sys.argv) == 5 or len(sys.argv) == 7:
+    if len(sys.argv)%2 == 1:
         missing_args = True
-    if len(sys.argv) == 6 or len(sys.argv) == 8:
-        if sys.argv[4] == "-v":
-            if sys.argv[5] == "all":
-                visualize=[ii for ii in range(len(raster_locs))]
-            elif sys.argv[5] == "none":
-                visualize = []
+    elif len(sys.argv) <= 8:
+        for si in range(4, len(sys.argv), 2):
+            if sys.argv[si] == "-v":
+                if sys.argv[si+1] == "all":
+                    visualize = [ii for ii in range(len(raster_locs))]
+                elif sys.argv[si+1] == "none":
+                    visualize = []
+                else:
+                    visualize = [int(idx) for idx in sys.argv[5].split(',')]
+                vdefault = False
+            elif sys.argv[si] == "-q":
+                verbosity = int(sys.argv[si+1])
             else:
-                visualize=[int(idx) for idx in sys.argv[5].split(',')]
-            vdefault = False
-        elif sys.argv[4] == "-q":
-            verbosity = int(sys.argv[5])
-        else:
-            missing_args = True
-        if sys.argv[6] == "-v":
-            if sys.argv[7] == "all":
-                visualize=[ii for ii in range(len(raster_locs))]
-            elif sys.argv[5] == "none":
-                visualize = []
-            else:
-                visualize=[int(idx) for idx in sys.argv[7].split(',')]
-            vdefault = False
-        elif sys.argv[6] == "-q":
-            verbosity = int(sys.argv[7])
-        else:
-            missing_args = True
-    if len(sys.argv) > 8:
+                missing_args = True
+    else:
         missing_args = True
+
 if vdefault:
     visualize = [ii for ii in range(len(raster_locs))]
 if missing_args:
@@ -206,7 +196,7 @@ for i in range(len(raster_locs)):
     ax.set(title= data_name + " Data Clipped to Area of Interest")
     ax.set_axis_off()
     fdataname = data_name.split(".")[0]
-    plt.savefig("figures/data/" + fdataname + ".png")
+    plt.savefig("../figures/data/" + fdataname + ".png")
     if i in visualize:
         plt.show()
     plt.close()
