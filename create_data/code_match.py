@@ -22,7 +22,7 @@
 
 ### command line arguments:
 ### raster data path(s)     [comma separated, required]
-### output data path(s)     [comma separated, required (same number input paths]
+### output data path(s)     [comma separated, required (same number as input paths)]
 ### bounding shape path     [required]
 ### visualize data          [-v "all", "none", or comma separated indices of data]
 ### verbosity               [-q {0, 1, 2}, optional (default 2, verbose)]          
@@ -98,23 +98,11 @@ from shapely.geometry import mapping
 import rioxarray as rxr
 import xarray as xr
 import geopandas as gpd
-#import earthpy as et
-#import earthpy.plot as ep
-#from osgeo import gdal
 
 if verbosity == 2:
     print ("done importing packages")
 
 sns.set(font_scale=1.5)
-#test data types?
-#et.data.get_data("colorado-flood")
-#os.chdir(os.path.join(et.io.HOME,
-#                      'earth-analytics',
-#                      'data'))
-#old version of cmd inputs
-#convert = False
-#testplt = [4]
-#runon = ["srtm"]
 
 #TODO - send this to its own file
 if False:
@@ -211,85 +199,3 @@ for i in range(len(raster_locs)):
         print("Completed Dataset:", raster_locs[i])
 if verbosity == 1 or verbosity == 2:
     print("Done, exiting.")
-
-"""
-print("opening nlcd and srtm data...")
-if "nlcd" in runon:
-    nlcd = rxr.open_rasterio("nlcd_raw/clipped_nlcd.tif", masked=True).squeeze()
-if "srtm" in runon:
-    srtm = rxr.open_rasterio("srtm_raw/combined.tif", masked=True).squeeze()
-"""
-"""
-if 1 in testplt:
-    if "srtm" in runon:
-        print("test: plotting srtm data")
-        f, ax = plt.subplots(figsize=(10,5))
-        srtm.plot.imshow()
-        ax.set(title="srtm data")
-        ax.set_axis_off()
-        plt.show()
-"""
-
-"""print("loading gedi shapefile...")
-#aoi = "GEDI_2B_clean/GEDI_2B_clean.shp"
-aoi = "Neon_3D_AOI/NEON_3D_Boundary.shp"
-ult_aoi = gpd.read_file(aoi)
-aoi_crs = ult_aoi.crs
-if "nlcd" in runon:
-    nlcd_crs = nlcd.rio.crs
-if "srtm" in runon:
-    srtm_crs = srtm.rio.crs
-if "srtm" in runon and "nlcd" in runon:
-    print(aoi_crs, nlcd_crs, srtm_crs)
-if 2 in testplt:
-    if "srtm" in runon:
-        fig, ax = plt.subplots(figsize=(6,6))
-        ult_aoi.plot(ax=ax)
-        ax.set_title("gedi aoi baby")
-        plt.show()
-
-if 3 in testplt:
-    if "srtm" in runon:
-        f, ax = plt.subplots(figsize=(9,12))
-        srtm.plot.imshow(ax=ax)
-        ult_aoi.plot(ax=ax, alpha=0.8)
-        ax.set(title="aoi overlay on srtm data")
-        ax.set_axis_off()
-        plt.show()
-
-print("clipping data to shape")
-if "nlcd" in runon:
-    nlcd_clipped = nlcd.rio.clip(ult_aoi.geometry.apply(mapping))
-    #nlcd_gdal = gdal.Open("nlcd_raw/nlcd_full.tif")
-    #nlcd_arr = nlcd_gdal.GetRasterBand(1).ReadAsArray()
-    #plt.imshow(array)
-    #plt.colorbar()
-
-if "srtm" in runon:
-    srtm_clipped = srtm.rio.clip(ult_aoi.geometry.apply(mapping))
-
-print("plotting...")
-if 4 in testplt:
-    if "srtm" in runon:
-        plt.figure()
-        f, ax = plt.subplots(figsize=(9,12))
-        srtm_clipped.plot(ax=ax)
-        ax.set(title="SRTM data clipped to area of interest")
-        ax.set_axis_off()
-        plt.savefig("figures/data/srtm_clipped.png")
-        #plt.show()
-        plt.close()
-        plt.cla()
-    if "nlcd" in runon:
-        plt.figure()
-        f, ax = plt.subplots(figsize=(9, 12))
-        nlcd_clipped.plot(ax=ax)
-        #ult_aoi.plot(ax=ax, alpha=0.8)
-        ax.set(title="NLCD data clipped to area of interest")
-        ax.set_axis_off()
-        plt.savefig("figures/data/nlcd_clipped.png")
-        #plt.show()
-        plt.close()
-"""
-#save files...
-#figure out code to clip srtm to nlcd...?
