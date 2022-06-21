@@ -23,7 +23,7 @@
 ### command line arguments:
 ### raster data path(s)     [comma separated, required]
 ### output data path(s)     [comma separated, required (same number as input paths)]
-### bounding shape path     [required]
+### bounding shape path     [file path, required]
 ### visualize data          [-v "all", "none", or comma separated indices of data]
 ### verbosity               [-q {0, 1, 2}, optional (default 2, verbose)]          
 

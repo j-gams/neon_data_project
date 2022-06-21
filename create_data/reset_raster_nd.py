@@ -12,6 +12,7 @@
 
 ### Usage Example:
 ### python reset_rasted_nd.py ../raw_data/srtm_raw/srtm_clipped.tif 0
+### python check_clip.py ../raw_data/srtm_raw/srtm_clipped.tif ../raw_data/nlcd_raw/nlcd_clipped.tif
 
 import sys
 import rioxarray as rxr
