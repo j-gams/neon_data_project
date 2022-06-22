@@ -1,4 +1,100 @@
-print("importing...")
+### WHAT DOES THIS CODE DO?
+### - 
+
+
+### command line arguments
+### X raster data path(s)       [file path(s), comma separated, required]   [eg srtm, nlcd]
+###                             - raster data to combine into X samples
+### point interpol. data path   [file path(s), comma separated, required]   [eg gedi centroids]
+###                             - shapefile of points with data fields to interpolate to
+###                               spatial data
+### y raster data path          [file path, required]                       [eg ecostress]
+###                             - raster data to use as y value for samples
+###                               X data will be cut to regions the size of y datas pixels
+### y resolution                [int, required]                             [eg 70 for ecos]
+###                             - resolution in meters of y raster data
+### y pixel size                [int, required - res. of output data]       [eg 5]
+###                             - resolution in meters of X samples created in this process
+### create file structure       [T/F, required]
+###                             - create a new dataset, or work in existing file structure
+### file structure name         [file path, required]
+###                             - path to root directory of dataset
+### lo-memory mode              [--lomem or blank (defaults to high memory mode if blank), opt.]
+###                             - whether to be cautious about loading a lot of data into memory
+###                               at once. If in lo-memory mode the program will write relevant
+###                               fields (specified by critical fields argument), if generate coordinates and/or
+###                               generate other data is set to true, to individual
+###                               files so that they can be loaded in individually as np arrays
+###                             - every field containing the same keyword will be written to the
+###                               same file
+###                             - THIS WILL TAKE A LONG TIME but it might be necessary for RAM
+###                             - if gencoords are false but lo-memory mode is true then it will attempt to load
+###                               precomputed individual files
+### generate coordinates        [--gencoords or blank (defaults to false if blank), optional]
+###                             - generate a file with the lat/long to make finding neighbors
+###                               a lot less memory intensive
+### generate other data         [--genetc or blank (defaults to false if blank) optional]
+###                             - generate critical field files
+### override restructuring      [--override or blank (defaults to false if blank), optional]
+###                             - whether to override pre-existing restructured data files
+### critical fields             [-c comma separated field keywords, optional]
+###                             - fields to include in the output samples
+### k closest approximation     [-k int, optional (default 10)]
+### verbosity                   [-q {0, 1, 2}, optional (default 2, verbose)
+
+### Usage Example:
+### python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/WUE_Median_Composite_AOI.tif 70 5 true ../data/data_interpolated --lomem --gencoords --genetc -c cover,pavd,fhd -q 2
+import sys
+init_ok = True
+x_raster_locs = []
+point_shape = []
+y_raster_loc = ""
+y_res = 70
+y_pix = 5
+create_fs = True
+fs_loc = "../data/default"
+lo_mem = True
+gen_coords = False
+gen_etc = False
+override_regen = False
+critical_fields = []
+verbosity = 2
+
+if len(sys.argv < 8):
+    init_ok = False
+else:
+    x_raster_locs = sys.argv[1].split(",")
+    point_shape = sys.argv[2].split(",")
+    y_raster_loc = sys.argv[3]
+    y_res = int(sys.argv[4])
+    y_pix = int(sys.argv[5])
+    if sys.argv[6] == "T" or sys.argv[6] == 't' or sys.argv[6] == "True" or sys.argv[6] == "true":
+        create_fs = True
+    if sys.argv[6] == "F" or sys.argv[6] == 'f' or sys.argv[6] == "False" or sys.argv[6] == "false":
+        create_fs = False
+    fs_loc = sys.argv[7]
+    for i in range(8, len(sys.argv)):
+        if sys.argv[i] == "--lomem":
+            lo_mem = True
+        elif sys.argv[i] == "--gencoords":
+            gen_coords = True
+        elif sys.argv[i] == "--genetc":
+            gen_etc = True
+        elif sys.argv[i] == "--override":
+            override_regen = True
+        elif sys.argv[i] == "-c":
+            critical_fields = sys.argv[i+1].split(",")
+        elif sys.argv[i] == "-q":
+            verbosity = int(sys.argv[i+1])
+if not init_ok:
+    sys.exit("missing or incorrect command line arguments")
+imgsize = y_res // y_pix
+
+def qprint(instr, power):
+    if power <= verbosity:
+        print(instr)
+
+qprint("importing packages", 2)
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -14,58 +110,173 @@ from osgeo import ogr
 import shapefile
 from longsgis import voronoiDiagram4plg
 
-#conda activate code_match; cd work/earthlab/munge_data/; python match_create_set.py
+qprint("done importing packages", 2)
 
-### whether to create new data file structure (if one does not exist) and what to name it
-create_fs = True
-fs_name = "data_nn_gedi"
-
-### reformat data to avoid mega ram issues...
-### whether to reformat gedi coordinate data
-gencoords = False
-### whether to reformat other gedi data
-genelse = False
-### keywords -- reformat these fields
-regen = ["cover"]
-print("generating coordinates: " + str(gencoords))
-print("generating other fields: " + str(genelse))
+found_coord = False
+found_etc = [False for i in range(len(critical_fields))]
+### REFACTORED CODE
+if lo_mem:
+    if gen_coords:
+        qprint("generating restructured coordinate file", 2)
+    else:
+        qprint("not restructuring coordinates", 2)
+    if gen_etc:
+        qprint("generating restructured files for critical fields", 2)
+    else:
+        qprint("not restructuring data fields", 2)
 if create_fs:
-    print("checking for data file structure")
-    if not os.path.isdir(fs_name):
-        print("creating data file structure")
-        os.mkdir(fs_name)
-        os.mkdir(fs_name + "/datasrc")
-        os.mkdir(fs_name + "/datasrc/x_img")
-        os.mkdir(fs_name + "/gedi_reformat")
-    if gencoords:
-        os.system("rm " + fs_name + "/gedi_reformat/gedi_coords.txt")
-        os.system("touch " + fs_name + "/gedi_reformat/gedi_coords.txt")
-    if genelse:
-        for elt in regen:
-            os.system("rm " + fs_name + "/gedi_reformat/gedi_" + elt + ".txt")
-            os.system("touch " + fs_name + "/gedi_reformat/gedi_" + elt + "cover"".txt")
+    qprint("checking for existing data file structure", 2)
+    if not os.path.isdir(fs_loc):
+        qprint("creating data file structure", 2)
+        os.mkdir(fs_loc)
+        os.mkdir(fs_loc + "/datasrc")
+        os.mkdir(fs_loc + "/datasrc/x_img")
+        os.mkdir(fs_loc + "/point_reformat")
+        os.mkdir(fs_loc + "/meta")
+    else:
+        qprint("file structure already exists, skipping", 2)
+    if lo_mem:
+        if gen_coords:
+            if override_regen:
+                qprint("forcibly creating file for reformatted coordinate data", 2)
+                os.system("rm " + fs_loc + "/point_reformat/geo_coords.txt")
+                os.system("touch " + fs_loc + "/point_reformat/geo_coords.txt")
+            elif not os.path.exists(fs_loc + "/point_reformat/geo_coords.txt"):
+                qprint("no file detected, creating file for reformatted coordinate data", 2)
+                os.system("touch " + fs_loc + "/point_reformat/geo_coords.txt")
+            else:
+                qprint("reformatted coordinate file detected, skipping.")
+                found_coord = True
+        if gen_etc:
+            for i in range(len(critical_fields)):
+                if override_regen:
+                    qprint("forcibly creating file for reformatted " + critical_fields[i] + " data", 2)
+                    os.system("rm " + fs_loc + "/point_reformat/pt_" + critical_fields[i] + ".txt")
+                    os.system("touch " + fs_loc + "/point_reformat/pt_" + critical_fields[i] + ".txt")
+                elif not os.path.exists(fs_loc + "/point_reformat/pt_" + critical_fields[i] + ".txt"):
+                    qprint("no file detected, creating file for reformatted " + critical_fields[i] + " data", 2)
+                    os.system("touch " + fs_loc + "/point_reformat/pt_" + critical_fields[i] + ".txt")
+                else:
+                    qprint("reformatted " + critical_fields[i] + " file detected, skipping.", 2)
+                    found_etc[i] = True
+
     test_img_ = np.zeros((3, 4))
-    #arrReshaped = test_img_.reshape(test_img_.shape[0], -1) #see bookmarked page on how to invert this
+    # arrReshaped = test_img_.reshape(test_img_.shape[0], -1) #see bookmarked page on how to invert this
     np.savetxt(fs_name + "/datasrc/x_img/x_test.csv", test_img_, delimiter=",", newline="\n")
 
-print("done importing packages")
-#objective: resample srtm, nlcd to 70x70 for each pixel in ECOSTRESS
-print("loading ecostress data...")
-#ecos = rxr.open_rasterio("ecostress_WUE/WUE_Median_Composite_AOI.tif", masked=True).squeeze()
-ecos_g = gdal.Open("ecostress_WUE/WUE_Median_Composite_AOI.tif")
-print("loading nlcd data...")
-#nlcd = rxr.open_rasterio("nlcd_raw/clipped_nlcd.tif", masked=True).squeeze()
-nlcd_g = gdal.Open("nlcd_raw/clipped_nlcd.tif")
-print("loading srtm data...")
-#srtm = rxr.open_rasterio("srtm_raw/combined.tif", masked=True).squeeze()
-srtm_g = gdal.Open("srtm_raw/combined.tif")
+### load x raster
+xraster = []
+layernames = []
+ndv_vals = []
+xr_rsize = []
+xr_params = []
+xr_npar = []
 
-#resolution of ecostress data
-#resolution of pixels in data
-target_res = 70
-xpixel_res = 5
-imgsize = target_res // xpixel_res
-#img input size is a target_res / xpixel_res square
+qprint("loading raster data", 1)
+for loc in x_raster_locs:
+    tdataname = loc.split("/")[-1]
+    qprint("loading " + tdataname + " data...", 2)
+    xraster.append(gdal.Open(loc))
+    layernames.append(tdataname)
+
+    tdata_rband = xraster[-1].GetRasterBand(1)
+    ndv_vals.append(tdata_rband.GetNoDataValue())
+    xr_rsize.append((xraster[-1].RasterXSize, xraster[-1].RasterYSize))
+    tulh, tpxh, _, tulv, _, tpxv = xraster[-1].GetGeoTransform()
+    tpxv = abs(tpxv)
+    ###print crs info
+    xr_params.append((tulh, tulv, tpxh, tpxv))
+    xr_npar.append(xraster[-1].ReadAsArray().transpose())
+
+### load y raster
+tyname = y_raster_loc.split("/")[-1]
+qprint("loading " + tyname + " data...", 2)
+yraster = gdal.Open(y_raster_loc)
+yrband = yraster.GetRasterBand(1)
+yndv = yrband.GetNoDataValue()
+yrsize = (yraster.RasterXSize, yraster.RasterYSize)
+yulh, ypxh, _, yulv, _, ypxv =yraster.GetGeoTransform()
+ypxv = abs(ypxv)
+### print crs info
+y_npar = yraster.ReadAsArray.transpose()
+
+
+xpoints = []
+ptlayers = []
+ptindexer = {}
+grecs = []
+qprint("loading shape-point data", 1)
+for pt in point_shape:
+    tdataname = pt.split("/")[-1]
+    qprint("loading " + tdataname + " data...", 2)
+    xpoints.append(shapefile.Reader(pt))
+    qprint("loading " + tdataname + " records...", 2)
+    grecs.append(xpoints[-1].shapeRecords())
+
+    for i in range(len(critical_fields)):
+        ptl_idx = 0
+        for j in range(len(xpoints[-1].fields)):
+            if critical_fields[i] in xpoints[-1].fields[j][0]:
+                ### given the layer (key) provides the ptfile #, critical field #, field index within that shape,
+                ### and id within the np array (if exists)
+                ptindexer[len(ptlayers)] = (len(xpoints) -1, i, j, ptl_idx)
+                ptlayers.append(critical_fields[i] + "_" + str(ptl_idx))
+                ptl_idx += 1
+
+
+    if lo_mem:
+        if gen_coords and not found_coord:
+            qprint("reformatting shapefile coordinates. This could take a while...", 1)
+            if verbosity > 0:
+                print("progress 0/50 ", end="", flush=True)
+            progress = 0
+            for i in range(len(grecs[-1])):
+                progress += 1
+                if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
+                    print("-", end="", flush=True)
+                a, b = grecs[-1][i].records[3], grecs[-1][i].record[2]
+                os.system('echo "' + str(a) + ',' + str(b) + '\n" >> ' + fs_loc + '/point_reformat/pt_coords.txt')
+
+            qprint("---> 50/50 (done)", 1)
+
+        for i in range(len(critical_fields)):
+            if gen_etc and not found_etc[i]:
+                qprint("reformatting critical field " + critical_fields[i] + ". This could take a while...", 1)
+                if verbosity > 0:
+                    print("progress 0/50 ", end="", flush=True)
+                progress = 0
+                for j in range(len(grecs[-1])):
+                    progress += 1
+                    if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
+                        print("-", end="", flush=True)
+                    dumpstr = ""
+                    for k in range(len(xpoints[-1].fields)):
+                        if critical_fields[i] in xpoints[-1].fields[k][0]:
+                            dumpstr += str(grecs[-1][j].record[k]) + ","
+                    os.system('echo "' + dumpstr[:-1] + ';" >> ' + fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt')
+                print("---> ")
+                print("done reformatting " + critical_fields[i] + " data")
+        del xpoints[-1]
+        del grecs[-1]
+
+### now try to load the data back in
+if lo_mem:
+    ### clear hi-mem data (moved to above)
+
+    ### load data from file
+    crit_npar = []
+    for i in range(len(critical_fields)):
+        ##load in
+        crit_npar.append(np.genfromtxt( + '/point_reformat/pt_' + critical_fields[i] + '_coords.txt', delimiter=','))
+
+### now we have all the data loaded in?
+
+def getter(layer, index):
+    if lo_mem:
+        ### use crit_npar
+        return crit_npar[ptindexer[layer][1]][index, ptindexer[layer][3]]
+    else:
+        return grecs[ptindexer[layer][0]][index].record[ptindexer[layer][2]]
 
 # in geotif, raster data stored from upper left pixel coordinates, pixel width, and rotation.
 # so we can get value at coordinate (x,y) from looking at pixel at
@@ -96,6 +307,7 @@ def idx_pixctr(ix, iy, ulh, ulv, psh, psv, mode='ul'):
 def cdist(x1, y1, x2, y2):
     return (x1 - x2) ** 2 + (y1 - y2) ** 2
 
+### stupid k nearest
 def getkclose(shapes, centerx, centery, k, ulh, ulv, psh, psv):
     distlist = []
     ids = []
@@ -109,11 +321,41 @@ def getkclose(shapes, centerx, centery, k, ulh, ulv, psh, psv):
     ids = [id for _, id in sorted(zip(distlist, ids), key=lambda pair:pair[0])]
     return ids[:k]
 
-print("loading GEDI data...")
-gedi_pts = shapefile.Reader("GEDI_2B_clean/GEDI_2B_clean.shp")
-#gedi_g = ogr.Open("GEDI_2B_clean/GEDI_2B_clean.shp")
-print("loading GEDI records...")
-grecs = gedi_pts.shapeRecords()
+### ok now actually build the data
+pr_unit = (yrsize[0] * yrsize[1]) // 50
+qprint("each step represents " + int(pr_unit) + " samples generated")
+progress = 0
+nsuccess = 0
+database = []
+channels = len(xr_npar) + len(ptlayers)
+if verbosity > 0:
+    print("progress 0/50 ", end="", flush=True)
+for i in range(yrsize[0]):
+    for j in range(yrsize[1]):
+        progress += 1
+        if verbosity > 0 and progress % pr_unit == 0:
+            print("-", end="", flush=True)
+        if y_npar[i, j] != yndv:
+            x_img = np.zeros((channels, imgsize, imgsize))
+            database.append([nsuccess, y_npar[i, j]])
+            for k in range(len(xr_npar)):# in xr_npar:
+                for si in range(imgsize):
+                    for sj in range(imgsize):
+                        sxoffset = (2 * si + 1) / (2 * imgsize)
+                        syoffset = (2 * sj + 1) / (2 * imgsize)
+                        # convert index to coordinates with y raster crs
+                        # then convert back to index with x raster crs
+                        tempx, tempy = idx_pixctr(i+sxoffset, j+syoffset, xr_params[k][0], xr_params[k][1],
+                                                  xr_params[k][2], xr_params[k][3], mode='cst')
+                        tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
+                                                  xr_params[k][2], xr_params[k][3])
+
+                        # x_img[si, sj, 0] = srtm_npar[srtm_i, srtm_j]
+                        x_img[0, si, sj] = xr_npar[k][tempi, tempj]
+            for m in range(len(ptlayers)):
+
+
+### TODO NOT REFACTORED YET
 
 print("reformatting grecs...?")
 if gencoords:
@@ -121,7 +363,7 @@ if gencoords:
     progress = 0
     for i in range(len(grecs)):
         progress += 1
-        if progress % (len(grecs) // 100) == 0:
+        if progress % (len(grecs) // 50) == 0:
             print("-", end="", flush=True)
         a, b = grecs[i].record[3], grecs[i].record[2]
         os.system('echo "' + str(a) + ',' + str(b) + '\n" >> ' + fs_name + '/gedi_reformat/gedi_coords.txt')
@@ -134,14 +376,17 @@ if genelse:
         print("reformatting " + elt + " data")
         for i in range(len(grecs)):
             progress += 1
-            if progress % (len(grecs) // 100) == 0:
+            if progress % (len(grecs) // 50) == 0:
                 print("-", end="", flush=True)
+            dumpstr = ""
             for j in range(len(gedi_pts.fields)):
                 if elt in gedi_pts.fields[j][0]:
-                    os.system('echo "' + str(grecs[i].record[j]) + ';" >> ' + fs_name + '/gedi_reformat/gedi_' + elt + '.txt')
+                    dumpstr += str(grecs[i].record[j]) + ","
+            os.system('echo "' + dumpstr[:-1] + ';" >> ' + fs_name + '/gedi_reformat/gedi_' + elt + '.txt')
         print("---> ")
         print("done reformatting " + elt + " data")
 
+sys.exit("wank")
 print("done reformatting grecs.")
 print("loading gedi coords...")
 del grecs
@@ -237,7 +482,7 @@ gedi_mode = ["voronoi", "nn"]
 if "voronoi" in gedi_mode:
     print("loading points in geopandas")
     #need to load with geopandas...
-    gedi_bup = gpd.read_file("GEDI_2B_clean/GEDI_2B_clean.shp")\
+    gedi_bup = gpd.read_file("GEDI_2B_clean/GEDI_2B_clean.shp")
     bdry_wrap = shapefile.Writer("tpath")
     bdry_wrap.poly()
 
@@ -299,7 +544,7 @@ for i in range(ecos_rsize[0]):
                     #get value of nearest elt
                     # x_img[si, sj, 1] = nlcd_npar[nlcd_i, nlcd_j]
                     x_img[2, si, sj] = minpt #TEMPORARY#nlcd_npar[nlcd_i, nlcd_j]
-        if "voronoi" in gedi_mode:
+        #if "voronoi" in gedi_mode:
 
 
         #plot image

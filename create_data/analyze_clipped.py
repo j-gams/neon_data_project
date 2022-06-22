@@ -38,7 +38,7 @@
 ### could probably combine everything to only have to deal with gdal instead of gdal and rxr
 
 ### Usage Example:
-### python analyze_clipped.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/ecos_wue/WUE_Median_Composite_AOI.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp -f 0 -t 200
+### python analyze_clipped.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/ecos_wue/WUE_Median_Composite_AOI.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp -f 0 -t 200 -q 2
 
 ### parse command line arguments
 import sys
@@ -148,9 +148,9 @@ for i in range(len(raster_locs)):
         gdata_rsize = (gdata.RasterXSize, gdata.RasterYSize)
         ulh, pxh, _, ulv, _, pxv = gdata.GetGeoTransform()
         pxv = abs(pxv)
-        qprint(tdataname + " crs information", 2)
-        qprint("crs parameters: " + str(ulh) + " " + str(ulv) + " " + str(pxh) + " " + str(pxv), 2)
-        qprint("raster size: " + str(gdata_rsize), 2)
+        qprint(tdataname + " crs information:", 2)
+        qprint("- crs parameters: " + str(ulh) + " " + str(ulv) + " " + str(pxh) + " " + str(pxv), 2)
+        qprint("- raster size: " + str(gdata_rsize), 2)
         gdata_npar = gdata.ReadAsArray().transpose()
 
     ### get the number of points of interest to look at
@@ -217,6 +217,7 @@ for i in range(len(raster_locs)):
     qprint("---> 50/50 (done)", 1)
 
     ### make basic graph
+    qprint("creating histogram of raster values at points of interest", 2)
     plt.figure()
     plt.hist(values_of_interest)
     plt.title(tdataname + " Values at Points of Interest")
@@ -228,18 +229,13 @@ for i in range(len(raster_locs)):
     ### find most meaningful filter index of largest value of first 4 filters
     ### combination of the last 2 are designed to find flat areas
     if i in filter_on:
-        max_abs = np.argmax(np.abs(np_voi), axis=1)
-        #ma_sign = np.zeros(len(max_abs))
+        max_abs = np.argmax(np.abs(np_voi), axis=1) + 1
         total_dir = np.zeros(cut)
         for i in range(cut):
-            if np_voi[i, max_abs[i]] != 0:
-                total_dir[i] = max_abs[i] * (np_voi[i,max_abs[i]]/abs(np_voi[i,max_abs[i]])) 
-        #ma_sign = np_voi[:, max_abs]/np.abs(np_voi[:, max_abs])
-        #print(max_abs.shape)
-        #print(ma_sign.shape
-        #print(total_dir.shape)
-        #total_dir = ma_sign * max_abs
-
+            if np_voi[i, max_abs[i]-1] != 0:
+                total_dir[i] = max_abs[i] * (np_voi[i,max_abs[i]-1]/abs(np_voi[i,max_abs[i]-1]))
+        
+        qprint("creating histogram of max aspect data", 2)
         plt.figure()
         plt.hist(total_dir)
         plt.title(tdataname + " Aspect")
@@ -247,9 +243,10 @@ for i in range(len(raster_locs)):
         plt.show()
         plt.cla()
         plt.close()
-
+        
+        qprint("creating histogram of flatness data", 2)
         plt.figure()
-        plt.hist(flat_filter)
+        plt.hist(flat_filter, bins = 100)
         plt.title(tdataname + " Flatness")
         plt.savefig("../figures/gedi_distributions/flatness_" + tdataname.split(".")[0] + ".png")
         plt.show()
@@ -266,6 +263,7 @@ for i in range(len(raster_locs)):
         del gdata_npar
         del np_voi
         del flat_filter
+qprint("all done", 1)
 
 """
 #load files
