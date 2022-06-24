@@ -20,7 +20,17 @@ from geovoronoi import voronoi_regions_from_coords, points_to_coords
 
 #conda activate code_match; cd work/earthlab/munge_data/; python test_vnoi.py
 
-ecos_g = gdal.Open("ecostress_WUE/WUE_Median_Composite_AOI.tif")
+def idx_pixctr(ix, iy, ulh, ulv, psh, psv, mode='ul'):
+    offsetx = 0
+    offsety = 0
+    if mode=='ctr':
+        offsetx = psh/2
+        offsety = psv/2
+    cx = ulh + (ix * psh) + offsetx
+    cy = ulv - (iy * psv) + offsety
+    return cx, cy
+
+ecos_g = gdal.Open("../raw_data/ecos_wue/WUE_Median_Composite_AOI.tif")
 print("loading ecostress data...")
 #ecos_rband = ecos_g.GetRasterBand(1)
 ecos_ndv = -9999#ecos_rband.GetNoDataValue()
@@ -45,45 +55,34 @@ for i in range(ecos_rsize[0]):
          if ecos_npar[i, j] != ecos_ndv:
              ##read in points within bounding box...?
              print("loading points subject to bound")
-             bblats = [- (4 * v_spac), (5 * v_spac), (5 * v_spac), - (4 * v_spac)]
-             bblons = [(4*h_spac), (4*h_spac), (5*h_spac), (5*h_spac)]
-             #bblats = [UL_v - (4*v_spac), UL_v + (5*v_spac), UL_v + (5*v_spac), UL_v - (4*v_spac)]
-             #bblons = [UL_h - (4*h_spac), UL_h - (4*h_spac), UL_h + (5*h_spac), UL_h + (5*h_spac)]
+             midlon, midlat = idx_pixctr(i, j, UL_h, UL_v, h_spac, v_spac)
+             bblats = [-(4 * v_spac) + midlat, (5 * v_spac) + midlat, (5 * v_spac) + midlat, -(4 * v_spac) + midlat]
+             bblons = [(4*h_spac) + midlon, (4*h_spac) + midlon, (5*h_spac) + midlon, (5*h_spac) + midlon]
+
              tbbox = Polygon(zip(bblons, bblats))
              pixbbox = gpd.GeoDataFrame(index=[0], crs=crs, geometry=[tbbox])
-             fig, ax = plt.subplots(figsize=(12, 10))
-             pixbbox.plot(ax=ax, color="gray")
-             plt.show()
-             gedi_bup = gpd.read_file("GEDI_2B_clean/GEDI_2B_clean.shp", bbox = tbbox)
-             if gedi_bup.shape[0] > 0:
+             print(pixbbox.geometry)
+
+             gedi_bup = gpd.read_file("../raw_data/gedi_pts/GEDI_2B_clean.shp", bbox = tbbox)
+             if gedi_bup.shape[0] > 1:
                  print(gedi_bup.geometry[0].x, gedi_bup.geometry[0].y)
              else:
+                 print("got nothin")
                  continue
-             print(gedi_bup.shape[0])
-             #print(gedi_bup.geometry)
-             #print(dir(gedi_bup.geometry))
-             #for k in range(gedi_bup.shape[0]):
-             #    good = True
-             #    if gedi_bup.geometry[k].x <= UL_h - (4 * h_spac) or gedi_bup.geometry[k].x = > UL_h + (5 * h_spac):
-             ##        # no good
-             #        good = False
-             #    if gedi_bup.geometry[k].y <= UL_v - (4 * v_spac) or gedi_bup.geometry[k].y = > UL_v + (5 * v_spac):
-             #        good = False
-
-             #gedi_bup = gedi_bup.iloc[[2, 3]]
-             print("done")
-             tlats = [UL_v, UL_v + v_spac, UL_v + v_spac, UL_v]
-             tlons = [UL_h, UL_h, UL_h + h_spac, UL_h + h_spac]
-             poly = Polygon(zip(tlons, tlats))
-
-             pixpoly = gpd.GeoDataFrame(index=[0], crs=crs, geometry=[poly])
              print("making voronoi diagram")
-             #print(list(gedi_bup.columns))
-             #print(list(pixpoly.columns))
-             #print(type(pixpoly.geometry))
+
+             fig, ax = plt.subplots(figsize=(12, 10))
+             pixbbox.plot(ax=ax, color="gray")
+             gedi_bup.plot(ax=ax, markersize=3.5,color="black")
+             plt.show()
+             print("CRS", gedi_bup.crs)
+             pixbbox=pixbbox.to_crs(epsg=4326)
+             gdf_proj = gedi_bup.to_crs(pixbbox.crs)
+
+             pbb_shape = cascaded_union(pixbbox.geometry)
              """"""
-             gdf_coords = points_to_coords(gedi_bup.geometry)
-             poly_shapes, pts, poly_to_pt_assignments = voronoi_regions_from_coords(gdf_coords, cascaded_union(pixbbox.geometry))
+             gdf_coords = points_to_coords(gdf_proj.geometry)
+             poly_shapes, pts, poly_to_pt_assignments = voronoi_regions_from_coords(gdf_coords, pbb_shape)
              #try plotting
              fig, ax = subplot_for_map()
              plot_voronoi_polys_with_points_in_area(ax, boundary_shapes, poly_shapes, pts, poly_to_pt_assignments)

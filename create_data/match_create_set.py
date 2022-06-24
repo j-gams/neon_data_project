@@ -40,10 +40,11 @@
 ### critical fields             [-c comma separated field keywords, optional]
 ###                             - fields to include in the output samples
 ### k closest approximation     [-k int, optional (default 10)]
+### test mode                   [-t int, optional]
 ### verbosity                   [-q {0, 1, 2}, optional (default 2, verbose)
 
 ### Usage Example:
-### python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/WUE_Median_Composite_AOI.tif 70 5 true ../data/data_interpolated --lomem --gencoords --genetc -c cover,pavd,fhd -q 2
+### python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/WUE_Median_Composite_AOI.tif 70 5 true ../data/data_interpolated --lomem --gencoords --override --genetc -c cover,pavd,fhd -q 2
 import sys
 init_ok = True
 x_raster_locs = []
@@ -59,8 +60,10 @@ gen_etc = False
 override_regen = False
 critical_fields = []
 verbosity = 2
+k_approx = 10
+testmode = -1
 
-if len(sys.argv < 8):
+if len(sys.argv) < 8:
     init_ok = False
 else:
     x_raster_locs = sys.argv[1].split(",")
@@ -86,6 +89,10 @@ else:
             critical_fields = sys.argv[i+1].split(",")
         elif sys.argv[i] == "-q":
             verbosity = int(sys.argv[i+1])
+        elif sys.argv[i] == "-k":
+            k_approx = int(sys.argv[i + 1])
+        elif sys.argv[i] == "-t":
+             testmode = int(sys.argv[i + 1])
 if not init_ok:
     sys.exit("missing or incorrect command line arguments")
 imgsize = y_res // y_pix
@@ -99,6 +106,7 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import pandas as pd
 from shapely.geometry import mapping
 import rioxarray as rxr
 import xarray as xr
@@ -109,6 +117,8 @@ from osgeo import gdal
 from osgeo import ogr
 import shapefile
 from longsgis import voronoiDiagram4plg
+
+from rfdata_loader import rfloader, piloader
 
 qprint("done importing packages", 2)
 
@@ -145,7 +155,7 @@ if create_fs:
                 qprint("no file detected, creating file for reformatted coordinate data", 2)
                 os.system("touch " + fs_loc + "/point_reformat/geo_coords.txt")
             else:
-                qprint("reformatted coordinate file detected, skipping.")
+                qprint("reformatted coordinate file detected, skipping.", 2)
                 found_coord = True
         if gen_etc:
             for i in range(len(critical_fields)):
@@ -162,7 +172,7 @@ if create_fs:
 
     test_img_ = np.zeros((3, 4))
     # arrReshaped = test_img_.reshape(test_img_.shape[0], -1) #see bookmarked page on how to invert this
-    np.savetxt(fs_name + "/datasrc/x_img/x_test.csv", test_img_, delimiter=",", newline="\n")
+    np.savetxt(fs_loc + "/datasrc/x_img/x_test.csv", test_img_, delimiter=",", newline="\n")
 
 ### load x raster
 xraster = []
@@ -194,11 +204,14 @@ qprint("loading " + tyname + " data...", 2)
 yraster = gdal.Open(y_raster_loc)
 yrband = yraster.GetRasterBand(1)
 yndv = yrband.GetNoDataValue()
+print("no data value", yndv)
 yrsize = (yraster.RasterXSize, yraster.RasterYSize)
+qprint("y raster dimensions: " + str(yrsize), 2)
 yulh, ypxh, _, yulv, _, ypxv =yraster.GetGeoTransform()
 ypxv = abs(ypxv)
 ### print crs info
-y_npar = yraster.ReadAsArray.transpose()
+print(yulh, yulv, ypxh, ypxv)
+y_npar = yraster.ReadAsArray().transpose()
 
 
 xpoints = []
@@ -207,22 +220,33 @@ ptindexer = {}
 grecs = []
 qprint("loading shape-point data", 1)
 for pt in point_shape:
-    tdataname = pt.split("/")[-1]
-    qprint("loading " + tdataname + " data...", 2)
-    xpoints.append(shapefile.Reader(pt))
-    qprint("loading " + tdataname + " records...", 2)
-    grecs.append(xpoints[-1].shapeRecords())
+    if not lo_mem or (gen_coords or gen_etc): #or True:
+        tdataname = pt.split("/")[-1]
+        qprint("loading " + tdataname + " data...", 2)
+        xpoints.append(shapefile.Reader(pt))
+        qprint("loading " + tdataname + " records...", 2)
+        grecs.append(xpoints[-1].shapeRecords())
 
-    for i in range(len(critical_fields)):
-        ptl_idx = 0
-        for j in range(len(xpoints[-1].fields)):
-            if critical_fields[i] in xpoints[-1].fields[j][0]:
-                ### given the layer (key) provides the ptfile #, critical field #, field index within that shape,
-                ### and id within the np array (if exists)
-                ptindexer[len(ptlayers)] = (len(xpoints) -1, i, j, ptl_idx)
-                ptlayers.append(critical_fields[i] + "_" + str(ptl_idx))
-                ptl_idx += 1
+        ### TODO - STORE PTLAYERS, PTINDEXER to avoid this every damn time
+        for i in range(len(critical_fields)):
+            ptl_idx = 0
+            for j in range(len(xpoints[-1].fields)):
+                if critical_fields[i] in xpoints[-1].fields[j][0]:
+                    ### given the layer (key) provides the ptfile #, critical field #, field index within that shape,
+                    ### and id within the np array (if exists)
+                    ptindexer[len(ptlayers)] = (len(xpoints) -1, i, j, ptl_idx)
+                    ptlayers.append(critical_fields[i] + "_" + str(ptl_idx))
+                    ptl_idx += 1
 
+        ### save
+        print("writing point indexer file")
+        if os.path.exists(fs_loc + "/point_reformat/pt_indexer_util.txt"):
+            os.system("rm " + fs_loc + "/point_reformat/pt_indexer_util.txt")
+        for lkey in ptindexer.keys():
+            lkstr = ""
+            for elt in ptindexer[lkey]:
+                lkstr += str(elt) + ","
+            os.system('echo "' + str(lkey) + ':' + lkstr[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_indexer_util.txt')
 
     if lo_mem:
         if gen_coords and not found_coord:
@@ -230,12 +254,13 @@ for pt in point_shape:
             if verbosity > 0:
                 print("progress 0/50 ", end="", flush=True)
             progress = 0
+            os.system('echo "lon,lat" >> ' + fs_loc + '/point_reformat/geo_coords.txt')
             for i in range(len(grecs[-1])):
                 progress += 1
                 if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
                     print("-", end="", flush=True)
-                a, b = grecs[-1][i].records[3], grecs[-1][i].record[2]
-                os.system('echo "' + str(a) + ',' + str(b) + '\n" >> ' + fs_loc + '/point_reformat/pt_coords.txt')
+                a, b = grecs[-1][i].record[3], grecs[-1][i].record[2]
+                os.system('echo "' + str(a) + ',' + str(b) + '" >> ' + fs_loc + '/point_reformat/geo_coords.txt')
 
             qprint("---> 50/50 (done)", 1)
 
@@ -245,33 +270,84 @@ for pt in point_shape:
                 if verbosity > 0:
                     print("progress 0/50 ", end="", flush=True)
                 progress = 0
+                ### build list of field indices, names:
+                fields_ids = []
+                fields_names = ""
+                for k in range(len(xpoints[-1].fields)):
+                    if critical_fields[i] in xpoints[-1].fields[k][0]:
+                        fields_ids.append(k)
+                        fields_names += xpoints[-1].fields[k][0] + ","
+                ### header
+                os.system('echo "' + fields_names[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt')
                 for j in range(len(grecs[-1])):
                     progress += 1
                     if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
                         print("-", end="", flush=True)
                     dumpstr = ""
-                    for k in range(len(xpoints[-1].fields)):
+                    for k in fields_ids:
+                    #for k in range(len(xpoints[-1].fields)):
                         if critical_fields[i] in xpoints[-1].fields[k][0]:
                             dumpstr += str(grecs[-1][j].record[k]) + ","
-                    os.system('echo "' + dumpstr[:-1] + ';" >> ' + fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt')
-                print("---> ")
+                    os.system('echo "' + dumpstr[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt')
+                print("---> 50/50 (done)")
                 print("done reformatting " + critical_fields[i] + " data")
-        del xpoints[-1]
-        del grecs[-1]
+        if not lo_mem or (gen_coords or gen_etc):
+            del xpoints[-1]
+            del grecs[-1]
 
+print("layer number audit: ", len(ptlayers))
+
+ptlayers = []
 ### now try to load the data back in
 if lo_mem:
     ### clear hi-mem data (moved to above)
-
+    print("still in lo-memory mode")
+    npcoords, _ = rfloader(fs_loc + '/point_reformat/geo_coords.txt')
+    #npcoords = np.genfromtxt(fs_loc + '/point_reformat/geo_coords.txt', delimiter=',')
+    print(npcoords.shape)
     ### load data from file
+
     crit_npar = []
+    print("nan values:")
+    print(np.count_nonzero(np.isnan(npcoords)))
+
+    ###load ptindexer
+    print("loading ptindexer")
+    ptindexer = piloader(fs_loc + "/point_reformat/pt_indexer_util.txt")
     for i in range(len(critical_fields)):
         ##load in
-        crit_npar.append(np.genfromtxt( + '/point_reformat/pt_' + critical_fields[i] + '_coords.txt', delimiter=','))
+        loaddata, fnames = rfloader(fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt')
+        #crit_npar.append(rfloader(fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt'))
+        crit_npar.append(loaddata)
+        ptlayers += fnames
+        del loaddata
 
+        #crit_npar.append(np.genfromtxt(fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt', delimiter=','))
+        print(crit_npar[-1].shape)
+        if crit_npar[-1].ndim < 2:
+            print("reshaping")
+            cnpdim = len(crit_npar[-1])
+            print(cnpdim)
+            crit_npar[-1] = np.reshape(crit_npar[-1], (-1, 1))
+            print(crit_npar[-1].shape)
+            print("np.unique", len(np.unique(crit_npar[-1])))
+        print("nan values:")
+        print(np.count_nonzero(np.isnan(crit_npar[-1])))
+    print("layer number audit: ", len(ptlayers))
 ### now we have all the data loaded in?
+def cgetter(index, xy):
+    if lo_mem:
+        return npcoords[index, xy]
+    else:
+        return grecs[0][index].record[3-xy]
+def clen():
+    if lo_mem:
+        return npcoords.shape[0]
+    else:
+        return len(grecs[0])
 
-def getter(layer, index):
+def pgetter(layer, index):
+    #print(layer)
     if lo_mem:
         ### use crit_npar
         return crit_npar[ptindexer[layer][1]][index, ptindexer[layer][3]]
@@ -321,13 +397,67 @@ def getkclose(shapes, centerx, centery, k, ulh, ulv, psh, psv):
     ids = [id for _, id in sorted(zip(distlist, ids), key=lambda pair:pair[0])]
     return ids[:k]
 
+maxringsize = 0
+avgringsize = 0
+
+### hash all of the gedi footprints! (this could take a while lmao -- rip ram
+print("doing the hash thing")
+### create it with a buffer
+ygrid_pt_hash = np.zeros((yrsize[0] + 2, yrsize[1] + 2), dtype='object')
+for i in range(ygrid_pt_hash.shape[0]):
+    for j in range(ygrid_pt_hash.shape[1]):
+        ygrid_pt_hash[i, j] = []
+#ygrid_pt_hash = [list([list([]) for ii in range(yrsize[1] + 2)]) for jj in range(yrsize[0] + 2)]
+#ygrid_pt_hash[0][0].append(5)
+pstep = clen() // 50
+print(clen())
+for i in range(clen()):
+    ### get coordinates
+    if i % pstep == 0:
+        print("-", end="", flush=True)
+    xi, yi = coords_idx(cgetter(i, 0), cgetter(i, 1), yulh, yulv, ypxh, ypxv)
+    if xi < 0 or yi < 0 or xi > yrsize[0] or yi > yrsize[1]:
+        print(i)
+        print(cgetter(i, 0), cgetter(i, 1))
+        print(xi, yi)
+    ygrid_pt_hash[xi+1, yi+1].append(i)
+print("done doing the hash thing")
+#print(ygrid_pt_hash[1000:1010, 1000:1010])
+"""for i in range(ygrid_pt_hash.shape[0]):
+    for j in range(ygrid_pt_hash.shape[1]):
+        if ygrid_pt_hash[i, j] != []:
+            print(ygrid_pt_hash[i:i+10, j:j+10])"""
+
+def krings(x_in, y_in, min_k):
+    ring_size = 0
+    found_list = []
+    while(len(found_list) < min_k):
+        i_boundaries = [max(-1, x_in-ring_size), min(yrsize[0]+1, x_in+ring_size+1)]
+        j_boundaries = [max(-1, y_in-ring_size), min(yrsize[1]+1, y_in+ring_size+1)]
+        #print(i_boundaries, j_boundaries, x_in, y_in)
+        for i in range(i_boundaries[0], i_boundaries[1]):
+            for j in range(j_boundaries[0], j_boundaries[1]):
+                if i == i_boundaries[0] or i + 1 == i_boundaries[1] or j == j_boundaries[0] or j + 1 == j_boundaries[1]:
+                    for k in ygrid_pt_hash[i+1, j+1]:
+                    #if i in i_boundaries or j in j_boundaries or i+1 in i_boundaries or j+1 in j_boundaries:
+                        found_list.append(k)
+                        #print("got one")
+        #print(ring_size)
+        ring_size += 1
+    return found_list, ring_size
+
 ### ok now actually build the data
+#if testmode > 0:
+#    pr_unit = testmode // 50
+#else:
 pr_unit = (yrsize[0] * yrsize[1]) // 50
-qprint("each step represents " + int(pr_unit) + " samples generated")
+qprint("each step represents " + str(pr_unit) + " samples generated", 1)
 progress = 0
 nsuccess = 0
 database = []
-channels = len(xr_npar) + len(ptlayers)
+channels = len(xr_npar) + len(ptlayers) + 2
+pd_colnames = ["filename", "y_value", "file_index", "yraster_x", "yraster_y", "avg_mid_dist"]
+landmark_x, landmark_y = coords_idx(-104.876653,41.139535, yulh, yulv, ypxh, ypxv)
 if verbosity > 0:
     print("progress 0/50 ", end="", flush=True)
 for i in range(yrsize[0]):
@@ -337,7 +467,6 @@ for i in range(yrsize[0]):
             print("-", end="", flush=True)
         if y_npar[i, j] != yndv:
             x_img = np.zeros((channels, imgsize, imgsize))
-            database.append([nsuccess, y_npar[i, j]])
             for k in range(len(xr_npar)):# in xr_npar:
                 for si in range(imgsize):
                     for sj in range(imgsize):
@@ -345,16 +474,65 @@ for i in range(yrsize[0]):
                         syoffset = (2 * sj + 1) / (2 * imgsize)
                         # convert index to coordinates with y raster crs
                         # then convert back to index with x raster crs
-                        tempx, tempy = idx_pixctr(i+sxoffset, j+syoffset, xr_params[k][0], xr_params[k][1],
-                                                  xr_params[k][2], xr_params[k][3], mode='cst')
+                        tempx, tempy = idx_pixctr(i+sxoffset, j+syoffset, yulh, yulv,
+                                                  ypxh, ypxv, mode='ul')
                         tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
                                                   xr_params[k][2], xr_params[k][3])
 
                         # x_img[si, sj, 0] = srtm_npar[srtm_i, srtm_j]
-                        x_img[0, si, sj] = xr_npar[k][tempi, tempj]
-            for m in range(len(ptlayers)):
+                        x_img[k, si, sj] = xr_npar[k][tempi, tempj]
+
+            k_ids, rings = krings(i, j, k_approx)
+            avgringsize += rings
+            if rings > maxringsize:
+                maxringsize = rings
+
+            for si in range(imgsize):
+                for sj in range(imgsize):
+                    sxoffset = (2 * si + 1) / (2 * imgsize)
+                    syoffset = (2 * sj + 1) / (2 * imgsize)
+                    tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv,
+                                              ypxh, ypxv, mode='ul')
+                    # find kn_id pt closest to center of pixel
+                    mindist = 100000
+                    minpt = None
+                    # a = grecs[i].record[3]
+                    # b = grecs[i].record[2]
+                    for pt_idx in k_ids:
+                        tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempx, tempy)
+                        if tdist < mindist:
+                            mindist = tdist
+                            minpt = pt_idx
+
+                    for m in range(len(ptlayers)):
+                        x_img[len(xr_npar) + m, si, sj] = pgetter(m, minpt)
+                    x_img[len(xr_npar) + len(ptlayers), si, sj] = minpt
+                    x_img[len(xr_npar) + len(ptlayers) + 1, si, sj] = minpt
+            # 14 ... ids 7, 6
+            # 15 ... ids
+            avg_mid_dist = x_img[-1, imgsize//2, imgsize//2]/4 + x_img[-1, (imgsize-1)//2, imgsize//2]/4
+            avg_mid_dist += x_img[-1, imgsize//2, (imgsize-1)//2]/4 + x_img[-1, (imgsize-1)//2, (imgsize-1)//2]
+            ### make a string of
+            ### file name, y value, nsuccess, y raster coordinates, ..., average distance to nearest neighbor
+            database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+            np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -2),delimiter=",", newline="\n")
+            nsuccess += 1
+            if testmode > 0 and nsuccess > testmode:
+                print("max ring size: ", maxringsize)
+                print("avg ring size: ", avgringsize//nsuccess)
+                print("saving ydata")
+                ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
+                ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
+                sys.exit("wank")
+#print(maxringsize)
+
+print("max ring size: ", maxringsize)
+print("saving ydata")
+ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
+ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
 
 
+"""
 ### TODO NOT REFACTORED YET
 
 print("reformatting grecs...?")
@@ -453,7 +631,7 @@ progress = 0
 steps = 100
 outta = (ecos_rsize[0] * ecos_rsize[1]) // steps
 
-"""test
+test
 ### test
 print("setting diagnostic tiles:")
 print(nlcd_v_spac/ecos_v_spac)
@@ -472,7 +650,7 @@ srtm_npar[test_i,test_j+2] = 5
 srtm_npar[test_i+1,test_j+2]  =2
 srtm_npar[test_i+2, test_j+2] = 10
 print(srtm_npar[test_i:test_i+3, test_j:test_j+3])
-"""
+
 print("ecos_UL in srtm")
 kclose = 10
 printall = True
@@ -569,3 +747,4 @@ for i in range(ecos_rsize[0]):
         nsuccess += 1
 print()
 print("done")
+"""
