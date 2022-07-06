@@ -170,9 +170,10 @@ if create_fs:
                     qprint("reformatted " + critical_fields[i] + " file detected, skipping.", 2)
                     found_etc[i] = True
 
-    test_img_ = np.zeros((3, 4))
-    # arrReshaped = test_img_.reshape(test_img_.shape[0], -1) #see bookmarked page on how to invert this
-    np.savetxt(fs_loc + "/datasrc/x_img/x_test.csv", test_img_, delimiter=",", newline="\n")
+    test_img_ = np.zeros((3, 14, 14))
+    arrReshaped = test_img_.reshape(test_img_.shape[0], -1) #see bookmarked page on how to invert this
+    np.savetxt(fs_loc + "/datasrc/x_img/x_test.csv", arrReshaped, delimiter=",", newline="\n")
+    print("shape:", arrReshaped.shape)
 
 ### load x raster
 xraster = []
@@ -523,7 +524,7 @@ for i in range(yrsize[0]):
                 print("saving ydata")
                 ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
                 ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
-                sys.exit("wank")
+                sys.exit("exiting after testmode samples")
 #print(maxringsize)
 
 print("max ring size: ", maxringsize)
