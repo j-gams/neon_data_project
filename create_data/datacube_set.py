@@ -1,5 +1,3 @@
-
-
 import pandas as pd
 import numpy as np
 import tensorflow.keras.utils as kr_utils
@@ -42,9 +40,14 @@ class satimg_set (kr_utils.Sequence):
         self.X_ref = data_in[:, x_ref_idx].flatten()
 
         ### practice loading in one sample to get dimension info
-        info_cube = self.load_dcube(self.path_prefix + self.X_ref[0,0])
+        info_cube = self.load_dcube(self.path_prefix + self.X_ref[0,0], skip=True)
         ### shape to expect for all X samples
+        ### example: data cubes created by match_create_set are (channels, rows, cols)
+        ### or (~60, 14, 14)
         self.dims = info_cube.shape
+
+        if mean_stds = "default":
+            mean_stds = self.blank_fake_ms(self.dims[0])
 
         ### clean up memory
         del info_cube
@@ -72,7 +75,7 @@ class satimg_set (kr_utils.Sequence):
         self.observed_x_x = [0, 0, 0]
         self.observed_mean = [0, 0, 0]
         self.observed_std = [1, 1, 1]"""
-        ### REFACTOR TO HANDLE ARBITRARY SAMPLE DEPTH
+        ### REFACTOR TO HANDLE ARBITRARY SAMPLE DEPTH... DONE
         self.observed_x = [0 for ii in range(self.dims[0])]
         self.observed_x_s = [0 for ii in range(self.dims[0])]
         self.observed_mean = [0 for ii in range(self.dims[0])]
@@ -100,68 +103,89 @@ class satimg_set (kr_utils.Sequence):
                     sum_x_x += self.img_memory[i] * self.img_memory[i]
                 print("loaded", self.full_data.shape[0], "images.")
                 ### only this far...
-                for i in range(3):
-                    self.observed_x[i] = np.sum(sum_x[:, :, i])
-                    self.observed_x_x[i] = np.sum(sum_x_x[:, :, i])
+                ### do more setup for math... copy observed means, stds, etc over to permanent locations
+                for i in range(self.dims[0]):
+                    self.observed_x[i] = np.sum(sum_x[i])
+                    self.observed_x_x[i] = np.sum(sum_x_x[i])
+                ### if we are doing means and standards on a per-channel basis...
                 if mode == "per":
                     big_n = self.img_size * self.img_size * self.full_data.shape[0]
-                    for i in range(3):
+                    for i in range(self.dims[0]):
                         self.observed_mean[i] = self.observed_x[i] / big_n
                         self.observed_std[i] = math.sqrt(
                             (self.observed_x_x[i] / big_n) - math.pow(observed_x[i] / big_n, 2))
+                ### otherwise if we are doing means and standards over the entire image...
                 elif mode == "global":
-                    big_n = self.img_size * self.img_size * self.full_data.shape[0] * 3
-                    x_total = self.observed_x[0] + self.observed_x[1] + self.observed_x[2]
-                    x_x_total = self.observed_x_x[0] + self.observed_x_x[1] + self.observed_x_x[2]
-                    self.obsered_mean = [x_total / big_n] * 3
-                    self.obsered_std = [math.sqrt((x_x_total / big_n) - math.pow(x_total / big_n, 2))] * 3
+                    big_n = self.img_size * self.img_size * self.full_data.shape[0] * self.dims[0]
+                    x_total = self.overved_x[0]
+                    x_x_total = self.observed_x_x[0]
+                    for i in range(1, self.dims):
+                        x_total += self.observed_x[i]
+                        x_x_total += self.observed_x_x[i]
+                        #elf.observed_x[0] + self.observed_x[1] + self.observed_x[2]
+                        #x_x_total = self.observed_x_x[0] + self.observed_x_x[1] + self.observed_x_x[2]
+                    self.obsered_mean = [x_total / big_n] * self.dims[0]
+                    self.obsered_std = [math.sqrt((x_x_total / big_n) - math.pow(x_total / big_n, 2))] * self.dims[0]
                 print("computed observed means, std deviations")
                 self.m_s_computed = True
             else:
                 for i in range(self.full_data.shape[0]):
                     self.img_memory[i] = self.load_dcube(self.path_prefix + self.X_img_ref[i, 0])
-                print("loaded", self.full_data.shape[0].shape[0], "images.")
+                print("loaded", self.full_data.shape[0], "images.")
 
+    ### helper function to create fake means and stds arrays
+    def blank_fake_ms(self, size):
+        m = np.zeros(size)
+        s = np.ones(size)
+        return [m, s]
 
     def compute_mean_stds(self, mode="per"):
         if self.m_s_computed:
             print("warning... means and standards have already been computed")
         if mode == "per" or mode == "global":
-            fake_m_s = [np.array([0, 0, 0]), np.array([1, 1, 1])]
-            temp_img = np.zeros((self.img_size, self.img_size, 3))
-            sum_x = np.zeros((self.img_size, self.img_size, 3))
-            sum_x_x = np.zeros((self.img_size, self.img_size, 3))
+            fake_m_s = self.blank_fake_ms(self.dims[0])
+            #fake_m_s = [np.array([0, 0, 0]), np.array([1, 1, 1])]
+            temp_img = np.zeros(self.dims)
+            sum_x = np.zeros(self.dims)
+            sum_x_x = np.zeros(self.dims)
             for i in range(self.full_data.shape[0]):
-                temp_img = self.load_dcube(self.path_prefix + self.X_img_ref[i], fake_m_s, skip=True).astype('int64')
+                temp_img = self.load_dcube(self.path_prefix + self.X_ref[0,0], fake_m_s, skip=True)
+                #self.load_dcube(self.path_prefix + self.X_img_ref[i], fake_m_s, skip=True).astype('int64')
                 sum_x += temp_img
                 sum_x_x += np.multiply(temp_img, temp_img)
                 #print("**")
                 #print(temp_img)
                 #print(np.multiply(temp_img, temp_img))
                 #print("**")
-            for i in range(3):
-                self.observed_x[i] = np.sum(sum_x[:,:,i])
-                self.observed_x_x[i] = np.sum(sum_x_x[:,:,i])
+            for i in range(self.dims[0]):
+                self.observed_x[i] = np.sum(sum_x[i])
+                self.observed_x_x[i] = np.sum(sum_x_x[i])
             if mode == "per":
                 big_n = self.img_size * self.img_size * self.full_data.shape[0]
-                for i in range(3):
+                for i in range(self.dims[0]):
                     self.observed_mean[i] = self.observed_x[i]/big_n
-                    print("**")
-                    print(big_n)
-                    print(self.observed_mean[i])
-                    print(self.observed_x_x[i])
-                    print(self.observed_x[i])
-                    print("**")
+                    #print("**")
+                    #print(big_n)
+                    #print(self.observed_mean[i])
+                    #print(self.observed_x_x[i])
+                    #print(self.observed_x[i])
+                    #print("**")
                     self.observed_std[i] = math.sqrt((self.observed_x_x[i]/big_n) - (self.observed_x[i]/big_n)**2)
             elif mode == "global":
-                big_n = self.img_size * self.img_size * self.full_data.shape[0]*3
-                x_total = self.observed_x[0] + self.observed_x[1] + self.observed_x[2]
-                x_x_total = self.observed_x_x[0] + self.observed_x_x[1] + self.observed_x_x[2]
-                self.obsered_mean = [x_total/big_n] * 3
-                self.obsered_std = [math.sqrt((x_x_total/big_n) - math.pow(x_total/big_n, 2))] * 3
+                big_n = self.img_size * self.img_size * self.full_data.shape[0]*self.dims[0]
+                x_total = self.overved_x[0]
+                x_x_total = self.observed_x_x[0]
+                for i in range(1, self.dims):
+                    x_total += self.observed_x[i]
+                    x_x_total += self.observed_x_x[i]
+                    #x_total = self.observed_x[0] + self.observed_x[1] + self.observed_x[2]
+                    #x_x_total = self.observed_x_x[0] + self.observed_x_x[1] + self.observed_x_x[2]
+                self.obsered_mean = [x_total/big_n] * self.dims[0]
+                self.obsered_std = [math.sqrt((x_x_total/big_n) - math.pow(x_total/big_n, 2))] * self.dims[0]
             self.m_s_computed = True
         else:
             print("invalid mean/std mode")
+        ### done to here
 
     def get_or_compute_m_s(self, mode_in="per"):
         if self.m_s_computed:
@@ -177,15 +201,16 @@ class satimg_set (kr_utils.Sequence):
         self.mean_stds = [np.array(self.observed_mean), np.array(self.observed_std)]
         if not self.mem_sensitive:
             for i in range(self.full_data.shape[0]):
-                for j in range(3):
-                    self.img_memory[i,:,:,j] = (self.img_memory[i,:,:,j] - self.mean_stds[0][i]) / self.mean_stds[1][i]
+                for j in range(self.dims[0]):
+                    self.img_memory[i, j] = (self.img_memory[i, j] - self.mean_stds[0][i]) / self.mean_stds[1][i]
+        ### done to here
 
     def apply_given_m_s(self, m_s):
         self.mean_stds = m_s
         if not self.mem_sensitive:
             for i in range(self.full_data.shape[0]):
-                for j in range(3):
-                    self.img_memory[i,:,:,j] = (self.img_memory[i,:,:,j] - self.mean_stds[0][i]) / self.mean_stds[1][i]
+                for j in range(self.dims[0]):
+                    self.img_memory[i, j] = (self.img_memory[i, j] - self.mean_stds[0][i]) / self.mean_stds[1][i]
 
     def on_epoch_end(self):
         if self.shuffle:
@@ -198,7 +223,7 @@ class satimg_set (kr_utils.Sequence):
         ## need to assume these are square probably
         ### TODO - generalize this
         image_in = np.loadtxt(filename)
-        image = image_in.reshape(image_in.shape[0], int(math.sqrt(image_in.shape[0])), int(math.sqrt(image_in.shape[0])))
+        image = image_in.reshape(image_in.shape[0], int(math.sqrt(image_in.shape[1])), int(math.sqrt(image_in.shape[1])))
         #image = np.array(Image.open(img_loc))[:, :, :3]
         # print(image.shape, m_s, self.dataname)
         # if not isinstance(image, np.ndarray):
@@ -219,7 +244,7 @@ class satimg_set (kr_utils.Sequence):
         ret_indices = self.indexes[idx * self.batch_size: min(((idx + 1) * self.batch_size), self.full_data.shape[0])]
         if self.mem_sensitive:
             # print(ret_indices)
-            ret_imgs = np.zeros((len(ret_indices), self.img_size, self.img_size, 3))
+            ret_imgs = np.zeros((len(ret_indices), self.dims[0], self.dims[1], self.dims[2]))
             for i in range(len(ret_indices)):
                 # print("img_ref=", self.path_prefix+self.X_img_ref[i])
                 ret_imgs[i] = self.load_img(self.path_prefix + self.X_img_ref[ret_indices[i]])
