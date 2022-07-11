@@ -523,22 +523,22 @@ for i in range(yrsize[0]):
                         else:
                             x_img[si+1, sj+1, k] = xr_npar[k][tempi, tempj]
                 ### ... basic (14x14)
-                for si in range(imgsize):
-                    for sj in range(imgsize):
-                        sxoffset = ((2 * si) + 1) / (2 * imgsize)
-                        syoffset = ((2 * sj) + 1) / (2 * imgsize)
-                        # convert index to coordinates with y raster crs
-                        # then convert back to index with x raster crs
-                        tempx, tempy = idx_pixctr(i+sxoffset, j+syoffset, yulh, yulv,
-                                                  ypxh, ypxv, mode='ul')
-                        tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
-                                                  xr_params[k][2], xr_params[k][3])
-
-                        # x_img[si, sj, 0] = srtm_npar[srtm_i, srtm_j]
-                        #if channel_first:
-                        #    x_img[k, si, sj] = xr_npar[k][tempi, tempj]
-                        #else:
-                        #    x_img[si, sj, k] = xr_npar[k][tempi, tempj]
+                #for si in range(imgsize):
+                #    for sj in range(imgsize):
+                #        sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                #        syoffset = ((2 * sj) + 1) / (2 * imgsize)
+                #        # convert index to coordinates with y raster crs
+                #        # then convert back to index with x raster crs
+                #        tempx, tempy = idx_pixctr(i+sxoffset, j+syoffset, yulh, yulv,
+                #                                  ypxh, ypxv, mode='ul')
+                #        tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
+                #                                  xr_params[k][2], xr_params[k][3])
+                #
+                #        # x_img[si, sj, 0] = srtm_npar[srtm_i, srtm_j]
+                #        #if channel_first:
+                #        #    x_img[k, si, sj] = xr_npar[k][tempi, tempj]
+                #        #else:
+                #        #    x_img[si, sj, k] = xr_npar[k][tempi, tempj]
 
             k_ids, rings = krings(i, j, k_approx)
             avgringsize += rings
@@ -570,34 +570,34 @@ for i in range(yrsize[0]):
                         x_img[si+1, sj+1, len(xr_npar) + len(ptlayers)] = minpt
                         x_img[si+1, sj+1, len(xr_npar) + len(ptlayers) + 1] = minpt
             ### ... basic (14x14)
-            for si in range(imgsize):
-                for sj in range(imgsize):
-                    sxoffset = (2 * si + 1) / (2 * imgsize)
-                    syoffset = (2 * sj + 1) / (2 * imgsize)
-                    tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv,
-                                              ypxh, ypxv, mode='ul')
-                    # find kn_id pt closest to center of pixel
-                    mindist = 100000
-                    minpt = None
-                    # a = grecs[i].record[3]
-                    # b = grecs[i].record[2]
-                    for pt_idx in k_ids:
-                        tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempx, tempy)
-                        if tdist < mindist:
-                            mindist = tdist
-                            minpt = pt_idx
-
-                    #for m in range(len(ptlayers)):
-                    #    if channel_first:
-                    #        x_img[len(xr_npar) + m, si, sj] = pgetter(m, minpt)
-                    #    else:
-                    #        x_img[si, sj, len(xr_npar)] = pgetter(m, minpt)
-                    #if channel_first:
-                    #    x_img[len(xr_npar) + len(ptlayers), si, sj] = minpt
-                    #    x_img[len(xr_npar) + len(ptlayers) + 1, si, sj] = mindist
-                    #else:
-                    #    x_img[si, sj, len(xr_npar) + len(ptlayers)] = minpt
-                    #    x_img[si, sj, len(xr_npar) + len(ptlayers) + 1] = mindist
+            #for si in range(imgsize):
+            #    for sj in range(imgsize):
+            #        sxoffset = (2 * si + 1) / (2 * imgsize)
+            #        syoffset = (2 * sj + 1) / (2 * imgsize)
+            #        tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv,
+            #                                  ypxh, ypxv, mode='ul')
+            #        # find kn_id pt closest to center of pixel
+            #        mindist = 100000
+            #        minpt = None
+            #        # a = grecs[i].record[3]
+            #        # b = grecs[i].record[2]
+            #        for pt_idx in k_ids:
+            #            tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempx, tempy)
+            #            if tdist < mindist:
+            #                mindist = tdist
+            #                minpt = pt_idx
+            #
+            #        #for m in range(len(ptlayers)):
+            #        #    if channel_first:
+            #        #        x_img[len(xr_npar) + m, si, sj] = pgetter(m, minpt)
+            #        #    else:
+            #        #        x_img[si, sj, len(xr_npar)] = pgetter(m, minpt)
+            #        #if channel_first:
+            #        #    x_img[len(xr_npar) + len(ptlayers), si, sj] = minpt
+            #        #    x_img[len(xr_npar) + len(ptlayers) + 1, si, sj] = mindist
+            #        #else:
+            #        #    x_img[si, sj, len(xr_npar) + len(ptlayers)] = minpt
+            #        #    x_img[si, sj, len(xr_npar) + len(ptlayers) + 1] = mindist
             # 14 ... ids 7, 6
             # 15 ... ids
             if channel_first:
