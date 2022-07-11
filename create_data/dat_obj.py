@@ -20,15 +20,28 @@ class datacube_loader:
 
     ### satimg_set(data_in, shuffle, path_prefix, batch_size, x_ref_idx, y_col_idx, mean_stds, depth_ax, dataname,
     ### mem_sensitive, observe_mode)
-    def __init__ (self, dataname, dataext, expect_folds, shuffle, batch, x_ref_idx, y_col_idx, musigs, mem, omode, cmode):
+    def __init__ (self, dataname, dataext, shuffle, batch, x_ref_idx, y_col_idx, musigs, mem, omode, cmode):
         print("building sets...")
         self.dataset_name = dataname
-        self.k_folds = expect_folds
+        #self.k_folds = expect_folds
+        
+        meta_folds = 0
 
+        ### load in
+        with open("../data/" + dataname + "/fold_data/" + dataext + "/meta.txt") as fff:
+            alllines = fff.readlines()
+        for fline in alllines:
+            metaparams = fline.split(": ")
+            if metaparams[0] == "folds":
+                meta_folds = int(metaparams[1])
+
+        print("meta folds: ", meta_folds)
+        self.k_folds = meta_folds
         #if musigs = "default":
         #    musigs = 
         self.channel_mode = cmode
         alldata_np = pd.read_csv("../data/" + dataname + "/datasrc/ydata.csv").to_numpy()
+        self.all = alldata_np
         test_info = np.genfromtxt("../data/" + dataname + "/fold_data/" + dataext + "/test/test_set.csv", delimiter=',')
         test_info = test_info.astype(int)
         self.test_data_raw = alldata_np[test_info]
@@ -40,10 +53,10 @@ class datacube_loader:
         self.train = []
         self.validation = []
         self.train_m_s = []
-        for i in range(expect_folds):
+        for i in range(self.k_folds):
             tval = np.genfromtxt("../data/" + dataname + "/fold_data/" + dataext + "/train_fold_"+str(i)+"/val_fold.csv",
                     delimiter=',').astype(int)
-            ttrain = np.genfromtxt("../data/" + dataname + "/fold_data/" + dataext + "/train_fold_"+str(i)+"/val_fold.csv",
+            ttrain = np.genfromtxt("../data/" + dataname + "/fold_data/" + dataext + "/train_fold_"+str(i)+"/train_fold.csv",
                     delimiter=',').astype(int)
             self.validation_data_raw.append(alldata_np[tval])
             self.train_data_raw.append(alldata_np[ttrain])
@@ -60,9 +73,11 @@ class datacube_loader:
         #test_data_in_np = test_data_in_np.to_numpy()
         #self.test_set = satimg_set(test_data_in_np, )
 
-    def summarize():
+    def summarize(self):
         print("dataset overview:")
+        print("  source data: " + str(self.all.shape[0]) + " samples")
         print("  test set: " + str(self.test.full_data.shape[0]) + " samples")
         print("  cross-validation folds: " + str(len(self.train)))
-        print("  train fold " + str(i) + ": " + str(self.train[i].full_data.shape[0]) + " samples")
-        print("  vali. fold " + str(i) + ": " + str(self.validation[i].full_data.shape[0]) + " samples") 
+        for i in range(self.k_folds):
+            print("  train fold " + str(i) + ": " + str(self.train[i].full_data.shape[0]) + " samples")
+            print("  vali. fold " + str(i) + ": " + str(self.validation[i].full_data.shape[0]) + " samples") 
