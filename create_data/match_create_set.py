@@ -41,6 +41,8 @@
 ###                             - fields to include in the output samples
 ### k closest approximation     [-k int, optional (default 10)]
 ### test mode                   [-t int, optional]
+### channel mode                [-m {hwc, chw}]
+###                             - whether to have channels as the first or third axis
 ### verbosity                   [-q {0, 1, 2}, optional (default 2, verbose)
 
 ### Usage Example:
@@ -62,6 +64,7 @@ critical_fields = []
 verbosity = 2
 k_approx = 10
 testmode = -1
+channel_first = False
 
 if len(sys.argv) < 8:
     init_ok = False
@@ -92,7 +95,12 @@ else:
         elif sys.argv[i] == "-k":
             k_approx = int(sys.argv[i + 1])
         elif sys.argv[i] == "-t":
-             testmode = int(sys.argv[i + 1])
+            testmode = int(sys.argv[i + 1])
+        elif sys.argv[i] == "-m":
+            if sys.argv[i+1] == "chw":
+                channel_first = True
+            else:
+                channel_first = False
 if not init_ok:
     sys.exit("missing or incorrect command line arguments")
 imgsize = y_res // y_pix
@@ -103,6 +111,7 @@ def qprint(instr, power):
 
 qprint("importing packages", 2)
 import os
+import math
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -121,6 +130,10 @@ from longsgis import voronoiDiagram4plg
 from rfdata_loader import rfloader, piloader
 
 qprint("done importing packages", 2)
+if channel_first:
+    qprint("running in channel-first mode (chw)", 2)
+else:
+    qprint("running in channel-third mode (hwc)", 2)
 
 found_coord = False
 found_etc = [False for i in range(len(critical_fields))]
@@ -429,7 +442,28 @@ print("done doing the hash thing")
         if ygrid_pt_hash[i, j] != []:
             print(ygrid_pt_hash[i:i+10, j:j+10])"""
 
+### TODO --- stop at sqrt(2) after the first one
+### THE ROOT2 VERSION !!!
+mem_root2 = math.sqrt(2)
 def krings(x_in, y_in, min_k):
+    ring_size = 0
+    found_list = []
+    cap = -1
+    while(cap < 0 or ring_size <= cap):
+        i_boundaries = [max(-1, x_in-ring_size), min(yrsize[0]+1, x_in+ring_size+1)]
+        j_boundaries = [max(-1, y_in-ring_size), min(yrsize[1]+1, y_in+ring_size+1)]
+        for i in range(i_boundaries[0], i_boundaries[1]):
+            for j in range(j_boundaries[0], j_boundaries[1]):
+                if i == i_boundaries[0] or i+1 == i_boundaries[1] or j == j_boundaries[0] or j+1 == j_boundaries[1]:
+                    if len(ygrid_pt_hash[i+1, j+1]) > 0:
+                        if cap == -1:
+                            cap = math.ceil(mem_root2 * ring_size)
+                        for k in ygrid_pt_hash[i+1, j+1]:
+                            found_list.append(k)
+        ring_size += 1
+    return found_list, ring_size
+
+def depricated_krings(x_in, y_in, min_k):
     ring_size = 0
     found_list = []
     while(len(found_list) < min_k):
@@ -451,6 +485,7 @@ def krings(x_in, y_in, min_k):
 #if testmode > 0:
 #    pr_unit = testmode // 50
 #else:
+### TODO --- make this 16x16 instead of 14x14... add 1 unit of buffer on each side
 pr_unit = (yrsize[0] * yrsize[1]) // 50
 qprint("each step represents " + str(pr_unit) + " samples generated", 1)
 progress = 0
@@ -467,12 +502,31 @@ for i in range(yrsize[0]):
         if verbosity > 0 and progress % pr_unit == 0:
             print("-", end="", flush=True)
         if y_npar[i, j] != yndv:
-            x_img = np.zeros((channels, imgsize, imgsize))
+            if channel_first:
+                x_img = np.zeros((channels, imgsize+2, imgsize+2))
+            else:
+                x_img = np.zeros((imgsize+2, imgsize+2, channels))
             for k in range(len(xr_npar)):# in xr_npar:
+                ### ... Try again with a buffer to get 16x16 image
+                for si in range(-1, imgsize+1):
+                    for sj in range(-1, imgsize+1):
+                        ### want -.5, .5, 1.5, 2.5, etc...
+                        sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                        syoffset = ((2 * sj) + 1) / (2 * imgsize)
+                        tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
+                                ypxv, mode = 'ul')
+                        tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
+                                xr_params[k][2], xr_params[k][3])
+                        #...
+                        if channel_first:
+                            x_img[k, si+1, sj+1] = xr_npar[k][tempi, tempj]
+                        else:
+                            x_img[si+1, sj+1, k] = xr_npar[k][tempi, tempj]
+                ### ... basic (14x14)
                 for si in range(imgsize):
                     for sj in range(imgsize):
-                        sxoffset = (2 * si + 1) / (2 * imgsize)
-                        syoffset = (2 * sj + 1) / (2 * imgsize)
+                        sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                        syoffset = ((2 * sj) + 1) / (2 * imgsize)
                         # convert index to coordinates with y raster crs
                         # then convert back to index with x raster crs
                         tempx, tempy = idx_pixctr(i+sxoffset, j+syoffset, yulh, yulv,
@@ -481,13 +535,41 @@ for i in range(yrsize[0]):
                                                   xr_params[k][2], xr_params[k][3])
 
                         # x_img[si, sj, 0] = srtm_npar[srtm_i, srtm_j]
-                        x_img[k, si, sj] = xr_npar[k][tempi, tempj]
+                        #if channel_first:
+                        #    x_img[k, si, sj] = xr_npar[k][tempi, tempj]
+                        #else:
+                        #    x_img[si, sj, k] = xr_npar[k][tempi, tempj]
 
             k_ids, rings = krings(i, j, k_approx)
             avgringsize += rings
             if rings > maxringsize:
                 maxringsize = rings
-
+            ### ... buffered (16x16) trial
+            for si in range(-1, imgsize+1):
+                for sj in range(-1, imgsize+1):
+                    sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                    syoffset = ((2 * sj) + 1) / (2 * imgsize)
+                    tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
+                            ypxv, mode='ul')
+                    mindist = 100000
+                    minpt = None
+                    for pt_idx in k_ids:
+                        tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempx, tempy)
+                        if tdist < mindist:
+                            mindist = tdist
+                            minpt = pt_idx
+                    for m in range(len(ptlayers)):
+                        if channel_first:
+                            x_img[len(xr_npar) + m, si+1, sj+1] = pgetter(m, minpt)
+                        else:
+                            x_img[si+1, sj+1, len(xr_npar) + m] = pgetter(m, minpt)
+                    if channel_first:
+                        x_img[len(xr_npar) + len(ptlayers), si+1, sj+1] = minpt
+                        x_img[len(xr_npar) + len(ptlayers) + 1, si+1, sj+1] = minpt
+                    else:
+                        x_img[si+1, sj+1, len(xr_npar) + len(ptlayers)] = minpt
+                        x_img[si+1, sj+1, len(xr_npar) + len(ptlayers) + 1] = minpt
+            ### ... basic (14x14)
             for si in range(imgsize):
                 for sj in range(imgsize):
                     sxoffset = (2 * si + 1) / (2 * imgsize)
@@ -505,18 +587,35 @@ for i in range(yrsize[0]):
                             mindist = tdist
                             minpt = pt_idx
 
-                    for m in range(len(ptlayers)):
-                        x_img[len(xr_npar) + m, si, sj] = pgetter(m, minpt)
-                    x_img[len(xr_npar) + len(ptlayers), si, sj] = minpt
-                    x_img[len(xr_npar) + len(ptlayers) + 1, si, sj] = minpt
+                    #for m in range(len(ptlayers)):
+                    #    if channel_first:
+                    #        x_img[len(xr_npar) + m, si, sj] = pgetter(m, minpt)
+                    #    else:
+                    #        x_img[si, sj, len(xr_npar)] = pgetter(m, minpt)
+                    #if channel_first:
+                    #    x_img[len(xr_npar) + len(ptlayers), si, sj] = minpt
+                    #    x_img[len(xr_npar) + len(ptlayers) + 1, si, sj] = mindist
+                    #else:
+                    #    x_img[si, sj, len(xr_npar) + len(ptlayers)] = minpt
+                    #    x_img[si, sj, len(xr_npar) + len(ptlayers) + 1] = mindist
             # 14 ... ids 7, 6
             # 15 ... ids
-            avg_mid_dist = x_img[-1, imgsize//2, imgsize//2]/4 + x_img[-1, (imgsize-1)//2, imgsize//2]/4
-            avg_mid_dist += x_img[-1, imgsize//2, (imgsize-1)//2]/4 + x_img[-1, (imgsize-1)//2, (imgsize-1)//2]
+            if channel_first:
+                avg_mid_dist = x_img[-1, imgsize//2, imgsize//2]/4 + x_img[-1, (imgsize-1)//2, imgsize//2]/4
+                avg_mid_dist += x_img[-1, imgsize//2, (imgsize-1)//2]/4 + x_img[-1, (imgsize-1)//2, (imgsize-1)//2]/4
+            else:
+                avg_mid_dist = x_img[imgsize//2, imgsize//2, -1]/4 + x_img[(imgsize-1)//2, imgsize//2, -1]/4
+                avg_mid_dist += x_img[imgsize//2, (imgsize-1)//2, -1]/4 + x_img[(imgsize-1)//2, (imgsize-1)//2, -1]/4
+
             ### make a string of
             ### file name, y value, nsuccess, y raster coordinates, ..., average distance to nearest neighbor
             database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
-            np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -2),delimiter=",", newline="\n")
+            if channel_first:
+                np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
+                        delimiter=",", newline="\n")
+            else:
+                np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
+                        delimiter=",", newline="\n")
             nsuccess += 1
             if testmode > 0 and nsuccess > testmode:
                 print("max ring size: ", maxringsize)
