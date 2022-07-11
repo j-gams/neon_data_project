@@ -43,6 +43,8 @@
 ### test mode                   [-t int, optional]
 ### channel mode                [-m {hwc, chw}]
 ###                             - whether to have channels as the first or third axis
+### pad image                   [-p int]
+###                             - whether to add pixels around the basic image (for nicer img dimensions?)
 ### verbosity                   [-q {0, 1, 2}, optional (default 2, verbose)
 
 ### Usage Example:
@@ -65,6 +67,7 @@ verbosity = 2
 k_approx = 10
 testmode = -1
 channel_first = False
+pad_img = 0
 
 if len(sys.argv) < 8:
     init_ok = False
@@ -101,6 +104,8 @@ else:
                 channel_first = True
             else:
                 channel_first = False
+        elif sys.argv[i] == "-p":
+            pad_img = int(sys.argv[i+1])
 if not init_ok:
     sys.exit("missing or incorrect command line arguments")
 imgsize = y_res // y_pix
@@ -108,6 +113,8 @@ imgsize = y_res // y_pix
 def qprint(instr, power):
     if power <= verbosity:
         print(instr)
+
+qprint("running in "+str(imgsize + pad_img*2)+" * "+str(imgsize + pad_img*2)+" mode (padding set to "+str(pad_img)+")",2)
 
 qprint("importing packages", 2)
 import os
@@ -503,13 +510,13 @@ for i in range(yrsize[0]):
             print("-", end="", flush=True)
         if y_npar[i, j] != yndv:
             if channel_first:
-                x_img = np.zeros((channels, imgsize+2, imgsize+2))
+                x_img = np.zeros((channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
             else:
-                x_img = np.zeros((imgsize+2, imgsize+2, channels))
+                x_img = np.zeros((imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
             for k in range(len(xr_npar)):# in xr_npar:
                 ### ... Try again with a buffer to get 16x16 image
-                for si in range(-1, imgsize+1):
-                    for sj in range(-1, imgsize+1):
+                for si in range(0 - pad_img, imgsize+pad_img):
+                    for sj in range(0 - pad_img, imgsize+pad_img):
                         ### want -.5, .5, 1.5, 2.5, etc...
                         sxoffset = ((2 * si) + 1) / (2 * imgsize)
                         syoffset = ((2 * sj) + 1) / (2 * imgsize)
@@ -519,9 +526,9 @@ for i in range(yrsize[0]):
                                 xr_params[k][2], xr_params[k][3])
                         #...
                         if channel_first:
-                            x_img[k, si+1, sj+1] = xr_npar[k][tempi, tempj]
+                            x_img[k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
                         else:
-                            x_img[si+1, sj+1, k] = xr_npar[k][tempi, tempj]
+                            x_img[si+pad_img, sj+pad_img, k] = xr_npar[k][tempi, tempj]
                 ### ... basic (14x14)
                 #for si in range(imgsize):
                 #    for sj in range(imgsize):
@@ -545,8 +552,8 @@ for i in range(yrsize[0]):
             if rings > maxringsize:
                 maxringsize = rings
             ### ... buffered (16x16) trial
-            for si in range(-1, imgsize+1):
-                for sj in range(-1, imgsize+1):
+            for si in range(0-pad_img, imgsize+pad_img):
+                for sj in range(0-pad_img, imgsize+pad_img):
                     sxoffset = ((2 * si) + 1) / (2 * imgsize)
                     syoffset = ((2 * sj) + 1) / (2 * imgsize)
                     tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
@@ -560,15 +567,15 @@ for i in range(yrsize[0]):
                             minpt = pt_idx
                     for m in range(len(ptlayers)):
                         if channel_first:
-                            x_img[len(xr_npar) + m, si+1, sj+1] = pgetter(m, minpt)
+                            x_img[len(xr_npar) + m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
                         else:
-                            x_img[si+1, sj+1, len(xr_npar) + m] = pgetter(m, minpt)
+                            x_img[si+pad_img, sj+pad_img, len(xr_npar) + m] = pgetter(m, minpt)
                     if channel_first:
-                        x_img[len(xr_npar) + len(ptlayers), si+1, sj+1] = minpt
-                        x_img[len(xr_npar) + len(ptlayers) + 1, si+1, sj+1] = minpt
+                        x_img[len(xr_npar) + len(ptlayers), si+pad_img, sj+pad_img] = minpt
+                        x_img[len(xr_npar) + len(ptlayers) + 1, si+pad_img, sj+pad_img] = minpt
                     else:
-                        x_img[si+1, sj+1, len(xr_npar) + len(ptlayers)] = minpt
-                        x_img[si+1, sj+1, len(xr_npar) + len(ptlayers) + 1] = minpt
+                        x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers)] = minpt
+                        x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers) + 1] = minpt
             ### ... basic (14x14)
             #for si in range(imgsize):
             #    for sj in range(imgsize):
@@ -601,11 +608,15 @@ for i in range(yrsize[0]):
             # 14 ... ids 7, 6
             # 15 ... ids
             if channel_first:
-                avg_mid_dist = x_img[-1, imgsize//2, imgsize//2]/4 + x_img[-1, (imgsize-1)//2, imgsize//2]/4
-                avg_mid_dist += x_img[-1, imgsize//2, (imgsize-1)//2]/4 + x_img[-1, (imgsize-1)//2, (imgsize-1)//2]/4
+                avg_mid_dist =  x_img[-1, (imgsize+(pad_img * 2))//2, (imgsize+(pad_img * 2))//2]/4 
+                avg_mid_dist += x_img[-1, (imgsize+(pad_img * 2) - 1)//2, (imgsize + (pad_img*2))//2]/4
+                avg_mid_dist += x_img[-1, (imgsize+(pad_img * 2))//2, (imgsize + (pad_img * 2) - 1)//2]/4
+                avg_mid_dist += x_img[-1, (imgsize+(pad_img * 2) - 1)//2, (imgsize + (pad_img * 2) - 1)//2]/4
             else:
-                avg_mid_dist = x_img[imgsize//2, imgsize//2, -1]/4 + x_img[(imgsize-1)//2, imgsize//2, -1]/4
-                avg_mid_dist += x_img[imgsize//2, (imgsize-1)//2, -1]/4 + x_img[(imgsize-1)//2, (imgsize-1)//2, -1]/4
+                avg_mid_dist =  x_img[(imgsize + (pad_img * 2))//2, (imgsize + (pad_img * 2))//2, -1]/4 
+                avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1)//2, (imgsize + (pad_img * 2))//2, -1]/4
+                avg_mid_dist += x_img[(imgsize + (pad_img * 2))//2, (imgsize + (pad_img * 2) - 1)//2, -1]/4 
+                avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1)//2, (imgsize + (pad_img * 2) - 1)//2, -1]/4
 
             ### make a string of
             ### file name, y value, nsuccess, y raster coordinates, ..., average distance to nearest neighbor

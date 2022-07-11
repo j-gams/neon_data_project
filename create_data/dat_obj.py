@@ -15,7 +15,7 @@ class datacube_loader:
     ### musigs          mean, stdev to use
     ### mem             memory sensitive mode
     ### omode           per-channel or global means, stds
-    
+    ### cmode           whether to run in channel-first or channel-last mode
     ### order for thruple params is train, val, test...
 
     ### satimg_set(data_in, shuffle, path_prefix, batch_size, x_ref_idx, y_col_idx, mean_stds, depth_ax, dataname,
@@ -59,3 +59,10 @@ class datacube_loader:
         #test_data_in_np = pd.read_csv("../data/" + dataname + "/datasrc/fold_data/" + data_ext + "/test/test_set.csv")
         #test_data_in_np = test_data_in_np.to_numpy()
         #self.test_set = satimg_set(test_data_in_np, )
+
+    def summarize():
+        print("dataset overview:")
+        print("  test set: " + str(self.test.full_data.shape[0]) + " samples")
+        print("  cross-validation folds: " + str(len(self.train)))
+        print("  train fold " + str(i) + ": " + str(self.train[i].full_data.shape[0]) + " samples")
+        print("  vali. fold " + str(i) + ": " + str(self.validation[i].full_data.shape[0]) + " samples") 

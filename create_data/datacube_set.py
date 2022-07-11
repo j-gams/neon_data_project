@@ -4,7 +4,7 @@ import tensorflow.keras.utils as kr_utils
 import math
 
 ### TODO -- need to go through this carefully to double check certain aspects of computing means and stds, etc.
-
+### TODO -- comment
 class satimg_set (kr_utils.Sequence):
     def __init__ (self, data_in, shuffle, path_prefix, batch_size, x_ref_idx, y_col_idx,
                   mean_stds, orientation = "hwc", dataname = "", mem_sensitive=True, observe_mode="per"):
