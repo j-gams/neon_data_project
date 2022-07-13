@@ -1,5 +1,5 @@
 ### PIPELINE TO CREATE DATA SET
-This is all coded out in create_data.sh
+This is all coded out in create_data.sh:
 - tif_merge_convert.py
   (the srtm data comes in multiples smaller geotifs. Feed them to this to create one larger, merged .tif)
 - code_match.py
