@@ -4,6 +4,10 @@
 import numpy as np
 import sys
 
+import model_train
+
+import train_1
+
 sys.path.insert(0, '../create_data')
 
 from dat_obj import datacube_loader
@@ -40,7 +44,26 @@ cross_folds = dataset.k_folds
 dataset.summarize()
 
 ### training parameters
+train_params = {"folds:" dataset.k_folds}
 models = []
 model_hparams = []
 save_names = []
 
+load_list = ["train_1"]
+for mdl_str in load_list:
+    if mdl_str == "train_1":
+        models.append(train_1.test_conv)
+        model_hparams.append({"model_name": "basic_convmodel_1",
+                              "save_location": "../[LOCATION]",
+                              "input_size": dataset.test.dims,
+                              "save_checkpoints": False,
+                              "train_metric": "mean_squared_error",
+                              "verbosity": 2})
+        save_names.append("basic_convmodel_test_1")
+### now dispatch to the model trainer...?
+
+for i in range(len(models)):
+    print("sending " + save_names[i] + "to be trained")
+    model_train(dataset, models[i], model_hparams[i], save_names[i])
+
+print("done")

@@ -45,6 +45,8 @@
 ###                             - whether to have channels as the first or third axis
 ### pad image                   [-p int]
 ###                             - whether to add pixels around the basic image (for nicer img dimensions?)
+### pad hash                    [-h int]
+###                             - how many gridsquares to add around the raster (to catch everything)
 ### verbosity                   [-q {0, 1, 2}, optional (default 2, verbose)
 
 ### Usage Example:
@@ -68,7 +70,7 @@ k_approx = 10
 testmode = -1
 channel_first = False
 pad_img = 0
-
+hash_pad = 1
 if len(sys.argv) < 8:
     init_ok = False
 else:
@@ -106,6 +108,8 @@ else:
                 channel_first = False
         elif sys.argv[i] == "-p":
             pad_img = int(sys.argv[i+1])
+        elif sys.argv[i] == "-h":
+            hash_pad = int(sys.argv[i+1])
 if not init_ok:
     sys.exit("missing or incorrect command line arguments")
 imgsize = y_res // y_pix
@@ -424,7 +428,7 @@ avgringsize = 0
 ### hash all of the gedi footprints! (this could take a while lmao -- rip ram
 print("doing the hash thing")
 ### create it with a buffer
-ygrid_pt_hash = np.zeros((yrsize[0] + 2, yrsize[1] + 2), dtype='object')
+ygrid_pt_hash = np.zeros((yrsize[0] + (2*hash_pad), yrsize[1] + (2*hash_pad)), dtype='object')
 for i in range(ygrid_pt_hash.shape[0]):
     for j in range(ygrid_pt_hash.shape[1]):
         ygrid_pt_hash[i, j] = []
@@ -432,17 +436,22 @@ for i in range(ygrid_pt_hash.shape[0]):
 #ygrid_pt_hash[0][0].append(5)
 pstep = clen() // 50
 print(clen())
+actual_added = 0
 for i in range(clen()):
     ### get coordinates
     if i % pstep == 0:
         print("-", end="", flush=True)
     xi, yi = coords_idx(cgetter(i, 0), cgetter(i, 1), yulh, yulv, ypxh, ypxv)
-    if xi < 0 or yi < 0 or xi > yrsize[0] or yi > yrsize[1]:
+    if xi+hash_pad < 0 or yi+hash_pad < 0 or xi > yrsize[0]+(hash_pad*2) or yi > yrsize[1]+(2*hash_pad):
+        print("big uh-oh!!!")
         print(i)
         print(cgetter(i, 0), cgetter(i, 1))
         print(xi, yi)
-    ygrid_pt_hash[xi+1, yi+1].append(i)
+    else:
+        actual_added += 1
+        ygrid_pt_hash[xi+hash_pad, yi+hash_pad].append(i)
 print("done doing the hash thing")
+print("actually added", actual_added, "gedi points to hash (within bounds)")
 #print(ygrid_pt_hash[1000:1010, 1000:1010])
 """for i in range(ygrid_pt_hash.shape[0]):
     for j in range(ygrid_pt_hash.shape[1]):
@@ -457,8 +466,8 @@ def krings(x_in, y_in, min_k):
     found_list = []
     cap = -1
     while(cap < 0 or ring_size <= cap):
-        i_boundaries = [max(-1, x_in-ring_size), min(yrsize[0]+1, x_in+ring_size+1)]
-        j_boundaries = [max(-1, y_in-ring_size), min(yrsize[1]+1, y_in+ring_size+1)]
+        i_boundaries = [max(0-hash_pad, x_in-ring_size), min(yrsize[0]+hash_pad, x_in+ring_size+1)]
+        j_boundaries = [max(0-hash_pad, y_in-ring_size), min(yrsize[1]+hash_pad, y_in+ring_size+1)]
         for i in range(i_boundaries[0], i_boundaries[1]):
             for j in range(j_boundaries[0], j_boundaries[1]):
                 if i == i_boundaries[0] or i+1 == i_boundaries[1] or j == j_boundaries[0] or j+1 == j_boundaries[1]:
