@@ -14,9 +14,9 @@ What is on github at present:
 - dataset handling tools (create_data/)
   - datacube_set.py (handle preprocessing, batches, etc. for one fold of data)
   - dat_obj.py (load data, set up and manage all folds of dataset)
-- test models
+- test models (models/)
   - test_model.py (basic cnn model)
-- model training framework (not yet complete)
+- model training framework (models/) (not yet complete)
   - train_frame.py (framework for training ML models)
   - model_train.py (manages the training of models over crossval folds, logging, etc)
   - utils.py (utilities for training model)
