@@ -48,6 +48,10 @@ train_params = {"folds:" dataset.k_folds}
 models = []
 model_hparams = []
 save_names = []
+tparams = [{"metrics": ["mean_squared_error", "mean_absolute_error"]
+            "mode": "train",
+            "load_from": "na"}]
+
 
 load_list = ["train_1"]
 for mdl_str in load_list:
@@ -64,6 +68,6 @@ for mdl_str in load_list:
 
 for i in range(len(models)):
     print("sending " + save_names[i] + "to be trained")
-    model_train(dataset, models[i], model_hparams[i], save_names[i])
+    model_train(dataset, models[i], model_hparams[i], save_names[i], tparams[i])
 
 print("done")
