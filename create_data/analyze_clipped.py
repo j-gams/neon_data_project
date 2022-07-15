@@ -132,6 +132,9 @@ poi_data = shapefile.Reader(poi_loc)
 poi_recs = poi_data.shapeRecords()
 qprint("done loading points-of-interest data", 2)
 
+spec_data_1 = [[], []]
+spec_data_2 = [[], []]
+
 ### now sequentially load each raster file and compute distribution of values, etc on it
 for i in range(len(raster_locs)):
     rloc = raster_locs[i]
@@ -190,6 +193,15 @@ for i in range(len(raster_locs)):
 
         ### get the raster value at the point of interest. simple
         values_of_interest.append(rdata.sel(x=tx, y=ty, method='nearest').values)
+        
+        if i == 0:
+            spec_data_1[1].append(rdata.sel(x=tx, y=ty, method='nearest').values)
+        elif i == 1:
+            spec_data_1[0].append(rdata.sel(x=tx, y=ty, method='nearest').values)
+        elif i == 2:
+            spec_data_2[1].append(rdata.sel(x=tx, y=ty, method='nearest').values)
+        elif i == 3:
+            spec_data_2[0].append(rdata.sel(x=tx, y=ty, method='nearest').values)
 
         ### if filters are on for this dataset, run every filter over every point
         if i in filter_on:
@@ -263,6 +275,26 @@ for i in range(len(raster_locs)):
         del gdata_npar
         del np_voi
         del flat_filter
+
+###
+plt.figure()
+plt.scatter(spec_data_1[0], spec_data_1[1])
+plt.title("Land cover distributions over elevation")
+plt.xlabel("land cover")
+plt.ylabel("elevation")
+plt.savefig("../figures/gedi_distributions/lc_at_alt.png")
+plt.cla()
+plt.close()
+
+###
+plt.figure()
+plt.scatter(spec_data_2[0], spec_data_2[1])
+plt.title("slope distributions over aspect")
+plt.xlabel("aspect")
+plt.ylabel("slope")
+plt.savefig("../figures/gedi_distributions/slope_at_aspct.png")
+plt.cla()
+plt.close()
 qprint("all done", 1)
 
 """
