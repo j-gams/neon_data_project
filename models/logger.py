@@ -12,6 +12,7 @@ class mdl_log:
         self.datamain = []
         self.time = tod
         metrics = tparams["metrics"]
+        #print(metrics)
         self.datamain.append(["header:", model_path, model_name])
         self.datamain.append(["colnames:", "fold"] +
                 [met for met in metrics])
@@ -24,6 +25,7 @@ class mdl_log:
         #if isinstance(fold, int):
         #    #on a validation fold
         #    fold = "fold_" + str(fold)
+        print("adding", stats)
         tempappend = ["fold_" + str(fold) + ":", fold]
         for stat in stats:
             tempappend.append(stat)
@@ -62,17 +64,17 @@ class mdl_log:
             foldmin.append(-1)
             foldmax.append(-1)
             for i in range(4, len(self.datamain)):
-                if self.datamain[i][0] == "fold_test":
+                if self.datamain[i][0] != "fold_test":
                     n_in_avg += 1
-                avgs[-1].append(self.datamain[i][met+2])
-                if self.datamain[i][met+2] < mins:
-                    mins = self.datamain[i][met+2]
-                    foldmin = i
-                if self.datamain[i][met+2] > maxs:
-                    maxs = self.datamain[i][met+2]
-                    foldmax = i
+                avgs[-1] += self.datamain[i][met+2]
+                if self.datamain[i][met+2] < mins[-1]:
+                    mins[-1] = self.datamain[i][met+2]
+                    foldmin[-1] = i-4
+                if self.datamain[i][met+2] > maxs[-1]:
+                    maxs[-1] = self.datamain[i][met+2]
+                    foldmax[-1] = i-4
         for met in range(len(metrics)):
-            avgs /= n_in_avg
+            avgs[met] /= n_in_avg
 
         supp_data = [["averages:", "-"] + avgs, 
                      ["minimums:", "-"] + mins, 
@@ -83,9 +85,10 @@ class mdl_log:
         ### done finding avgs, mins, maxs
 
         ### one header and one for each fold
-        printarr = [[] for ii in range(self.folds_recorded + 1)]
+        #print(self.folds_recorded)
+        printarr = [[] for ii in range(self.folds_recorded + 2)]
         printarr[0] = ["data:", "fold"]
-        printarr[0].append([met for met in metrics])
+        printarr[0].extend([met for met in metrics])
         for i in range(4, len(self.datamain)):
             ### figure out which fold
             if self.datamain[i][0] == "fold_test":
@@ -97,29 +100,37 @@ class mdl_log:
                 #printarr[self.datamain[i][1]+2].append(
                 #        [dm for dm in self.datamain[i][2:]])
         ### only keep non-empty ones?
-        for elt in printarr:
-            if elt == []:
-                del elt
+        deli = 0
+        while deli < len(printarr):
+            if printarr[deli] == []:
+                del printarr[deli]
+            else:
+                deli += 1
+        #for elt in printarr:
+        #    if elt == []:
+        #        del elt
+        #print(len(printarr))
         ### print human readable
         txt_out = open("../logs/summary_" + self.model_name + "_" + 
                 self.time + ".txt", "w+")
         disp_str = ["* MODEL SUMMARY"]
         disp_str += self.readable_arrange(self.datamain[0], "l1a")
-        disp_str += self.readable_arrange(printarr, "l")
-        disp_str += self.readable_arrange(supp_data, "l")
+        disp_str += self.readable_arrange(printarr + supp_data, "l2")
+        #disp_str += self.readable_arrange(supp_data, "l2")
         disp_str += ["* TRAINED WITH HYPERPARAMETERS"]
         disp_str += ["hparams:"]
-        disp_str += self.readable_arrange(self.datamain[2], "d") 
+        disp_str += self.readable_arrange(self.datamain[2][1], "d", "  ") 
         disp_str += ["* TRAINED WITH PARAMETERS"]
         disp_str += ["tparams:"]
-        disp_str += self.readable_arrange(self.datamain[3], "d")
+        disp_str += self.readable_arrange(self.datamain[3][1], "d", "  ")
         for lineout in disp_str:
             print(lineout)
-            txt_out.write(lineout)
+            txt_out.write(lineout + "\n")
         print("done writing readable log")
 
     def readable_arrange(self, p_item, mode, frontpad=""):
         ### dict mode
+        #print(p_item)
         if mode == "d":
             klist = []
             kmaxlength = 0
@@ -148,11 +159,12 @@ class mdl_log:
                         maxcollen[i] = len(str(p_item[j][i]))
             ### now make strings for linelist
             ### buffer is 2
+            #print(maxcollen)
             for i in range(len(p_item)):
                 tstr = frontpad
                 for j in range(len(p_item[i])):
                     tstr += str(p_item[i][j])
-                    for k in range(maxcollen[i] - len(str(p_item[i][j])) + 2):
+                    for k in range(maxcollen[j] - len(str(p_item[i][j])) + 3):
                         tstr += " "
                 linelist.append(tstr)
             return linelist
@@ -166,7 +178,7 @@ class mdl_log:
 
         elif mode == "l1b":
             linelist = []
-            for i in range(len(p_item))
+            for i in range(len(p_item)):
                 linelist.append(frontpad + str(p_item[i]))
             return linelist
 

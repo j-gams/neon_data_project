@@ -7,7 +7,7 @@ import math
 ### TODO -- comment
 class satimg_set (kr_utils.Sequence):
     def __init__ (self, data_in, shuffle, path_prefix, batch_size, x_ref_idx, y_col_idx,
-                  mean_stds, orientation = "hwc", dataname = "", mem_sensitive=True, observe_mode="per"):
+                  mean_stds, rformat="both", orientation = "hwc", dataname = "", mem_sensitive=True, observe_mode="per"):
         print("initializing datafold: " + dataname)
 
         ### parameters
@@ -29,7 +29,11 @@ class satimg_set (kr_utils.Sequence):
 
         ### channel, height, width or height, width, channel
         self.ori = orientation
-
+        
+        ### whether to return x, y or just x/y
+        ### so both/x/y
+        self.return_format = rformat
+        self.predict_mode = False
         ### split large input into constituent components
         ### legacy from "decision: trees" project
         ### TODO -- refactor to just chop out the img references and y, keep the other data in consolidated array
@@ -274,6 +278,19 @@ class satimg_set (kr_utils.Sequence):
 
         return image
 
+    def get_n_samples (self):
+        return len(self.y)
+
+    #def predict_mode (self, pmode):
+
+
+    def set_return (self, rmode):
+        if rmode == "x" or rmode == "y" or rmode == "both":
+            self.return_format = rmode
+        else:
+            print("cannot set return mode - invalid mode provided")
+        return self
+
     def __len__ (self):
         return self.lenn
 
@@ -286,7 +303,18 @@ class satimg_set (kr_utils.Sequence):
             for i in range(len(ret_indices)):
                 # print("img_ref=", self.path_prefix+self.X_img_ref[i])
                 ret_imgs[i] = self.load_dcube(self.path_prefix + self.X_ref[ret_indices[i]])
-            return ret_imgs, self.y[ret_indices]
+            #if self.return_format == "both":
+            #    return ret_imgs, self.y[ret_indices]
+            if self.return_format == "x":
+                return ret_imgs
+            elif self.return_format == "y":
+                return self.y[ret_indices]
+            else:
+                return ret_imgs, self.y[ret_indices]
         else:
-
-            return self.img_memory[ret_indices], self.y[ret_indices]
+            if self.return_format == "x":
+                return self.img_memory[ret_indices]
+            elif self.return_format == "y":
+                return self.y[ret_indices]
+            else:
+                return self.img_memory[ret_indices], self.y[ret_indices]

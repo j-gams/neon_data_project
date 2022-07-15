@@ -29,10 +29,13 @@ class test_conv:
             elif key == "train_metric":
                 train_metric = hparam_dict[key]
                 init_count += 1
+            elif key == "epochs":
+                self.n_epochs = hparam_dict[key]
+                init_count += 1
             elif key == "verbosity":
                 self.verbosity = hparam_dict[key]
         
-        if init_count != 5:
+        if init_count != 6:
             ### did not initialize ok
             print("model not initialized correctly!")
 
@@ -45,7 +48,7 @@ class test_conv:
         #self.modelname = model_name
         #self.imgsize = input_size
         #self.save_checks = save_checkpoints
-        self.model = keras.models.Sequential([keras.layers.InputLayer(input_shape=imgsize),
+        self.model = keras.models.Sequential([keras.layers.InputLayer(input_shape=self.imgsize),
                                          keras.layers.Conv2D(filters=256, kernel_size=(3, 3), strides=2, padding='same',
                                              activation='relu'),
                                          keras.layers.MaxPooling2D(2, 2),
@@ -60,7 +63,7 @@ class test_conv:
             print(self.model.summary())
         self.model.compile(loss=self.tmetric, metrics=self.metricset)
         self.callbacks = []
-        if self.save_checks:
+        if self.savechecks:
             callback = tf.keras.callbacks.ModelCheckpoint(modelname + ".h5",
                     monitor="val_"+self.tmetric,
                     verbose=1,
@@ -70,8 +73,18 @@ class test_conv:
                     save_weights_only = True)
             self.callbacks.append(callback)
 
-    def train(self, train_data, validation_data, tepochs):
-        self.model.fit(train_data, callbacks=self.callbacks, epochs=tepochs, validation_data=validation_data)
+    def train(self, train_data, validation_data):
+        self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data)
 
-    def predict(self, x_predict):
-        return self.model(x_predict)
+    def predict(self, x_predict, typein="simg"):
+        print(type(x_predict))
+        if typein == "simg":
+            dumb_out = []
+            og_ret = x_predict.return_format
+            x_predict.set_return("x")
+            for i in range(len(x_predict)):
+                dumb_out.append(self.model(x_predict[i]))
+            ret_y = np.array(dumb_out).reshape(-1).flatten()
+            #self.model(x_predict)
+            x_predict.set_return(og_ret)
+        return ret_y

@@ -21,8 +21,8 @@ def qprint(pstr, importance):
 ### TODO - read in file params from config file... eventually
 
 ### dataset parameters
-dataset = "data_interpolated"
-folding = "test_fold"
+dataset = "minidata"
+folding = "test_kfold"
 
 d_batch = 12
 d_shuffle = [True, True, True]
@@ -44,13 +44,15 @@ cross_folds = dataset.k_folds
 dataset.summarize()
 
 ### training parameters
-train_params = {"folds:" dataset.k_folds}
+#train_params = {"folds:" dataset.k_folds}
 models = []
 model_hparams = []
 save_names = []
-tparams = [{"metrics": ["mean_squared_error", "mean_absolute_error"]
-            "mode": "train",
-            "load_from": "na"}]
+train_params = [{"folds": dataset.k_folds,
+                 "metrics": ["mean_squared_error", "mean_absolute_error", "train_realtime"],
+                 "mode": "train",
+                 "load_from": "na",
+                 "save_models": True}]
 
 
 load_list = ["train_1"]
@@ -62,12 +64,13 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": False,
                               "train_metric": "mean_squared_error",
+                              "epochs": 2,
                               "verbosity": 2})
         save_names.append("basic_convmodel_test_1")
 ### now dispatch to the model trainer...?
 
 for i in range(len(models)):
     print("sending " + save_names[i] + "to be trained")
-    model_train(dataset, models[i], model_hparams[i], save_names[i], tparams[i])
+    model_train.train(dataset, models[i], model_hparams[i], save_names[i], train_params[i])
 
 print("done")
