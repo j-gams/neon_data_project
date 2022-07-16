@@ -49,7 +49,7 @@ models = []
 model_hparams = []
 save_names = []
 train_params = [{"folds": dataset.k_folds,
-                 "metrics": ["mean_squared_error", "mean_absolute_error", "train_realtime"],
+                 "metrics": ["mean_squared_error", "mean_absolute_error", "train_realtime", "train_processtime"],
                  "mode": "train",
                  "load_from": "na",
                  "save_models": True}]
@@ -62,10 +62,12 @@ for mdl_str in load_list:
         model_hparams.append({"model_name": "basic_convmodel_1",
                               "save_location": "../[LOCATION]",
                               "input_size": dataset.test.dims,
-                              "save_checkpoints": False,
+                              "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
                               "epochs": 2,
-                              "verbosity": 2})
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "verbosity": 1})
         save_names.append("basic_convmodel_test_1")
 ### now dispatch to the model trainer...?
 

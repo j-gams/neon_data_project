@@ -5,13 +5,16 @@
 import numpy as np
 from tensorflow import keras
 import tensorflow.keras.layers
-from tensorflow.keras.models import Model
+from keras.callbacks import ModelCheckpoint
+from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 
 class test_conv:
-    def __init__ (self, hparam_dict):# model_name, save_location, input_size, save_checkpoints, train_metric, verbosity=2):
+    def __init__ (self, hparam_dict, save_dir):# model_name, save_location, input_size, save_checkpoints, train_metric, verbosity=2):
         init_count = 0
         self.verbosity = 2
+        self.reload_best = True
+        self.save_last = True
         train_metric = "mean_squared_error"
         for key in hparam_dict:
             if key == "model_name":
@@ -32,9 +35,13 @@ class test_conv:
             elif key == "epochs":
                 self.n_epochs = hparam_dict[key]
                 init_count += 1
+            elif key == "use_best":
+                self.reload_best = hparam_dict[key]
+            elif key == "save_last_epoch":
+                self.save_last = hparam_dict[key]
             elif key == "verbosity":
                 self.verbosity = hparam_dict[key]
-        
+            
         if init_count != 6:
             ### did not initialize ok
             print("model not initialized correctly!")
@@ -44,6 +51,8 @@ class test_conv:
             self.tmetric = "mean_squared_error"
         else:
             self.tmetric = train_metric
+        
+        self.save_dir = save_dir 
 
         #self.modelname = model_name
         #self.imgsize = input_size
@@ -64,7 +73,7 @@ class test_conv:
         self.model.compile(loss=self.tmetric, metrics=self.metricset)
         self.callbacks = []
         if self.savechecks:
-            callback = tf.keras.callbacks.ModelCheckpoint(modelname + ".h5",
+            callback = ModelCheckpoint(self.save_dir + "/checkpoint.h5",
                     monitor="val_"+self.tmetric,
                     verbose=1,
                     mode="min",
@@ -74,10 +83,14 @@ class test_conv:
             self.callbacks.append(callback)
 
     def train(self, train_data, validation_data):
-        self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data)
+        self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data, verbose = self.verbosity)
+        if self.save_last:
+            self.model.save_weights(self.save_dir + "/last_epoch.h5")
+        if self.reload_best and self.savechecks:
+            self.model.load_weights(self.save_dir + "/checkpoint.h5")
 
     def predict(self, x_predict, typein="simg"):
-        print(type(x_predict))
+        #print(type(x_predict))
         if typein == "simg":
             dumb_out = []
             og_ret = x_predict.return_format
@@ -88,3 +101,15 @@ class test_conv:
             #self.model(x_predict)
             x_predict.set_return(og_ret)
         return ret_y
+
+    def load_best(self):
+        pass
+
+    def load_last(self):
+        pass
+
+    def save_model(self):
+        pass
+
+    def load_model(self):
+        pass

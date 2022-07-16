@@ -193,13 +193,16 @@ for i in range(len(raster_locs)):
 
         ### get the raster value at the point of interest. simple
         values_of_interest.append(rdata.sel(x=tx, y=ty, method='nearest').values)
-        
+        ### elevation 
         if i == 0:
             spec_data_1[1].append(rdata.sel(x=tx, y=ty, method='nearest').values)
+        ### land cover
         elif i == 1:
             spec_data_1[0].append(rdata.sel(x=tx, y=ty, method='nearest').values)
+        ### slope
         elif i == 2:
             spec_data_2[1].append(rdata.sel(x=tx, y=ty, method='nearest').values)
+        ### aspect
         elif i == 3:
             spec_data_2[0].append(rdata.sel(x=tx, y=ty, method='nearest').values)
 

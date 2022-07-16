@@ -74,7 +74,7 @@ class mdl_log:
                     maxs[-1] = self.datamain[i][met+2]
                     foldmax[-1] = i-4
         for met in range(len(metrics)):
-            avgs[met] /= n_in_avg
+            avgs[met] /= (n_in_avg / len(metrics))
 
         supp_data = [["averages:", "-"] + avgs, 
                      ["minimums:", "-"] + mins, 
