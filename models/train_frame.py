@@ -23,10 +23,10 @@ def qprint(pstr, importance):
 
 ### dataset parameters
 #dataset = "minidata_nosa"
-dataset = "minidata"
-#dataset = "data_interpolated"
-#folding = "test_fold"
-folding = "test_kfold"
+#dataset = "minidata"
+dataset = "data_interpolated"
+folding = "test_fold"
+#folding = "test_kfold"
 
 d_batch = 12
 d_shuffle = [True, True, True]
