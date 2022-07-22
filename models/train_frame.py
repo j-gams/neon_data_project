@@ -77,15 +77,18 @@ for mdl_str in load_list:
         models.append(regressor_test.test_regress)
         model_hparams.append({"model_name": "basic_regressor_1",
                               "save_location": "placeholder",
-                              "penalty": "l2",
-                              "train_metric": "mean_squared_error",
-                              "alpha": 0.0001,
                               "save_checkpoints": True,
+                              "train_metric": "mean_squared_error",
+                              "epochs": 50,
                               "use_best": True,
                               "save_last_epoch": True,
-                              "epochs": 50,
-                              "dropout": {"mode": "drop", "channels": []},
+                              "penalty": "l2",
+                              "alpha": 0.0001,
+                              "dropout": {"mode": "drop", "channels": [2, 3]},
                               "avg_channel": False,
+                              "retain_avg": False,
+                              "batch_regress": True,
+                              "normalize": True
                               "verbosity": 1})
         save_names.append("basic_sgd_regression_test_1")
 ### now dispatch to the model trainer...?

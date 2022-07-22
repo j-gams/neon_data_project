@@ -50,6 +50,8 @@ def train(dataset, modelclass, hparams, save_name, params):
         computed_metrics = mutils.compute_metrics(dataset.validation[i].y, yhat,
                 params["metrics"], [fold_train_time, fold_train_ptime]) 
         mlogger.add_record(computed_metrics, i)
+        mutils.spec_graphs(dataset.validation[i], dataset.validation[i].y, yhat,
+                           [0, 1, 2, 3], save_name, fsave)
         ### TODO -- pickle model
         print("* FOLD " + str(i) + " COMPLETED. SAVING MODEL...")
         if params["save_models"]:
