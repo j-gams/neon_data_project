@@ -35,5 +35,15 @@ def piloader(fpath):
     print(return_dict)
     return return_dict
 
+def d1loader(fpath):
+    #load 1d csv
+    return_list = []
+    with open(fpath) as f:
+        alllines = f.readlines()
+    for fline in alllines:
+        if fline != "":
+            return_list.append(fline.split(",")[:-1])
+    return return_list
+
 ### Test
 #piloader("../data/data_interpolated/point_reformat/test_data.txt")

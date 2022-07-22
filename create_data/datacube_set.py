@@ -7,7 +7,8 @@ import math
 ### TODO -- comment
 class satimg_set (kr_utils.Sequence):
     def __init__ (self, data_in, shuffle, path_prefix, batch_size, x_ref_idx, y_col_idx,
-                  mean_stds, rformat="both", orientation = "hwc", dataname = "", mem_sensitive=True, observe_mode="per"):
+                  mean_stds, channel_names, rformat="both", orientation = "hwc", dataname = "", mem_sensitive=True, 
+                  observe_mode="per", flatten=False, dropout = []):
         print("initializing datafold: " + dataname)
 
         ### parameters
@@ -33,10 +34,15 @@ class satimg_set (kr_utils.Sequence):
         ### whether to return x, y or just x/y
         ### so both/x/y
         self.return_format = rformat
-        self.predict_mode = False
+        ### TODO -- flat mode should probably require global normalization
+        self.flat_mode = flatten
+
+        self.channel_names = channel_names
+
+        self.drop_channels = dropout
+        self.keep_ids = self.drops_to_keeps()
         ### split large input into constituent components
         ### legacy from "decision: trees" project
-        ### TODO -- refactor to just chop out the img references and y, keep the other data in consolidated array
         ### Idea - return info, column labels...
         x_array_cols = []
         for i in range(data_in.shape[1]):
@@ -97,7 +103,10 @@ class satimg_set (kr_utils.Sequence):
         if not mem_sensitive:
             ### preload all imgs -- only if memory is not a concern
             ### make a big np array to store all of these data cubes
-            self.img_memory = np.zeros((self.full_data.shape[0], self.dims[0], self.dims[1], self.dims[2]))
+            if self.flat_mode:
+                self.img_memory = np.zeros((self.full_data.shape[0], self.dims[0]*self.dims[1]*self.dims[2]))
+            else:
+                self.img_memory = np.zeros((self.full_data.shape[0], self.dims[0], self.dims[1], self.dims[2]))
             print("preloading images...")
             if observe_mode == "per" or observe_mode == "global":
                 ### make np arrays for doing math
@@ -255,26 +264,54 @@ class satimg_set (kr_utils.Sequence):
         ## need to assume these are square probably
         ### TODO - generalize this
         image_in = np.genfromtxt(cube_loc, delimiter=',')
-        if self.ori == "hwc":
-            image = image_in.reshape(int(math.sqrt(image_in.shape[0])),int(math.sqrt(image_in.shape[0])),
-                    image_in.shape[1])
+        ### do dropout
+        #if self.drop_channels != []:
+        if self.drop_channels != []:
+            if self.ori == "hwc":
+                image_in = image_in[:,self.keep_ids]
+            else:
+                image_in = image_in[self.keep_ids]
+        if self.flat_mode:
+            image = image_in.flatten()
         else:
-            image = image_in.reshape(image_in.shape[0], int(math.sqrt(image_in.shape[1])),
-                    int(math.sqrt(image_in.shape[1])))
+            if self.ori == "hwc":
+                image = image_in.reshape(int(math.sqrt(image_in.shape[0])),int(math.sqrt(image_in.shape[0])),
+                        image_in.shape[1])
+                #if self.crop_channels != []
+            else:
+                image = image_in.reshape(image_in.shape[0], int(math.sqrt(image_in.shape[1])),
+                        int(math.sqrt(image_in.shape[1])))
+                #if self.crop_channels != []:
+                #    image = image[self.keep_ids]
         #image = np.array(Image.open(img_loc))[:, :, :3]
         # print(image.shape, m_s, self.dataname)
         # if not isinstance(image, np.ndarray):
         #    if image == None:
         #        print("uhoh")
         if not skip:
-            if self.ori == "hwc":
-                for i in range(image.shape[2]):
-                    if m_s[1][i] != 0:
-                        image[:,:,i] = (image[:,:,i] - m_s[0][i]) / m_s[1][i]
+            if self.flat_mode:
+                ### ...normalize???
+                pass
             else:
-                for i in range(image.shape[0]):
-                    image[i] = (image[i] - m_s[0][i]) / m_s[1][i]
-                    #image[:, :, i] = (image[:, :, i] - m_s[0][i]) / m_s[1][i]
+                if self.ori == "hwc":
+                    if self.drop_channels != []:
+                        for i in range(image.shape[2]):
+                            if m_s[1][self.keep_ids[i]] != 0:
+                                image[:,:,i] = (image[:,:,i] - m_s[0][self.keep_ids[i]]) / m_s[1][self.keep_ids[i]]
+                    else:
+                        for i in range(image.shape[2]):
+                            if m_s[1][i] != 0:
+                                image[:,:,i] = (image[:,:,i] - m_s[0][i]) / m_s[1][i]
+                else:
+                    if self.drop_channels != []:
+                        for i in range(image.shape[0]):
+                            if m_s[1][self.keep_ids[i]] != 0:
+                                image[i] = (image[i] - m_s[0][self.keep_ids[i]]) / m_s[1][self.keep_ids[i]]
+                    else:
+                        for i in range(image.shape[0]):
+                            if m_s[1][self.keep_ids[i]] != 0:
+                                image[i] = (image[i] - m_s[0][i]) / m_s[1][i]
+                        #image[:, :, i] = (image[:, :, i] - m_s[0][i]) / m_s[1][i]
 
         return image
 
@@ -282,7 +319,39 @@ class satimg_set (kr_utils.Sequence):
         return len(self.y)
 
     #def predict_mode (self, pmode):
+    
+    def set_drop (self, dmode):
+        self.drop_channels = dmode
+        self.keep_ids = self.drops_to_keeps()
+    
+    def drops_to_keeps (self):
+        kis = []
+        if self.drop_channels == []:
+            return []
+        else:
+            for i in range(len(self.channel_names)):
+                if self.channel_names[i] not in self.drop_channels:
+                    kis.append(i)
+        return kis
 
+    def keeps_to_drops (self):
+        dis = []
+        if len(self.keep_ids) == self.nchannels:
+            return []
+        else:
+            for i in range(len(self.channel_names)):
+                if i in self.keep_ids:
+                    dis.append(self.channel_names[i])
+        return dis
+    
+    def unshuffle (self):
+        self.indexes = np.arange(self.full_data.shape[0]) 
+
+    def set_keeps (self, keeps):
+        self.keep_ids = keeps
+    
+    def set_drops (self, drops):
+        self.drop_channels = drops
 
     def set_return (self, rmode):
         if rmode == "x" or rmode == "y" or rmode == "both":
@@ -291,15 +360,35 @@ class satimg_set (kr_utils.Sequence):
             print("cannot set return mode - invalid mode provided")
         return self
 
+    def set_flatten (self, fmode):
+        self.flat_mode = fmode
+
     def __len__ (self):
         return self.lenn
+    
+    def getindices(self, idx):
+        return self.indexes[idx*self.batch_size: min(((idx+1) * self.batch_size), self.full_data.shape[0])]
 
     def __getitem__(self, idx):
         # return picture data batch
+        ### TODO - account for dropped channels in return size
         ret_indices = self.indexes[idx * self.batch_size: min(((idx + 1) * self.batch_size), self.full_data.shape[0])]
         if self.mem_sensitive:
             # print(ret_indices)
-            ret_imgs = np.zeros((len(ret_indices), self.dims[0], self.dims[1], self.dims[2]))
+            if self.flat_mode:
+                if self.drop_channels == []:
+                    ret_imgs = np.zeros((len(ret_indices), self.dims[0] * self.dims[1] * self.dims[2]))
+                else:
+                    ret_imgs = np.zeros((len(ret_indices), int((self.dims[0]*self.dims[1]*self.dims[2])
+                        * (len(self.keep_ids)/self.nchannels))))
+            else:
+                if self.drop_channels != []:
+                    if self.ori == "hwc":
+                        ret_imgs = np.zeros((len(ret_indices), self.dims[0], self.dims[1], len(self.keep_ids)))
+                    else:
+                        ret_imgs = np.zeros((len(ret_indices), len(self.keep_ids), self.dims[1], self.dims[2]))
+                ### TODO - include for other drop channels option
+                #ret_imgs = np.zeros((len(ret_indices), self.dims[0], self.dims[1], self.dims[2]))
             for i in range(len(ret_indices)):
                 # print("img_ref=", self.path_prefix+self.X_img_ref[i])
                 ret_imgs[i] = self.load_dcube(self.path_prefix + self.X_ref[ret_indices[i]])

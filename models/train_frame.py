@@ -7,6 +7,7 @@ import sys
 import model_train
 
 import train_1
+from custom_models import regressor_test
 
 sys.path.insert(0, '../create_data')
 
@@ -21,7 +22,10 @@ def qprint(pstr, importance):
 ### TODO - read in file params from config file... eventually
 
 ### dataset parameters
+#dataset = "minidata_nosa"
 dataset = "minidata"
+#dataset = "data_interpolated"
+#folding = "test_fold"
 folding = "test_kfold"
 
 d_batch = 12
@@ -55,24 +59,39 @@ train_params = [{"folds": dataset.k_folds,
                  "save_models": True}]
 
 
-load_list = ["train_1"]
+load_list = ["test_regress"]
 for mdl_str in load_list:
     if mdl_str == "train_1":
         models.append(train_1.test_conv)
         model_hparams.append({"model_name": "basic_convmodel_1",
-                              "save_location": "../[LOCATION]",
+                              "save_location": "placeholder",
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
-                              "epochs": 2,
+                              "epochs": 50,
                               "use_best": True,
                               "save_last_epoch": True,
                               "verbosity": 1})
         save_names.append("basic_convmodel_test_1")
+    elif mdl_str == "test_regress":
+        models.append(regressor_test.test_regress)
+        model_hparams.append({"model_name": "basic_regressor_1",
+                              "save_location": "placeholder",
+                              "penalty": "l2",
+                              "train_metric": "mean_squared_error",
+                              "alpha": 0.0001,
+                              "save_checkpoints": True,
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "epochs": 50,
+                              "dropout": {"mode": "drop", "channels": []},
+                              "avg_channel": False,
+                              "verbosity": 1})
+        save_names.append("basic_sgd_regression_test_1")
 ### now dispatch to the model trainer...?
 
 for i in range(len(models)):
-    print("sending " + save_names[i] + "to be trained")
+    print("sending " + save_names[i] + " to be trained")
     model_train.train(dataset, models[i], model_hparams[i], save_names[i], train_params[i])
 
 print("done")

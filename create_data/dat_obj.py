@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 from datacube_set import satimg_set
-
+import rfdata_loader
 class datacube_loader:
 
     ### PARAMETERS OVERVIEW
@@ -20,12 +20,13 @@ class datacube_loader:
 
     ### satimg_set(data_in, shuffle, path_prefix, batch_size, x_ref_idx, y_col_idx, mean_stds, depth_ax, dataname,
     ### mem_sensitive, observe_mode)
+    ### TODO -- incorporate channel names ... load from meta/channel_names
     def __init__ (self, dataname, dataext, shuffle, batch, x_ref_idx, y_col_idx, musigs, mem, omode, cmode):
         print("building sets...")
         self.dataset_name = dataname
         #self.k_folds = expect_folds
         
-        meta_folds = 0
+        meta_folds = 0 
 
         ### load in
         with open("../data/" + dataname + "/fold_data/" + dataext + "/meta.txt") as fff:
@@ -37,6 +38,11 @@ class datacube_loader:
 
         print("meta folds: ", meta_folds)
         self.k_folds = meta_folds
+        ### load channel names
+
+        channel_names = rfdata_loader.d1loader("../data/" + dataname + 
+                "/meta/channel_names.txt")
+        print("channel names: ", channel_names)
         #if musigs = "default":
         #    musigs = 
         self.channel_mode = cmode
@@ -48,7 +54,7 @@ class datacube_loader:
         self.validation_data_raw = []
         self.train_data_raw = []
         self.test = satimg_set(self.test_data_raw, shuffle[2], "../data/" + dataname, batch[2], x_ref_idx, y_col_idx,
-                musigs[2], dataname="test set", mem_sensitive=mem[2], observe_mode=omode[2],
+                musigs[2], channel_names, dataname="test set", mem_sensitive=mem[2], observe_mode=omode[2],
                 orientation = self.channel_mode)
         self.train = []
         self.validation = []
@@ -61,13 +67,13 @@ class datacube_loader:
             self.validation_data_raw.append(alldata_np[tval])
             self.train_data_raw.append(alldata_np[ttrain])
             self.train.append(satimg_set(self.train_data_raw[-1], shuffle[0], "../data/" + dataname, batch[0],
-                x_ref_idx, y_col_idx, musigs[0], dataname = "train set " + str(i), mem_sensitive=mem[0],
+                x_ref_idx, y_col_idx, musigs[0], channel_names, dataname = "train set " + str(i), mem_sensitive=mem[0],
                 observe_mode=omode[0], orientation = self.channel_mode))
             fold_m_s = self.train[-1].get_or_compute_m_s(mode_in=omode[0])
             self.train_m_s.append(fold_m_s)
             self.train[-1].apply_observed_m_s()
             self.validation.append(satimg_set(self.validation_data_raw[-1], shuffle[1], "../data/" + dataname,
-                batch[1], x_ref_idx, y_col_idx, fold_m_s, dataname = "validation set " + str(i),
+                batch[1], x_ref_idx, y_col_idx, fold_m_s, channel_names, dataname = "validation set " + str(i),
                 mem_sensitive = mem[1], observe_mode=omode[1], orientation = self.channel_mode))
         #test_data_in_np = pd.read_csv("../data/" + dataname + "/datasrc/fold_data/" + data_ext + "/test/test_set.csv")
         #test_data_in_np = test_data_in_np.to_numpy()

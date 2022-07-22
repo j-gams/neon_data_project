@@ -212,8 +212,7 @@ for loc in x_raster_locs:
     tdataname = loc.split("/")[-1]
     qprint("loading " + tdataname + " data...", 2)
     xraster.append(gdal.Open(loc))
-    layernames.append(tdataname)
-
+    layernames.append(tdataname.split(".")[0])
     tdata_rband = xraster[-1].GetRasterBand(1)
     ndv_vals.append(tdata_rband.GetNoDataValue())
     xr_rsize.append((xraster[-1].RasterXSize, xraster[-1].RasterYSize))
@@ -243,6 +242,7 @@ xpoints = []
 ptlayers = []
 ptindexer = {}
 grecs = []
+ptlnames = []
 qprint("loading shape-point data", 1)
 for pt in point_shape:
     if not lo_mem or (gen_coords or gen_etc): #or True:
@@ -261,6 +261,7 @@ for pt in point_shape:
                     ### and id within the np array (if exists)
                     ptindexer[len(ptlayers)] = (len(xpoints) -1, i, j, ptl_idx)
                     ptlayers.append(critical_fields[i] + "_" + str(ptl_idx))
+                    ptlnames.append(xpoints[-1].fields[j][0])
                     ptl_idx += 1
 
         ### save
@@ -322,6 +323,13 @@ for pt in point_shape:
 
 print("layer number audit: ", len(ptlayers))
 
+### SAVE CHANNEL NAMES
+#save_channelnames = layernames + ptlnames
+#os.system("rm " + fs_loc + "/meta/channel_names.txt")
+#os.system("touch " + fs_loc + "/meta/channel_names.txt")
+#for cname in save_channelnames:
+#    os.system('echo "' + cname + '," >> ' + fs_loc + '/meta/channel_names.txt')
+
 ptlayers = []
 ### now try to load the data back in
 if lo_mem:
@@ -360,6 +368,13 @@ if lo_mem:
         print(np.count_nonzero(np.isnan(crit_npar[-1])))
     print("layer number audit: ", len(ptlayers))
 ### now we have all the data loaded in?
+### SAVE CHANNEL NAMES
+save_channelnames = layernames + ptlayers
+os.system("rm " + fs_loc + "/meta/channel_names.txt")
+os.system("touch " + fs_loc + "/meta/channel_names.txt")
+for cname in save_channelnames:
+    os.system('echo "' + cname + '," >> ' + fs_loc + '/meta/channel_names.txt')
+
 def cgetter(index, xy):
     if lo_mem:
         return npcoords[index, xy]
@@ -506,6 +521,7 @@ pr_unit = (yrsize[0] * yrsize[1]) // 50
 qprint("each step represents " + str(pr_unit) + " samples generated", 1)
 progress = 0
 nsuccess = 0
+extreme_encounter = [0 for ii in range(len(xr_npar) + len(ptlayers) + 2)]
 database = []
 channels = len(xr_npar) + len(ptlayers) + 2
 pd_colnames = ["filename", "y_value", "file_index", "yraster_x", "yraster_y", "avg_mid_dist"]
@@ -534,6 +550,11 @@ for i in range(yrsize[0]):
                         tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
                                 xr_params[k][2], xr_params[k][3])
                         #...
+                        ### extreme encounters
+                        if  xr_npar[k][tempi, tempj] > 10000 or xr_npar[k][tempi, tempj] < -10000:
+                            ### extreme
+                            extreme_encounter[k] += 1
+
                         if channel_first:
                             x_img[k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
                         else:
@@ -579,12 +600,17 @@ for i in range(yrsize[0]):
                             x_img[len(xr_npar) + m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
                         else:
                             x_img[si+pad_img, sj+pad_img, len(xr_npar) + m] = pgetter(m, minpt)
+                        if pgetter(m, minpt) > 10000 or pgetter(m, minpt) < -10000:
+                            extreme_encounter[m + len(xr_npar)] += 1
                     if channel_first:
                         x_img[len(xr_npar) + len(ptlayers), si+pad_img, sj+pad_img] = minpt
                         x_img[len(xr_npar) + len(ptlayers) + 1, si+pad_img, sj+pad_img] = minpt
                     else:
                         x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers)] = minpt
                         x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers) + 1] = minpt
+                    #if  xr_npar[k][tempi, tempj] > 10000 or xr_npar[k][tempi, tempj] < -10000:
+                    #    ### extreme
+                    #    extreme_encounter[k] += 1
             ### ... basic (14x14)
             #for si in range(imgsize):
             #    for sj in range(imgsize):
@@ -626,7 +652,7 @@ for i in range(yrsize[0]):
                 avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1)//2, (imgsize + (pad_img * 2))//2, -1]/4
                 avg_mid_dist += x_img[(imgsize + (pad_img * 2))//2, (imgsize + (pad_img * 2) - 1)//2, -1]/4 
                 avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1)//2, (imgsize + (pad_img * 2) - 1)//2, -1]/4
-
+            
             ### make a string of
             ### file name, y value, nsuccess, y raster coordinates, ..., average distance to nearest neighbor
             database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
@@ -638,12 +664,24 @@ for i in range(yrsize[0]):
                         delimiter=",", newline="\n")
             nsuccess += 1
             if testmode > 0 and nsuccess > testmode:
+                print()
                 print("max ring size: ", maxringsize)
                 print("avg ring size: ", avgringsize//nsuccess)
                 print("saving ydata")
                 ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
                 ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
+                #print("max ring size: ", maxringsize)
+                print("extreme encounter report:")
+                no_enc = True
+                for i in range(len(extreme_encounter)):
+                    if extreme_encounter[i] > 0:
+                        no_enc = False
+                        print(" ", i, extreme_encounter[i])
+                if no_enc:
+                    print("no extreme encounters")
                 sys.exit("exiting after testmode samples")
+
+print()
 #print(maxringsize)
 
 print("max ring size: ", maxringsize)
@@ -651,6 +689,10 @@ print("saving ydata")
 ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
 ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
 
+print("extreme encounter report:")
+for i in range(len(extreme_encounter)):
+    if extreme_encounter[i] > 0:
+        print(" ", i, extreme_encounter[i])
 
 """
 ### TODO NOT REFACTORED YET
