@@ -59,7 +59,7 @@ train_params = [{"folds": dataset.k_folds,
                  "save_models": True}]
 
 
-load_list = ["test_regress"]
+load_list = ["train_1"]#"test_regress"]
 for mdl_str in load_list:
     if mdl_str == "train_1":
         models.append(train_1.test_conv)
@@ -68,7 +68,7 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
-                              "epochs": 50,
+                              "epochs": 5,
                               "use_best": True,
                               "save_last_epoch": True,
                               "verbosity": 1})
@@ -88,7 +88,7 @@ for mdl_str in load_list:
                               "avg_channel": False,
                               "retain_avg": False,
                               "batch_regress": True,
-                              "normalize": True
+                              "normalize": True,
                               "verbosity": 1})
         save_names.append("basic_sgd_regression_test_1")
 ### now dispatch to the model trainer...?
