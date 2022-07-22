@@ -54,6 +54,9 @@ class test_regress:
                 self.self_norm = hparam_dict[key]
             elif key == "verbosity":
                 self.verbosity = hparam_dict[key]
+
+        if not self.batch_regress:
+            self.retain_avg = True
         if init_count != 8:
             print("model not initialized correctly!")
 
@@ -65,8 +68,10 @@ class test_regress:
             self.tmetric = "mean_squared_error"
         else:
             self.tmetric = train_metric
-        
-        self.model = SGDRegressor(max_iter = 50000)
+        if self.batch_regress:
+            self.model = SGDRegressor(alpha=self.alpha, max_iter=50000)
+        else:
+            self.model = LinearRegression()
 
     def dtransform(self, data):
         if avg_channel:
@@ -84,11 +89,10 @@ class test_regress:
     
     def change_restore(self, data, c_r, name):
         if c_r == "c":
-            self.crdict[name] = [data.return_format,
-                                 data.flat_mode,
+            self.crdict[name] = [data.flat_mode,
                                  data.keep_ids,
                                  data.drop_channels]
-            data.set_return("x")
+            #data.set_return("x")
             data.set_flatten(True)
             if self.dropmode == "keep":
                 data.set_keeps(self.dropout)
@@ -104,7 +108,7 @@ class test_regress:
                 data.set_drops([])
                 data.set_keeps(data.drops_to_keeps())
         else:
-           data.set_return(self.crdict[name][0])
+           #data.set_return(self.crdict[name][0])
            data.set_flatten(self.crdict[name][1])
            data.set_keeps(self.crdict[name][2])
            data.set_drops(self.crdict[name][3])
@@ -114,41 +118,59 @@ class test_regress:
         if self.dropmode == "drop":
             self.keeplen = train_data.nchannels
         #mval = 0
+
+        if self.usebest:
+            best_metric = float("inf")
+            best_model = None
         ### change dataset settings
         self.change_restore(train_data, "c", "train")
         self.train_y = train_data.y
-        if not self.retain_avg and self.avg_channel:
+        ### whether to compute channel avgs and save smaller data
+        if self.retain_avg and self.avg_channel:
             fulltrain = np.zeros((train_data.get_n_samples(), self.keeplen))
-        for i in range(len(train_data)):
-            td = self.mean_itr(train_data[i], self.keeplen)
-            if do_fulltrain:
-                fulltrain[i*train_data.batch_size:min(len(fulltrain), (i+1)*train_data.batch_size),:] = td
-            tyd = train_data.y[train_data.getindices(i)]
-        self.change_restore(validation_data, "c", "val")
-        self.change_restore(validation_data, "r", "val")
-        if do_fulltrain:
-            self.model = LinearRegression().fit(fulltrain, train_data.y)
-            return
-        for j in range(self.n_epochs):
-            print("epoch " + str(j) + " >", end="")
+        elif self.retain_avg:
+            fulltrain = np.zeros((train_data.get_n_samples(), self.keeplen * train_data.dims[0] * 2))
+        ### do overhead
+        if self.retain_avg:
             for i in range(len(train_data)):
-                xtrain = train_data[i]
+                fulltrain[i*train_data.batch_size:min(len(fulltrain),
+                                                      (i+1)*train_data.batch_size),
+                          :] = self.dtransform(train_data[i][0])
+        elif self.self_norm:
+            for i in range(len(train_data)):
+                ### do norm... not yet implemented
+                pass
+        
+        if self.retain_avg:
+            self.model.fit(fulltrain, train_data.y)
+            self.change_restore(train_data, "r", "train")
+            
+        else:
+            for j in range(self.n_epochs):
+                print("epoch " + str(j) + " >", end="")
+                for i in range(len(train_data)):
+                    xtrain, ytrain = train_data[i]
+                    if j == 0:
+                        tmax = np.max(xtrain)
+                        if tmax > mval:
+                            mval = tmax
+                    self.model.partial_fit(self.dtransform(xtrain), ytrain)
+                print("> done!")
                 if j == 0:
-                    tmax = np.max(xtrain)
-                    if tmax > mval:
-                        mval = tmax
-                train_data.set_return("y")
-                ytrain = train_data[i]
-                train_data.set_return("x")
-                self.model.partial_fit(self.mean_itr(xtrain, self.keeplen), ytrain)
-            print("> done!")
-            if j == 0:
-                print("max value encountered in training:", mval)
-            yhat = self.predict(validation_data, mode1="fake")
-            m = mutils.compute_metrics(validation_data.y, yhat, [self.tmetric], [0, 0])[0]
-            print("validation " + self.tmetric + ": " + str(m))            
-            train_data.on_epoch_end()
-        self.change_restore(train_data, "r", "train")
+                    print("max value encountered in training:", mval)
+                if self.savechecks:
+                    yhat = self.predict(validation_data, mode1="fake")
+                    m = mutils.compute_metrics(validation_data.y, yhat, [self.tmetric], [0, 0])[0]
+                    if m < best_metric:
+                        best_model = self.model
+                        best_metric = m
+                    print("validation " + self.tmetric + ": " + str(m))            
+                train_data.on_epoch_end()
+            if self.usebest:
+                if self.savelast:
+                    self.last_model = self.model
+                self.model = best_model
+            self.change_restore(train_data, "r", "train")
    
 
     def predict(self, x_predict, typein="simg", mode1="real"):
@@ -156,7 +178,7 @@ class test_regress:
             dumb_out = []
             self.change_restore(x_predict, "c", "eval")
             for i in range(len(x_predict)):
-                dumb_out.append(self.model.predict(self.mean_itr(x_predict[i], self.keeplen)))
+                dumb_out.append(self.model.predict(self.dtransform(x_predict[i][0])))
             ret_y = np.array(dumb_out).reshape(-1).flatten()
             self.change_restore(x_predict, "r", "eval")
         return ret_y
