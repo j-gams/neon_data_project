@@ -23,10 +23,10 @@ def qprint(pstr, importance):
 
 ### dataset parameters
 #dataset = "minidata_nosa"
-dataset = "minidata"
-#dataset = "data_interpolated"
-#folding = "test_fold"
-folding = "test_kfold"
+#dataset = "minidata"
+dataset = "data_interpolated"
+folding = "test_fold"
+#folding = "test_kfold"
 
 d_batch = 12
 d_shuffle = [True, True, True]
@@ -59,7 +59,7 @@ train_params = [{"folds": dataset.k_folds,
                  "save_models": True}]
 
 
-load_list = ["train_1"]#"test_regress"]
+load_list = ["test_regress"]
 for mdl_str in load_list:
     if mdl_str == "train_1":
         models.append(train_1.test_conv)
@@ -85,11 +85,12 @@ for mdl_str in load_list:
                               "save_last_epoch": True,
                               "penalty": "l2",
                               "alpha": 0.0001,
-                              "dropout": {"mode": "drop", "channels": [2, 3]},
-                              "avg_channel": False,
-                              "retain_avg": False,
-                              "batch_regress": True,
-                              "normalize": True,
+                              "dropout": {"mode": "keep", "channels": [0, 1]},
+                              #"dropout": {"mode": "keep", "channels": [0, 1]},
+                              "avg_channel": True,
+                              "retain_avg": True,
+                              "batch_regress": False,
+                              "normalize": False,
                               "verbosity": 1})
         save_names.append("basic_sgd_regression_test_1")
     elif mdl_str == "lasso_r":

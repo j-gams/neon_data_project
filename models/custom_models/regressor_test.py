@@ -57,8 +57,8 @@ class test_regress:
 
         if not self.batchr:
             self.retain_avg = True
-        if init_count != 8:
-            print("model not initialized correctly!")
+        #if init_count != 8:
+        #    print("model not initialized correctly!")
 
         self.metricset = {"mean_squared_error": "squared_error",
                      "huber": "huber",
@@ -74,7 +74,7 @@ class test_regress:
             self.model = LinearRegression()
 
     def dtransform(self, data):
-        if avg_channel:
+        if self.avg_channel:
             return self.mean_itr(data, nchannels = self.keeplen)
         else:
             return data
@@ -109,9 +109,9 @@ class test_regress:
                 data.set_keeps(data.drops_to_keeps())
         else:
            #data.set_return(self.crdict[name][0])
-           data.set_flatten(self.crdict[name][1])
-           data.set_keeps(self.crdict[name][2])
-           data.set_drops(self.crdict[name][3])
+           data.set_flatten(self.crdict[name][0])
+           data.set_keeps(self.crdict[name][1])
+           data.set_drops(self.crdict[name][2])
 
     def train(self, train_data, validation_data):
         ### handle keeplen... jus
@@ -144,6 +144,7 @@ class test_regress:
                 pass
         
         if self.retain_avg:
+            print("retain-avg fitting:")
             self.model.fit(fulltrain, train_data.y)
             self.change_restore(train_data, "r", "train")
             
