@@ -92,6 +92,16 @@ for mdl_str in load_list:
                               "normalize": True,
                               "verbosity": 1})
         save_names.append("basic_sgd_regression_test_1")
+    elif mdl_str == "lasso_r":
+        models.append(lasso_regress.lasso_regress)
+        model_hparams.append({"model_name": "lasso",
+                              "save_location": "placeholder",
+                              "alpha": 0.1,
+                              "dropout": {"mode": "drop", "channels": [2, 3]},
+                              "avg_channel": True,
+                              "normalize": True,
+                              "verbosity": 1})
+        save_names.append("lasso_regression_1")
 ### now dispatch to the model trainer...?
 
 for i in range(len(models)):

@@ -53,10 +53,10 @@ class test_conv:
         if self.dropmode == "keep":
             self.keeplen = len(self.dropout)
         elif self.dropmode == "drop":
-            self.keeplen = self.input_size[2] - len(self.dropout)
+            self.keeplen = self.imgsize[2] - len(self.dropout)
         else:
-            self.keeplen = self.input_size[2]
-        self.input_size[2] = self.keeplen
+            self.keeplen = self.imgsize[2]
+        self.imgsize[2] = self.keeplen
         
         if init_count != 6:
             ### did not initialize ok
