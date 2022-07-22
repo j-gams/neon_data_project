@@ -34,7 +34,13 @@ def compute_by_sample(y, yhat, metric):
         ret_err = (y-yhat) ** 2
     return ret_err
 
-def np_mean(x, ):
+def np_mean(x, channel):
+    ret = []
+    for i in range(len(x)):
+        x_i = x[i]
+        for j in range(len(x_i)):
+            ret.append(np.mean(x_i[j,:,:,channel]))
+    return np.array(ret)
 
 def spec_graphs(eval_x, eval_y, yhat, channel_list, modelname, saveat):
     ### 1. mean error by ecos
@@ -81,7 +87,7 @@ def spec_graphs(eval_x, eval_y, yhat, channel_list, modelname, saveat):
 
     for cidx in channel_list:
         plt.figure()
-        plt.scatter(eval_y, np.mean(eval_x[:,:,cidx]))
+        plt.scatter(eval_y, np_mean(eval_x, cidx))#np.mean(eval_x[:,:,cidx]))
         plt.title("Squared error by average " + cnames[cidx] + ", " + modelname)
         plt.xlabel("sample average " + cnames[cidx])
         plt.ylabel("squared error")
