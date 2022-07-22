@@ -23,10 +23,10 @@ def qprint(pstr, importance):
 
 ### dataset parameters
 #dataset = "minidata_nosa"
-#dataset = "minidata"
-dataset = "data_interpolated"
-folding = "test_fold"
-#folding = "test_kfold"
+dataset = "minidata"
+#dataset = "data_interpolated"
+#folding = "test_fold"
+folding = "test_kfold"
 
 d_batch = 12
 d_shuffle = [True, True, True]
@@ -71,6 +71,7 @@ for mdl_str in load_list:
                               "epochs": 50,
                               "use_best": True,
                               "save_last_epoch": True,
+                              "dropout": {"mode": "drop", "channels": [2, 3]},
                               "verbosity": 1})
         save_names.append("basic_convmodel_test_1")
     elif mdl_str == "test_regress":

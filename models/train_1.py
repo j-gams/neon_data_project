@@ -15,6 +15,11 @@ class test_conv:
         self.verbosity = 2
         self.reload_best = True
         self.save_last = True
+
+        self.crdict = dict()
+        self.dropmode = "none"
+        self.dropout = []
+        
         train_metric = "mean_squared_error"
         for key in hparam_dict:
             if key == "model_name":
@@ -41,7 +46,18 @@ class test_conv:
                 self.save_last = hparam_dict[key]
             elif key == "verbosity":
                 self.verbosity = hparam_dict[key]
-            
+            elif key == "dropout":
+                self.dropmode = hparam_dict[key]["mode"]
+                self.dropout = hparam_dict[key]["channels"]
+
+        if self.dropmode == "keep":
+            self.keeplen = len(self.dropout)
+        elif self.dropmode == "drop":
+            self.keeplen = self.input_size[2] - len(self.dropout)
+        else:
+            self.keeplen = self.input_size[2]
+        self.input_size[2] = self.keeplen
+        
         if init_count != 6:
             ### did not initialize ok
             print("model not initialized correctly!")
@@ -83,14 +99,19 @@ class test_conv:
             self.callbacks.append(callback)
 
     def train(self, train_data, validation_data):
+        self.change_restore(train_data, "c", "train")
+        self.change_restore(validation_data, "c", "val")
         self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data, verbose = self.verbosity)
         if self.save_last:
             self.model.save_weights(self.save_dir + "/last_epoch.h5")
         if self.reload_best and self.savechecks:
             self.model.load_weights(self.save_dir + "/checkpoint.h5")
+        self.change_restore(train_data, "r", "train")
+        self.change_restore(validation_data, "r", "val")
 
     def predict(self, x_predict, typein="simg"):
         #print(type(x_predict))
+        self.change_restore(x_predict, "c", "predict")
         if typein == "simg":
             dumb_out = []
             og_ret = x_predict.return_format
@@ -100,7 +121,34 @@ class test_conv:
             ret_y = np.array(dumb_out).reshape(-1).flatten()
             #self.model(x_predict)
             x_predict.set_return(og_ret)
+        self.change_restore(x_predict, "r", "predict")
         return ret_y
+
+    def change_restore(self, data, c_r, name):
+        if c_r == "c":
+            self.crdict[name] = [data.flat_mode,
+                                 data.keep_ids,
+                                 data.drop_channels]
+            #data.set_return("x")
+            data.set_flatten(True)
+            if self.dropmode == "keep":
+                data.set_keeps(self.dropout)
+                data.set_drops(data.keeps_to_drops())
+            elif self.dropmode == "drop":
+                data.set_drops(self.dropout)
+                keepsl = []
+                for i in range(data.nchannels):
+                    if i not in self.dropout:
+                        keepsl.append(i)
+                data.set_keeps(keepsl)
+            else:
+                data.set_drops([])
+                data.set_keeps(data.drops_to_keeps())
+        else:
+           #data.set_return(self.crdict[name][0])
+           data.set_flatten(self.crdict[name][1])
+           data.set_keeps(self.crdict[name][2])
+           data.set_drops(self.crdict[name][3])
 
     def load_best(self):
         pass
