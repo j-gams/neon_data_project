@@ -1,6 +1,6 @@
 ### utils
 import math
-import numpy
+import numpy as np
 import matplotlib.pyplot as plt
 
 def compute_metrics(y, yhat, metrics, times):
@@ -37,8 +37,9 @@ def compute_by_sample(y, yhat, metric):
 def np_mean(x, channel):
     ret = []
     for i in range(len(x)):
-        x_i = x[i]
-        for j in range(len(x_i)):
+        x_i = x[i][0]
+        #print(x_i)
+        for j in range(x_i.shape[0]):
             ret.append(np.mean(x_i[j,:,:,channel]))
     return np.array(ret)
 

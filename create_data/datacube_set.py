@@ -387,6 +387,9 @@ class satimg_set (kr_utils.Sequence):
                         ret_imgs = np.zeros((len(ret_indices), self.dims[0], self.dims[1], len(self.keep_ids)))
                     else:
                         ret_imgs = np.zeros((len(ret_indices), len(self.keep_ids), self.dims[1], self.dims[2]))
+                else:
+                    ret_imgs = np.zeros((len(ret_indices), self.dims[0], self.dims[1], self.dims[2]))
+
                 ### TODO - include for other drop channels option
                 #ret_imgs = np.zeros((len(ret_indices), self.dims[0], self.dims[1], self.dims[2]))
             for i in range(len(ret_indices)):

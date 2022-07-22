@@ -68,7 +68,7 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
-                              "epochs": 5,
+                              "epochs": 1,
                               "use_best": True,
                               "save_last_epoch": True,
                               "verbosity": 1})
