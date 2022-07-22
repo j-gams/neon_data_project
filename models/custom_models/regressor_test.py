@@ -12,8 +12,8 @@ class test_regress:
         self.verbosity = 2
         train_metric = "mean_squared_error"
         self.dropout = []
-        self.dropmode = "drop"
-        self.keeplen = 2
+        self.dropmode = "none"
+        self.keeplen = 0
         self.crdict = dict()
         self.avg_channel = True
         self.retain_average = False
@@ -55,7 +55,7 @@ class test_regress:
             elif key == "verbosity":
                 self.verbosity = hparam_dict[key]
 
-        if not self.batch_regress:
+        if not self.batchr:
             self.retain_avg = True
         if init_count != 8:
             print("model not initialized correctly!")
@@ -68,7 +68,7 @@ class test_regress:
             self.tmetric = "mean_squared_error"
         else:
             self.tmetric = train_metric
-        if self.batch_regress:
+        if self.batchr:
             self.model = SGDRegressor(alpha=self.alpha, max_iter=50000)
         else:
             self.model = LinearRegression()
@@ -117,6 +117,8 @@ class test_regress:
         ### handle keeplen... jus
         if self.dropmode == "drop":
             self.keeplen = train_data.nchannels
+        elif self.dropmode == "none":
+            self.keeplen = train_data.dims[2]
         #mval = 0
 
         if self.usebest:
