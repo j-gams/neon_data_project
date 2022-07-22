@@ -1,6 +1,7 @@
 ### utils
 import math
 import numpy as np
+from scipy import stats
 import matplotlib.pyplot as plt
 
 def compute_metrics(y, yhat, metrics, times):
@@ -43,6 +44,15 @@ def np_mean(x, channel):
             ret.append(np.mean(x_i[j,:,:,channel]))
     return np.array(ret)
 
+def np_mode(x, channel):
+    ret = []
+    for i in range(len(x)):
+        x_i = x[i][0]
+        for j in range(x_i.shape[0]):
+            ret.append(stats.mode(x_i[j,:,:,channel].flatten())[0][0])
+            #print(ret[-1])
+    return np.array(ret)
+
 def spec_graphs(eval_x, eval_y, yhat, channel_list, modelname, saveat):
     ### 1. mean error by ecos
     ### 2. sq error by ecos
@@ -54,7 +64,7 @@ def spec_graphs(eval_x, eval_y, yhat, channel_list, modelname, saveat):
     mse = compute_by_sample(eval_y, yhat, "mean_squared_error")
     mae = compute_by_sample(eval_y, yhat, "mean_absolute_error")
     cnames = ["elevation", "landcover", "slope", "aspect"]
-
+    cfuncs = [np_mean, np_mode, np_mean, np_mean]
     ### 0
     plt.figure()
     plt.scatter(eval_y, yhat)
@@ -88,7 +98,10 @@ def spec_graphs(eval_x, eval_y, yhat, channel_list, modelname, saveat):
 
     for cidx in channel_list:
         plt.figure()
-        plt.scatter(np_mean(eval_x, cidx), mse)#np.mean(eval_x[:,:,cidx]))
+        cx = cfuncs[cidx](eval_x, cidx)
+        print(cx.shape)
+        print(mse.shape)
+        plt.scatter(cx, mse)#np.mean(eval_x[:,:,cidx]))
         plt.title("Squared error by average " + cnames[cidx] + ", " + modelname)
         plt.xlabel("sample average " + cnames[cidx])
         plt.ylabel("squared error")
