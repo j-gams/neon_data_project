@@ -53,7 +53,7 @@ def spec_graphs(eval_x, eval_y, yhat, channel_list, modelname, saveat):
 
     mse = compute_by_sample(eval_y, yhat, "mean_squared_error")
     mae = compute_by_sample(eval_y, yhat, "mean_absolute_error")
-    cnames = ["elevation", "land cover", "slope", "aspect"]
+    cnames = ["elevation", "landcover", "slope", "aspect"]
 
     ### 0
     plt.figure()
@@ -88,11 +88,11 @@ def spec_graphs(eval_x, eval_y, yhat, channel_list, modelname, saveat):
 
     for cidx in channel_list:
         plt.figure()
-        plt.scatter(eval_y, np_mean(eval_x, cidx))#np.mean(eval_x[:,:,cidx]))
+        plt.scatter(np_mean(eval_x, cidx), mse)#np.mean(eval_x[:,:,cidx]))
         plt.title("Squared error by average " + cnames[cidx] + ", " + modelname)
         plt.xlabel("sample average " + cnames[cidx])
         plt.ylabel("squared error")
-        plt.savefig(saveat + "/asq_error_"+cnames[cidx]+".png")
+        plt.savefig(saveat + "/sq_error_"+cnames[cidx]+".png")
         plt.cla()
         plt.close()
 
