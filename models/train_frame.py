@@ -8,7 +8,7 @@ import model_train
 
 import train_1
 from custom_models import regressor_test
-
+from custom_models import auto_regress
 sys.path.insert(0, '../create_data')
 
 from dat_obj import datacube_loader
@@ -59,7 +59,7 @@ train_params = [{"folds": dataset.k_folds,
                  "save_models": True}]
 
 
-load_list = ["train_1"]
+load_list = ["auto_r"]
 for mdl_str in load_list:
     if mdl_str == "train_1":
         models.append(train_1.test_conv)
@@ -103,6 +103,22 @@ for mdl_str in load_list:
                               "normalize": True,
                               "verbosity": 1})
         save_names.append("lasso_regression_1")
+    elif mdl_str == "auto_r":
+        models.append(auto_regress.test_auto)
+        model_hparams.append({"model_name": "basic_convmodel_1",
+                              "save_location": "placeholder",
+                              "input_size": dataset.test.dims,
+                              "save_checkpoints": True,
+                              "train_metric": "binary_crossentropy",
+                              "epochs": 50,
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "dropout": {"mode": "drop", "channels": [2, 3]},
+                              "encoding_size": 20,
+                              "denselayers": [1024, 512, 256],
+                              "rstep": "lr",
+                              "verbosity": 1})
+        save_names.append("autoencoder_linreg_1")
 ### now dispatch to the model trainer...?
 
 for i in range(len(models)):

@@ -8,7 +8,7 @@ from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from sklearn.linear_model import LinearRegression
 
-class test_conv:
+class test_auto:
     def __init__ (self, hparam_dict, save_dir):
         self.verbosity = 2
         self.reload_best = True
@@ -65,8 +65,8 @@ class test_conv:
 
         imgprod = self.imgsize[0] * self.imgsize[1] * self.imgsize[2]
 
-        self.input_in = keras.Input(shape=imgsize)
-        x = keras.layers.Conv2D(fiters = 256, kernel_size=(3,3), strides=2, padding='same')(self.input_in)
+        self.input_in = keras.Input(shape=self.imgsize)
+        x = keras.layers.Conv2D(filters = 256, kernel_size=(3,3), strides=2, padding='same')(self.input_in)
         x = keras.layers.MaxPooling2D(2, 2)(x)
         x = keras.layers.Conv2D(filters=512, kernel_size=(3,3), strides=2, padding='same')(x)
         x = keras.layers.MaxPooling2D(2, 2)(x)
@@ -77,25 +77,32 @@ class test_conv:
         #x = keras.layers.Dense(1024, activation='relu')(x)
         #x = keras.layers.Dense(512, activation='relu')(x)
         self.encoded = keras.layers.Dense(self.enc_size, activation='relu')(x)
-        xo = self.encoded
+        encoded_in = keras.Input(shape=(self.enc_size,))
+        xo = encoded_in
         for dlayer in reversed(self.denselayers):
             xo = keras.layers.Dense(dlayer, activation='relu')(xo)
         #xo = keras.layers.Dense(512, activation='relu')(self.encoded)
         #xo = keras.layers.Dense(1024, activation='relu')(xo)
+        
         xo = keras.layers.Dense(imgprod, activation='relu')(xo)
+
+        #encoded_in = keras.Input(shape=(self.enc_size,))
         xo = keras.layers.Reshape(self.imgsize)(xo)
         xo = keras.layers.Conv2DTranspose(filters=256, kernel_size=(3, 3), strides=2, activation="relu", padding="same")(xo)
-        xo = keras.layers.Conv2DTranspose(filters=512, kernel_size=(3, 3), strides=2, activation="relu", padding="same")(xo)
-        xo = keras.layers.Conv2D(self.imgsize[2], kernel_size=(3,3), activation='sigmoid', strides=1, padding='same')(xo)
+        xo = keras.layers.Conv2DTranspose(filters=512, kernel_size=(3, 3), strides=1, activation="relu", padding="same")(xo)
+        xo = keras.layers.Conv2D(self.imgsize[2], kernel_size=(3,3), activation='relu', strides=2, padding='same')(xo)
 
-        self.autoencoder = keras.Model(self.input_in, xo)
+        #self.autoencoder = keras.Model(self.input_in, xo)
         self.encodermodule = keras.Model(self.input_in, self.encoded)
-        encoded_in = keras.Input(shape=(self.enc_size,))
-        dec_layers = self.autoencoder.layers[-7:-1]
-        self.decodermodule = keras.Model(encoded_in, dec_layers(encoded_in))
+        self.decodermodule = keras.Model(encoded_in, xo)
+        self.autoencoder = keras.Model(self.input_in, self.decodermodule(self.encodermodule(self.input_in)))
+        #encoded_in = keras.Input(shape=(self.enc_size,))
+        #dec_layers = self.autoencoder.layers[-1]
+        #self.decodermodule = keras.Model(encoded_in, dec_layers(encoded_in))
 
-        self.autoencoder.compile(loss='binary_crossentropy')
-
+        self.autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
+        print(self.autoencoder.summary())
+        self.callbacks = []
         if self.savechecks:
             callback = ModelCheckpoint(self.save_dir + "/checkpoint.h5",
                     monitor="val_binary_crossentropy",
@@ -124,19 +131,24 @@ class test_conv:
         self.change_restore(validation_data, "r", "val_ae", "ae")
 
     def train_ae(self, train_data, validation_data):
-        self.autoencoder.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data, verbose = self.verbosity)
+        self.autoencoder.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs,
+                validation_data=validation_data, 
+                verbose = self.verbosity)
         if self.save_last:
-            self.model.save_weights(self.save_dir + "/last_epoch.h5")
-        if self.reload_best and self.savechecks:
-            self.model.load_weights(self.save_dir + "/checkpoint.h5")
+            self.autoencoder.save_weights(self.save_dir + "/last_epoch.h5")
+        #if self.reload_best and self.savechecks:
+        #    self.autoencoder.load_weights(self.save_dir + "/checkpoint.h5")
         
     def train_reg(self, train_data):
-        train_munge = []
-        
+        #train_munge = []
+        train_munge = np.zeros((train_data.X.shape[0], self.enc_size))
         for i in range(len(train_data)):
-            x_i = train_data[i][0]
-            for j in range(len(x_i)):
-                train_munge.append(self.encodermodule.predict(x_i[j]))
+            x_i = train_data[i]
+            #for j in range(len(x_i)):
+            #fulltrain[i*train_data.batch_size:min(len(fulltrain),
+            #                                          (i+1)*train_data.batch_size),
+            #              :] = self.dtransform(train_data[i][0])
+            train_munge[i*train_data.batch_size:min(len(x_i) + i*train_data.batch_size, (i+1)*train_data.batch_size), :] = self.encodermodule.predict(x_i)
         train_mungenp = np.array(train_munge)
         print("train_munge", train_mungenp.shape)
         self.rmodel = LinearRegression().fit(train_mungenp, train_data.y)
@@ -145,7 +157,7 @@ class test_conv:
         dumb_out = []
         self.change_restore(x_predict, "c", "eval", "r")
         for i in range(len(x_predict)):
-            dumb_out.append(self.encodermodule.predict(x_predict[i][0]))
+            dumb_out.append(self.rmodel.predict(self.encodermodule.predict(x_predict[i])))
         ret_y = np.array(dumb_out).reshape(-1).flatten()
         self.change_restore(x_predict, "r", "eval", "r")
         return ret_y
@@ -154,10 +166,11 @@ class test_conv:
         if c_r == "c":
             ### autoencoder mode
             if mode == "ae":
-                self.crdict[name] = [data.flat_mode,
+                self.crdict[name] = [data.return_format,
+                                     data.flat_mode,
                                      data.keep_ids,
                                      data.drop_channels]
-                #data.set_return("x")
+                data.set_return("xx")
                 data.set_flatten(False)
                 if self.dropmode == "keep":
                     data.set_keeps(self.dropout)
@@ -174,10 +187,11 @@ class test_conv:
                     data.set_keeps(data.drops_to_keeps())
             ### regression mode
             elif mode == "r":
-                self.crdict[name] = [data.flat_mode,
+                self.crdict[name] = [data.return_format,
+                                     data.flat_mode,
                                      data.keep_ids,
                                      data.drop_channels]
-                #data.set_return("x")
+                data.set_return("x")
                 data.set_flatten(False)
                 data.unshuffle()
                 if self.dropmode == "keep":
@@ -194,8 +208,8 @@ class test_conv:
                     data.set_drops([])
                     data.set_keeps(data.drops_to_keeps())
         else:
-           #data.set_return(self.crdict[name][0])
-           data.set_flatten(self.crdict[name][0])
-           data.set_keeps(self.crdict[name][1])
-           data.set_drops(self.crdict[name][2])
+           data.set_return(self.crdict[name][0])
+           data.set_flatten(self.crdict[name][1])
+           data.set_keeps(self.crdict[name][2])
+           data.set_drops(self.crdict[name][3])
         

@@ -354,10 +354,10 @@ class satimg_set (kr_utils.Sequence):
         self.drop_channels = drops
 
     def set_return (self, rmode):
-        if rmode == "x" or rmode == "y" or rmode == "both":
-            self.return_format = rmode
-        else:
-            print("cannot set return mode - invalid mode provided")
+        #if rmode == "x" or rmode == "y" or rmode == "both":
+        self.return_format = rmode
+        #else:
+        #    print("cannot set return mode - invalid mode provided")
         return self
 
     def set_flatten (self, fmode):
@@ -399,6 +399,8 @@ class satimg_set (kr_utils.Sequence):
             #    return ret_imgs, self.y[ret_indices]
             if self.return_format == "x":
                 return ret_imgs
+            elif self.return_format == "xx":
+                return ret_imgs, ret_imgs
             elif self.return_format == "y":
                 return self.y[ret_indices]
             else:
@@ -406,6 +408,8 @@ class satimg_set (kr_utils.Sequence):
         else:
             if self.return_format == "x":
                 return self.img_memory[ret_indices]
+            elif self.return_format == "xx":
+                return self.img_memory[ret_indices], self.image_memory[ret_indices]
             elif self.return_format == "y":
                 return self.y[ret_indices]
             else:
