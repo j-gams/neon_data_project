@@ -56,8 +56,9 @@ class test_conv:
             self.keeplen = self.imgsize[2] - len(self.dropout)
         else:
             self.keeplen = self.imgsize[2]
+        self.imgsize = list(self.imgsize)
         self.imgsize[2] = self.keeplen
-        
+        self.imgsize = tuple(self.imgsize)
         if init_count != 6:
             ### did not initialize ok
             print("model not initialized correctly!")
@@ -114,13 +115,13 @@ class test_conv:
         self.change_restore(x_predict, "c", "predict")
         if typein == "simg":
             dumb_out = []
-            og_ret = x_predict.return_format
-            x_predict.set_return("x")
+            #og_ret = x_predict.return_format
+            #x_predict.set_return("x")
             for i in range(len(x_predict)):
-                dumb_out.append(self.model(x_predict[i]))
+                dumb_out.append(self.model(x_predict[i][0]))
             ret_y = np.array(dumb_out).reshape(-1).flatten()
             #self.model(x_predict)
-            x_predict.set_return(og_ret)
+            #x_predict.set_return(og_ret)
         self.change_restore(x_predict, "r", "predict")
         return ret_y
 
@@ -130,7 +131,7 @@ class test_conv:
                                  data.keep_ids,
                                  data.drop_channels]
             #data.set_return("x")
-            data.set_flatten(True)
+            data.set_flatten(False)
             if self.dropmode == "keep":
                 data.set_keeps(self.dropout)
                 data.set_drops(data.keeps_to_drops())
@@ -146,9 +147,9 @@ class test_conv:
                 data.set_keeps(data.drops_to_keeps())
         else:
            #data.set_return(self.crdict[name][0])
-           data.set_flatten(self.crdict[name][1])
-           data.set_keeps(self.crdict[name][2])
-           data.set_drops(self.crdict[name][3])
+           data.set_flatten(self.crdict[name][0])
+           data.set_keeps(self.crdict[name][1])
+           data.set_drops(self.crdict[name][2])
 
     def load_best(self):
         pass

@@ -44,11 +44,13 @@ def train(dataset, modelclass, hparams, save_name, params):
             fold_train_ptime = time.time() - fold_start_ptime
         elif params["mode"] == "load":
             print("not yet implemented")
+        dataset.validation[i].unshuffle()
         yhat = model.predict(dataset.validation[i])
         ### compute metrics
         ### ...
         computed_metrics = mutils.compute_metrics(dataset.validation[i].y, yhat,
                 params["metrics"], [fold_train_time, fold_train_ptime]) 
+        print(computed_metrics[0], computed_metrics[1])
         mlogger.add_record(computed_metrics, i)
         mutils.spec_graphs(dataset.validation[i], dataset.validation[i].y, yhat,
                            [0, 1, 2, 3], save_name, fsave)
