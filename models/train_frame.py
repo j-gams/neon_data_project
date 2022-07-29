@@ -9,6 +9,7 @@ import model_train
 import train_1
 from custom_models import regressor_test
 from custom_models import auto_regress
+from custom_models import lasso_regress
 sys.path.insert(0, '../create_data')
 
 from dat_obj import datacube_loader
@@ -97,7 +98,7 @@ for mdl_str in load_list:
         models.append(lasso_regress.lasso_regress)
         model_hparams.append({"model_name": "lasso",
                               "save_location": "placeholder",
-                              "alpha": 0.1,
+                              "alpha": 0.2,
                               "dropout": {"mode": "drop", "channels": [2, 3]},
                               "avg_channel": True,
                               "normalize": True,
@@ -116,7 +117,8 @@ for mdl_str in load_list:
                               "dropout": {"mode": "drop", "channels": [2, 3]},
                               "encoding_size": 20,
                               "denselayers": [1024, 512, 256],
-                              "rstep": "lr",
+                              "rstep": "lasr",
+                              "rstep_params": {"alpha": 0.2},
                               "verbosity": 1})
         save_names.append("autoencoder_linreg_1")
 ### now dispatch to the model trainer...?

@@ -7,6 +7,7 @@ from keras.callbacks import ModelCheckpoint
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Lasso
 
 class test_auto:
     def __init__ (self, hparam_dict, save_dir):
@@ -32,7 +33,9 @@ class test_auto:
             elif key == "denselayers":
                 self.denselayers = hparam_dict[key]
             elif key == "rstep":
-                self.regress_step = "lr"
+                self.regress_step = hparam_dict[key]
+            elif key == "rstep_params":
+                self.rms_params = hparam_dict[key]
             elif key == "input_size":
                 self.imgsize = hparam_dict[key]
             elif key == "save_checkpoints":
@@ -151,7 +154,10 @@ class test_auto:
             train_munge[i*train_data.batch_size:min(len(x_i) + i*train_data.batch_size, (i+1)*train_data.batch_size), :] = self.encodermodule.predict(x_i)
         train_mungenp = np.array(train_munge)
         print("train_munge", train_mungenp.shape)
-        self.rmodel = LinearRegression().fit(train_mungenp, train_data.y)
+        if self.regress_step == "linr":
+            self.rmodel = LinearRegression().fit(train_mungenp, train_data.y)
+        elif self.regress_step == "lasr":
+            self.rmodel = Lasso(alpha=self.rms_params["alpha"]).fit(train_mungenp, train_data.y)
 
     def predict(self, x_predict):
         dumb_out = []

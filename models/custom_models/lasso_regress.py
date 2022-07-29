@@ -14,7 +14,7 @@ class lasso_regress:
         self.crdict = dict()
         self.avg_channel = True
         self.self_norm = False
-
+        self.alpha = 0.2
         for key in hparam_dict:
             if key == "model_name":
                 self.modelname = hparam_dict[key]
@@ -36,7 +36,7 @@ class lasso_regress:
             self.model = Lasso(alpha = self.alpha)
             
     def dtransform(self, data):
-        if avg_channel:
+        if self.avg_channel:
             return self.mean_itr(data, nchannels = self.keeplen)
         else:
             return data
@@ -71,9 +71,9 @@ class lasso_regress:
                 data.set_keeps(data.drops_to_keeps())
         else:
            #data.set_return(self.crdict[name][0])
-           data.set_flatten(self.crdict[name][1])
-           data.set_keeps(self.crdict[name][2])
-           data.set_drops(self.crdict[name][3])
+           data.set_flatten(self.crdict[name][0])
+           data.set_keeps(self.crdict[name][1])
+           data.set_drops(self.crdict[name][2])
 
     def train(self, train_data, validation_data):
         if self.dropmode == "drop":
