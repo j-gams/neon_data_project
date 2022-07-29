@@ -526,6 +526,14 @@ database = []
 channels = len(xr_npar) + len(ptlayers) + 2
 pd_colnames = ["filename", "y_value", "file_index", "yraster_x", "yraster_y", "avg_mid_dist"]
 landmark_x, landmark_y = coords_idx(-104.876653,41.139535, yulh, yulv, ypxh, ypxv)
+
+skip_save = True
+if skip_save:
+    print("warning: running in skip save mode")
+
+diids = [ii for ii in range(101)]
+dists = [0 for ii in range(101)]
+
 if verbosity > 0:
     print("progress 0/50 ", end="", flush=True)
 for i in range(yrsize[0]):
@@ -538,6 +546,7 @@ for i in range(yrsize[0]):
                 x_img = np.zeros((channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
             else:
                 x_img = np.zeros((imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
+            nlcd_count = 0
             for k in range(len(xr_npar)):# in xr_npar:
                 ### ... Try again with a buffer to get 16x16 image
                 for si in range(0 - pad_img, imgsize+pad_img):
@@ -554,7 +563,8 @@ for i in range(yrsize[0]):
                         if  xr_npar[k][tempi, tempj] > 10000 or xr_npar[k][tempi, tempj] < -10000:
                             ### extreme
                             extreme_encounter[k] += 1
-
+                        if k == 1 and (xr_npar[k][tempi, tempj] <40 or xr_npar[k][tempi, tempj] > 45):
+                            nlcd_count += 1
                         if channel_first:
                             x_img[k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
                         else:
@@ -576,7 +586,8 @@ for i in range(yrsize[0]):
                 #        #    x_img[k, si, sj] = xr_npar[k][tempi, tempj]
                 #        #else:
                 #        #    x_img[si, sj, k] = xr_npar[k][tempi, tempj]
-
+            #print("**", nlcd_count, round((((imgsize + (2*pad_img)) ** 2) - nlcd_count)/((imgsize + (2*pad_img)) ** 2) * 100))
+            dists[round((((imgsize + (2*pad_img)) ** 2) - nlcd_count)/((imgsize + (2*pad_img)) ** 2) * 100)] += 1
             k_ids, rings = krings(i, j, k_approx)
             avgringsize += rings
             if rings > maxringsize:
@@ -655,13 +666,14 @@ for i in range(yrsize[0]):
             
             ### make a string of
             ### file name, y value, nsuccess, y raster coordinates, ..., average distance to nearest neighbor
-            database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
-            if channel_first:
-                np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
-                        delimiter=",", newline="\n")
-            else:
-                np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
-                        delimiter=",", newline="\n")
+            if not skip_save:
+                database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+                if channel_first:
+                    np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
+                            delimiter=",", newline="\n")
+                else:
+                    np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
+                            delimiter=",", newline="\n")
             nsuccess += 1
             if testmode > 0 and nsuccess > testmode:
                 print()
@@ -679,6 +691,13 @@ for i in range(yrsize[0]):
                         print(" ", i, extreme_encounter[i])
                 if no_enc:
                     print("no extreme encounters")
+
+                plt.figure()
+                plt.bar(diids, dists)
+                plt.title("distribution of nlcd values over 5m regions / sample")
+                plt.savefig("../figures/nlcd_dist_.png")
+                plt.close()
+
                 sys.exit("exiting after testmode samples")
 
 print()

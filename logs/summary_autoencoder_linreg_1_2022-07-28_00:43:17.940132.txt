@@ -1,0 +1,32 @@
+* MODEL SUMMARY
+header:  autoencoder_linreg_1_2022-07-28_00:43:17.940132  autoencoder_linreg_1
+data:       fold   mean_squared_error    mean_absolute_error   train_realtime      train_processtime    
+fold_0:     0      0.11633832186591579   0.2795974076375812    75725.30889749527   1659066112.3669686   
+averages:   -      0.11633832186591579   0.2795974076375812    75725.30889749527   1659066112.3669686   
+minimums:   -      0.11633832186591579   0.2795974076375812    75725.30889749527   1659066112.3669686   
+min fold:   -      0                     0                     0                   0                    
+maximums:   -      0.11633832186591579   0.2795974076375812    75725.30889749527   1659066112.3669686   
+max fold:   -      0                     0                     0                   0                    
+* TRAINED WITH HYPERPARAMETERS
+hparams:
+  model_name:        basic_convmodel_1
+  save_location:     autoencoder_linreg_1_2022-07-28_00:43:17.940132
+  input_size:        (16, 16, 68)
+  save_checkpoints:  True
+  train_metric:      binary_crossentropy
+  epochs:            50
+  use_best:          True
+  save_last_epoch:   True
+  dropout:           {'mode': 'drop', 'channels': [2, 3]}
+  encoding_size:     20
+  denselayers:       [1024, 512, 256]
+  rstep:             lasr
+  rstep_params:      {'alpha': 0.2}
+  verbosity:         1
+* TRAINED WITH PARAMETERS
+tparams:
+  folds:        1
+  metrics:      ['mean_squared_error', 'mean_absolute_error', 'train_realtime', 'train_processtime']
+  mode:         train
+  load_from:    na
+  save_models:  True

@@ -1,0 +1,28 @@
+* MODEL SUMMARY
+header:  basic_convmodel_test_1_2022-07-25_23:18:37.077344  basic_convmodel_test_1
+data:       fold   mean_squared_error     mean_absolute_error   train_realtime       train_processtime    
+fold_0:     0      0.020187037112587226   0.09588035105705373   20009.872084856033   1658832520.9092789   
+averages:   -      0.020187037112587226   0.09588035105705373   20009.872084856033   1658832520.9092789   
+minimums:   -      0.020187037112587226   0.09588035105705373   20009.872084856033   1658832520.9092789   
+min fold:   -      0                      0                     0                    0                    
+maximums:   -      0.020187037112587226   0.09588035105705373   20009.872084856033   1658832520.9092789   
+max fold:   -      0                      0                     0                    0                    
+* TRAINED WITH HYPERPARAMETERS
+hparams:
+  model_name:        basic_convmodel_1
+  save_location:     basic_convmodel_test_1_2022-07-25_23:18:37.077344
+  input_size:        (16, 16, 68)
+  save_checkpoints:  True
+  train_metric:      mean_squared_error
+  epochs:            50
+  use_best:          True
+  save_last_epoch:   True
+  dropout:           {'mode': 'drop', 'channels': [2, 3]}
+  verbosity:         1
+* TRAINED WITH PARAMETERS
+tparams:
+  folds:        1
+  metrics:      ['mean_squared_error', 'mean_absolute_error', 'train_realtime', 'train_processtime']
+  mode:         train
+  load_from:    na
+  save_models:  True

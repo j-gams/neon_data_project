@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.kernel_ridge import KernelRidge
-from sklearn.metrics.pairwise import rbf_kernel, linear_kernel, polynomial kernel, sigmoid_kernel
+from sklearn.metrics.pairwise import rbf_kernel, linear_kernel, polynomial_kernel, sigmoid_kernel
 import mutils
 
 class kernel_regress:
@@ -13,6 +13,8 @@ class kernel_regress:
         self.crdict = dict()
         self.avg_channel = True
         self.self_norm = False
+        kname = "rbf"
+        self.avg_channel=True
 
         for key in hparam_dict:
             if key == "model_name":
@@ -33,20 +35,20 @@ class kernel_regress:
             elif key == "verbosity":
                 self.verbosity = hparam_dict[key]
 
-            if kname == "rbf":
-                self.kernel = rbf_kernel
-            elif kname == "lin":
-                self.kernel = linear_kernel
-            elif kname == "ply":
-                self.kernel = polynomial_kernel
-            elif kname == "sig":
-                self.kernel = sigmoid_kernel
+        if kname == "rbf":
+            self.kernel = "rbf"
+        elif kname == "lin":
+            self.kernel = "linear"
+        elif kname == "ply":
+            self.kernel = polynomial_kernel
+        elif kname == "sig":
+            self.kernel = sigmoid_kernel
             
-            ### setup
-            self.model = KernelRidge(alpha = self.alpha, kernel=self.kernel)
+        ### setup
+        self.model = KernelRidge(alpha = self.alpha, kernel=self.kernel)
             
     def dtransform(self, data):
-        if avg_channel:
+        if self.avg_channel:
             return self.mean_itr(data, nchannels = self.keeplen)
         else:
             return data
@@ -81,15 +83,15 @@ class kernel_regress:
                 data.set_keeps(data.drops_to_keeps())
         else:
            #data.set_return(self.crdict[name][0])
-           data.set_flatten(self.crdict[name][1])
-           data.set_keeps(self.crdict[name][2])
-           data.set_drops(self.crdict[name][3])
+           data.set_flatten(self.crdict[name][0])
+           data.set_keeps(self.crdict[name][1])
+           data.set_drops(self.crdict[name][2])
 
     def train(self, train_data, validation_data):
         if self.dropmode == "drop":
-            self.keeplen = train_data.nchannels
+            self.keeplen = train_data.nchannels - len(self.dropout)
         elif self.dropmode == "none":
-            self.keeplen = train_data.dims[2]
+            self.keeplen = train_data.nchannels
         keep_mu = 1
         if not self.avg_channel:
             keep_mu = train_data.dims[0] * train_data.dims[1]
@@ -101,6 +103,8 @@ class kernel_regress:
             fulltrain[i*train_data.batch_size:min(len(fulltrain),
                                                       (i+1)*train_data.batch_size),
                           :] = self.dtransform(train_data[i][0])
+        print(fulltrain.shape)
+        print(fulltrain[0].shape)
         self.model.fit(fulltrain, train_data.y)
         self.change_restore(train_data, "r", "train")
 

@@ -8,6 +8,7 @@ from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import Lasso
+from sklearn.kernel_ridge import KernelRidge
 
 class test_auto:
     def __init__ (self, hparam_dict, save_dir):
@@ -158,6 +159,8 @@ class test_auto:
             self.rmodel = LinearRegression().fit(train_mungenp, train_data.y)
         elif self.regress_step == "lasr":
             self.rmodel = Lasso(alpha=self.rms_params["alpha"]).fit(train_mungenp, train_data.y)
+        elif self.regress_step == "kerr":
+            self.rmodel = KernelRidge(alpha=self.rms_params["alpha"], kernel="rbf").fit(train_mungenp, train_data.y)
 
     def predict(self, x_predict):
         dumb_out = []

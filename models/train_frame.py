@@ -10,6 +10,7 @@ import train_1
 from custom_models import regressor_test
 from custom_models import auto_regress
 from custom_models import lasso_regress
+from custom_models import kernel_regress
 sys.path.insert(0, '../create_data')
 
 from dat_obj import datacube_loader
@@ -104,6 +105,17 @@ for mdl_str in load_list:
                               "normalize": True,
                               "verbosity": 1})
         save_names.append("lasso_regression_1")
+    elif mdl_str == "kernel_r":
+        models.append(kernel_regress.kernel_regress)
+        model_hparams.append({"model_name": "lasso",
+                              "save_location": "placeholder",
+                              "alpha": 0.2,
+                              "kernel": "rbf",
+                              "dropout": {"mode": "drop", "channels": [2, 3]},
+                              "avg_channel": True,
+                              "normalize": True,
+                              "verbosity": 1})
+        save_names.append("kernel_regression_rbf_1")
     elif mdl_str == "auto_r":
         models.append(auto_regress.test_auto)
         model_hparams.append({"model_name": "basic_convmodel_1",
@@ -111,16 +123,16 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "binary_crossentropy",
-                              "epochs": 50,
+                              "epochs": 20,
                               "use_best": True,
                               "save_last_epoch": True,
                               "dropout": {"mode": "drop", "channels": [2, 3]},
                               "encoding_size": 20,
                               "denselayers": [1024, 512, 256],
-                              "rstep": "lasr",
+                              "rstep": "kerr",
                               "rstep_params": {"alpha": 0.2},
                               "verbosity": 1})
-        save_names.append("autoencoder_linreg_1")
+        save_names.append("autoencoder_rbfk_reg_1")
 ### now dispatch to the model trainer...?
 
 for i in range(len(models)):
