@@ -29,9 +29,9 @@ def compute_metrics(y, yhat, metrics, times):
     return metricvals
 
 def compute_by_sample(y, yhat, metric):
-    if metric == "mean_squared_error":
+    if metric == "mean_absolute_error":
         ret_err = np.abs(y-yhat)
-    elif metric == "mean_absolute_error":
+    elif metric == "mean_squared_error":
         ret_err = (y-yhat) ** 2
     return ret_err
 
