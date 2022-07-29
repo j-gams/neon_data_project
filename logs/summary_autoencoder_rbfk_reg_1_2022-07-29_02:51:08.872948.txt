@@ -1,0 +1,32 @@
+* MODEL SUMMARY
+header:  autoencoder_rbfk_reg_1_2022-07-29_02:51:08.872948  autoencoder_rbfk_reg_1
+data:       fold   mean_squared_error    mean_absolute_error   train_realtime      train_processtime    
+fold_0:     0      0.09995868901028805   0.2537570012310506    30983.79847598076   1659115444.5988586   
+averages:   -      0.09995868901028805   0.2537570012310506    30983.79847598076   1659115444.5988586   
+minimums:   -      0.09995868901028805   0.2537570012310506    30983.79847598076   1659115444.5988586   
+min fold:   -      0                     0                     0                   0                    
+maximums:   -      0.09995868901028805   0.2537570012310506    30983.79847598076   1659115444.5988586   
+max fold:   -      0                     0                     0                   0                    
+* TRAINED WITH HYPERPARAMETERS
+hparams:
+  model_name:        basic_convmodel_1
+  save_location:     autoencoder_rbfk_reg_1_2022-07-29_02:51:08.872948
+  input_size:        (16, 16, 68)
+  save_checkpoints:  True
+  train_metric:      binary_crossentropy
+  epochs:            20
+  use_best:          True
+  save_last_epoch:   True
+  dropout:           {'mode': 'drop', 'channels': [2, 3]}
+  encoding_size:     20
+  denselayers:       [1024, 512, 256]
+  rstep:             kerr
+  rstep_params:      {'alpha': 0.2}
+  verbosity:         1
+* TRAINED WITH PARAMETERS
+tparams:
+  folds:        1
+  metrics:      ['mean_squared_error', 'mean_absolute_error', 'train_realtime', 'train_processtime']
+  mode:         train
+  load_from:    na
+  save_models:  True
