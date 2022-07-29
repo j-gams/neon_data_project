@@ -1,0 +1,29 @@
+* MODEL SUMMARY
+header:  lasso_regression_1_2022-07-27_23:13:07.011570  lasso_regression_1
+data:       fold   mean_squared_error     mean_absolute_error   train_realtime      train_processtime    
+fold_0:     0      0.022168653215447576   0.10654527246115567   4.149404764175415   1658985168.6414852   
+fold_1:     1      0.020864835219435607   0.10338618092204539   4.242219924926758   1658985166.8228796   
+fold_2:     2      0.01745719663707496    0.09905836244362357   4.192331552505493   1658985164.8893754   
+fold_3:     3      0.020235144913605344   0.10358886624365109   4.179320812225342   1658985162.9032595   
+fold_4:     4      0.019180423662229114   0.10390674582743983   4.287681341171265   1658985161.120547    
+averages:   -      0.01998125072955852    0.1032970855795831    4.210191679000855   1658985164.8755095   
+minimums:   -      0.01745719663707496    0.09905836244362357   4.149404764175415   1658985161.120547    
+min fold:   -      2                      2                     0                   4                    
+maximums:   -      0.022168653215447576   0.10654527246115567   4.287681341171265   1658985168.6414852   
+max fold:   -      0                      0                     4                   0                    
+* TRAINED WITH HYPERPARAMETERS
+hparams:
+  model_name:     lasso
+  save_location:  lasso_regression_1_2022-07-27_23:13:07.011570
+  alpha:          0.2
+  dropout:        {'mode': 'drop', 'channels': [2, 3]}
+  avg_channel:    True
+  normalize:      True
+  verbosity:      1
+* TRAINED WITH PARAMETERS
+tparams:
+  folds:        5
+  metrics:      ['mean_squared_error', 'mean_absolute_error', 'train_realtime', 'train_processtime']
+  mode:         train
+  load_from:    na
+  save_models:  True

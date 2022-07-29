@@ -1,0 +1,26 @@
+* MODEL SUMMARY
+header:  kernel_regression_rbf_1_2022-07-29_02:07:29.830199  kernel_regression_rbf_1
+data:       fold   mean_squared_error   mean_absolute_error   train_realtime     train_processtime    
+fold_0:     0      0.3542348918276754   0.4780095763316635    589.369827747345   1659082431.9420092   
+averages:   -      0.3542348918276754   0.4780095763316635    589.369827747345   1659082431.9420092   
+minimums:   -      0.3542348918276754   0.4780095763316635    589.369827747345   1659082431.9420092   
+min fold:   -      0                    0                     0                  0                    
+maximums:   -      0.3542348918276754   0.4780095763316635    589.369827747345   1659082431.9420092   
+max fold:   -      0                    0                     0                  0                    
+* TRAINED WITH HYPERPARAMETERS
+hparams:
+  model_name:     lasso
+  save_location:  kernel_regression_rbf_1_2022-07-29_02:07:29.830199
+  alpha:          0.2
+  kernel:         rbf
+  dropout:        {'mode': 'drop', 'channels': [2, 3]}
+  avg_channel:    True
+  normalize:      True
+  verbosity:      1
+* TRAINED WITH PARAMETERS
+tparams:
+  folds:        1
+  metrics:      ['mean_squared_error', 'mean_absolute_error', 'train_realtime', 'train_processtime']
+  mode:         train
+  load_from:    na
+  save_models:  True
