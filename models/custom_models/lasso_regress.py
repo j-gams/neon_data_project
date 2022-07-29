@@ -33,7 +33,7 @@ class lasso_regress:
                 self.verbosity = hparam_dict[key]
 
             ### setup
-            self.model = Lasso(alpha = self.alpha)
+        self.model = Lasso(alpha = self.alpha)
             
     def dtransform(self, data):
         if self.avg_channel:
