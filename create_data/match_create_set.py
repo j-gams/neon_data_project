@@ -696,6 +696,16 @@ for i in range(yrsize[0]):
                 plt.bar(diids, dists)
                 plt.title("distribution of nlcd values over 5m regions / sample")
                 plt.savefig("../figures/nlcd_dist_.png")
+                plt.cla()
+                plt.close()
+
+                for i in range(len(dists)):
+                    dists[i] = math.log(dists[i])
+                plt.figure()
+                plt.bar(diids, dists)
+                plt.title("log distribution of nlcd values over 5m regions / sample")
+                plt.savefig("../figures/nlcd_dist_log.png")
+                plt.cla()
                 plt.close()
 
                 sys.exit("exiting after testmode samples")
