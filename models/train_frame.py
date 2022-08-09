@@ -100,7 +100,7 @@ for mdl_str in load_list:
                               "batch_regress": False,
                               "normalize": False,
                               "verbosity": 1})
-        save_names.append("basic_sgd_regression_test_1")
+        save_names.append("basic_linreg_gedi")
     elif mdl_str == "lasso_r":
         models.append(lasso_regress.lasso_regress)
         model_hparams.append({"model_name": "lasso",

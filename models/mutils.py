@@ -95,12 +95,17 @@ def spec_graphs(eval_x, eval_y, yhat, channel_list, modelname, saveat):
     plt.cla()
     plt.close()
 
-
+    lbound = -10000
+    ubound = 10000
+    
     for cidx in channel_list:
         plt.figure()
         cx = cfuncs[cidx](eval_x, cidx)
         #print(cx.shape)
         #print(mse.shape)
+        for i in range(len(cx)):
+            if cx[i] < lbound or cx[i] > ubound:
+                cx[i] = float("nan")
         plt.scatter(cx, mse)#np.mean(eval_x[:,:,cidx]))
         plt.title("Squared error by average " + cnames[cidx] + ", " + modelname)
         plt.xlabel("sample average " + cnames[cidx])
