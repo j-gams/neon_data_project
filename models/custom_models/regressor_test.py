@@ -116,9 +116,11 @@ class test_regress:
     def train(self, train_data, validation_data):
         ### handle keeplen... jus
         if self.dropmode == "drop":
+            self.keeplen = train_data.nchannels - len(self.dropout)
+        elif self.dropmode == "keep":
+            self.keeplen = len(self.dropout)
+        else:
             self.keeplen = train_data.nchannels
-        elif self.dropmode == "none":
-            self.keeplen = train_data.dims[2]
         #mval = 0
 
         if self.usebest:
@@ -144,7 +146,7 @@ class test_regress:
                 pass
         
         if self.retain_avg:
-            print("retain-avg fitting:")
+            print("retain-avg fitting ... dims =", fulltrain.shape)
             self.model.fit(fulltrain, train_data.y)
             self.change_restore(train_data, "r", "train")
             

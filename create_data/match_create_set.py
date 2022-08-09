@@ -37,6 +37,8 @@
 ###                             - generate critical field files
 ### override restructuring      [--override or blank (defaults to false if blank), optional]
 ###                             - whether to override pre-existing restructured data files
+### skip save                   [--skipsave]
+### hdf5 mode                   [--h5mode]
 ### critical fields             [-c comma separated field keywords, optional]
 ###                             - fields to include in the output samples
 ### k closest approximation     [-k int, optional (default 10)]
@@ -71,6 +73,8 @@ testmode = -1
 channel_first = False
 pad_img = 0
 hash_pad = 1
+skip_save = False
+h5_mode = False
 if len(sys.argv) < 8:
     init_ok = False
 else:
@@ -93,6 +97,10 @@ else:
             gen_etc = True
         elif sys.argv[i] == "--override":
             override_regen = True
+        elif sys.argv[i] == "--skipsave":
+            skip_save = True
+        elif sys.argv[i] == "--h5mode":
+            h5_mode = True
         elif sys.argv[i] == "-c":
             critical_fields = sys.argv[i+1].split(",")
         elif sys.argv[i] == "-q":
@@ -526,10 +534,20 @@ database = []
 channels = len(xr_npar) + len(ptlayers) + 2
 pd_colnames = ["filename", "y_value", "file_index", "yraster_x", "yraster_y", "avg_mid_dist"]
 landmark_x, landmark_y = coords_idx(-104.876653,41.139535, yulh, yulv, ypxh, ypxv)
-
-skip_save = True
 if skip_save:
     print("warning: running in skip save mode")
+
+if h5_mode:
+    h5_dataset = h5py.File(fs_loc + "/datasrc/x_h5.h5", "a")
+    if testlen > 0:
+        h5len = yrsize + 1
+    else:
+        h5len = yrsize[0] * yrsize[1] 
+    if channel_first:
+        h5_dataset.create_dataset("data", (h5len, channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
+    else:
+        h5_dataset.create_dataset("data", (h5len, imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
+    
 
 diids = [ii for ii in range(101)]
 dists = [0 for ii in range(101)]

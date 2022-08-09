@@ -43,6 +43,7 @@ class datacube_loader:
         channel_names = rfdata_loader.d1loader("../data/" + dataname + 
                 "/meta/channel_names.txt")
         print("channel names: ", channel_names)
+        self.dchannels = channel_names
         #if musigs = "default":
         #    musigs = 
         self.channel_mode = cmode

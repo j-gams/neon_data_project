@@ -11,6 +11,7 @@ from custom_models import regressor_test
 from custom_models import auto_regress
 from custom_models import lasso_regress
 from custom_models import kernel_regress
+from custom_models import reduce_regress
 sys.path.insert(0, '../create_data')
 
 from dat_obj import datacube_loader
@@ -22,12 +23,17 @@ def qprint(pstr, importance):
         print(pstr)
 
 ### TODO - read in file params from config file... eventually
-
+if sys.argv[1] == "1":
+    dataset = "minidata"
+    folding = "test_kfold"
+else:
+    dataset = "data_interpolated"
+    folding = "test_fold"
 ### dataset parameters
 #dataset = "minidata_nosa"
 #dataset = "minidata"
-dataset = "data_interpolated"
-folding = "test_fold"
+#dataset = "data_interpolated"
+#folding = "test_fold"
 #folding = "test_kfold"
 
 d_batch = 12
@@ -61,7 +67,7 @@ train_params = [{"folds": dataset.k_folds,
                  "save_models": True}]
 
 
-load_list = ["auto_r"]
+load_list = ["test_regress"]
 for mdl_str in load_list:
     if mdl_str == "train_1":
         models.append(train_1.test_conv)
@@ -87,7 +93,7 @@ for mdl_str in load_list:
                               "save_last_epoch": True,
                               "penalty": "l2",
                               "alpha": 0.0001,
-                              "dropout": {"mode": "keep", "channels": [0, 1]},
+                              "dropout": {"mode": "drop", "channels": [0, 1, 2, 3]},
                               #"dropout": {"mode": "keep", "channels": [0, 1]},
                               "avg_channel": True,
                               "retain_avg": True,
@@ -118,7 +124,7 @@ for mdl_str in load_list:
         save_names.append("kernel_regression_rbf_1")
     elif mdl_str == "auto_r":
         models.append(auto_regress.test_auto)
-        model_hparams.append({"model_name": "basic_convmodel_1",
+        model_hparams.append({"model_name": "basic_autor_1",
                               "save_location": "placeholder",
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
@@ -127,12 +133,21 @@ for mdl_str in load_list:
                               "use_best": True,
                               "save_last_epoch": True,
                               "dropout": {"mode": "drop", "channels": [2, 3]},
-                              "encoding_size": 20,
+                              "encoding_size": 8,
                               "denselayers": [1024, 512, 256],
                               "rstep": "kerr",
                               "rstep_params": {"alpha": 0.2},
                               "verbosity": 1})
-        save_names.append("autoencoder_rbfk_reg_1")
+        save_names.append("autoencoder_rbfk_reg_1_5dim")
+    elif mdl_str == "reduce_r":
+        models.append(reduce_regress.decompose_regress)
+        model_hparams.append({"model_name": "decompose_regress",
+                              "save_location": "placeholder",
+                              "dropout": {"mode": "none", "channels": [0, 1, 2, 3]},
+                              "reduce_to": 5,
+                              "rmode": "lr",
+                              "dmode": "pca"})
+        save_names.append("pca_reduce")
 ### now dispatch to the model trainer...?
 
 for i in range(len(models)):
