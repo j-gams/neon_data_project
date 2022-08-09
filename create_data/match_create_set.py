@@ -539,26 +539,43 @@ if skip_save:
 
 if h5_mode:
     h5_dataset = h5py.File(fs_loc + "/datasrc/x_h5.h5", "a")
-    if testlen > 0:
-        h5len = yrsize + 1
-    else:
-        h5len = yrsize[0] * yrsize[1] 
-    if channel_first:
-        h5_dataset.create_dataset("data", (h5len, channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
-    else:
-        h5_dataset.create_dataset("data", (h5len, imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
-    
+#    if testlen > 0:
+        
+#    h5dsetlen = 
+    h5_dataset.create_dataset("data", ())
 
 diids = [ii for ii in range(101)]
 dists = [0 for ii in range(101)]
 
+dbins = [[0 for jj in range(20)] for ii in range(len(xr_npar))]
+dbinsmins = [0, 0, 0, 0, 0]
+dbinsmaxs = [4500, 260, 70, 360, 3.5]
+
 if verbosity > 0:
     print("progress 0/50 ", end="", flush=True)
-for i in range(yrsize[0]):
-    for j in range(yrsize[1]):
+
+#shuffleorder
+#prescreen,
+shuffleorder=True
+prescreen=False
+prescreen_dist = 35 ** 2
+prescreen_forestp = 0.95
+if shuffleorder:
+    irange_default = np.arange(yrsize[0])
+    jrange_default = np.arange(yrsize[1])
+    np.random.shuffle(np.arange(yrsize[0]))
+    np.random.shuffle(np.arange(yrsize[1]))
+else:
+    irange_default = np.arange(yrsize[0])
+    jrange_default = np.arange(yrsize[1])
+
+for i in irange_default:
+    for j in jrange_default:
         progress += 1
-        if verbosity > 0 and progress % pr_unit == 0:
-            print("-", end="", flush=True)
+        temp_lcpercent = 0
+        #failsafe_copy = list(dbins)
+        #if verbosity > 0 and progress % pr_unit == 0:
+        #    print("-", end="", flush=True)
         if y_npar[i, j] != yndv:
             if channel_first:
                 x_img = np.zeros((channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
@@ -566,6 +583,7 @@ for i in range(yrsize[0]):
                 x_img = np.zeros((imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
             nlcd_count = 0
             for k in range(len(xr_npar)):# in xr_npar:
+                binify = dbinsmaxs[k] - dbinsmins[k]
                 ### ... Try again with a buffer to get 16x16 image
                 for si in range(0 - pad_img, imgsize+pad_img):
                     for sj in range(0 - pad_img, imgsize+pad_img):
@@ -587,6 +605,10 @@ for i in range(yrsize[0]):
                             x_img[k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
                         else:
                             x_img[si+pad_img, sj+pad_img, k] = xr_npar[k][tempi, tempj]
+                        ### do binning for analysis
+                        #print(k, xr_npar[k][tempi,tempj], math.floor(((xr_npar[k][tempi, tempj] - dbinsmins[k])/(binify))*20))
+                        #dbins[k][math.floor(((xr_npar[k][tempi, tempj] - dbinsmins[k])/(binify))*20)] += 1
+            #dbins[-1][math.floor(((y_npar[i, j] - dbinsmins[-1])/(dbinsmaxs[-1] - dbinsmins[-1]))*20)]
                 ### ... basic (14x14)
                 #for si in range(imgsize):
                 #    for sj in range(imgsize):
@@ -605,6 +627,8 @@ for i in range(yrsize[0]):
                 #        #else:
                 #        #    x_img[si, sj, k] = xr_npar[k][tempi, tempj]
             #print("**", nlcd_count, round((((imgsize + (2*pad_img)) ** 2) - nlcd_count)/((imgsize + (2*pad_img)) ** 2) * 100))
+            #non-forest fraction of x
+            temp_lcpercent = nlcd_count / ((imgsize + (2*pad_img)) ** 2)
             dists[round((((imgsize + (2*pad_img)) ** 2) - nlcd_count)/((imgsize + (2*pad_img)) ** 2) * 100)] += 1
             k_ids, rings = krings(i, j, k_approx)
             avgringsize += rings
@@ -633,10 +657,10 @@ for i in range(yrsize[0]):
                             extreme_encounter[m + len(xr_npar)] += 1
                     if channel_first:
                         x_img[len(xr_npar) + len(ptlayers), si+pad_img, sj+pad_img] = minpt
-                        x_img[len(xr_npar) + len(ptlayers) + 1, si+pad_img, sj+pad_img] = minpt
+                        x_img[len(xr_npar) + len(ptlayers) + 1, si+pad_img, sj+pad_img] = mindist
                     else:
                         x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers)] = minpt
-                        x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers) + 1] = minpt
+                        x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
                     #if  xr_npar[k][tempi, tempj] > 10000 or xr_npar[k][tempi, tempj] < -10000:
                     #    ### extreme
                     #    extreme_encounter[k] += 1
@@ -684,15 +708,32 @@ for i in range(yrsize[0]):
             
             ### make a string of
             ### file name, y value, nsuccess, y raster coordinates, ..., average distance to nearest neighbor
-            if not skip_save:
-                database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
-                if channel_first:
-                    np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
-                            delimiter=",", newline="\n")
-                else:
-                    np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
-                            delimiter=",", newline="\n")
-            nsuccess += 1
+            if prescreen:
+                if avg_mid_dist <= prescreen_dist and temp_lcpercent <= (1 - prescreen_forestp):
+                    #good to save
+                    if not skip_save:
+                        database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+                        if channel_first:
+                            np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
+                                    delimiter=",", newline="\n")
+                        else:
+                            np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
+                                    delimiter=",", newline="\n")
+                    nsuccess += 1
+                    if verbosity > 0 and nsuccess % (testmode // 50) == 0:
+                        print("-", end="", flush=True)
+                #else:
+                #    dbins = list(failsafe_copy)
+            else:
+                if not skip_save:
+                    database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+                    if channel_first:
+                        np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
+                                delimiter=",", newline="\n")
+                    else:
+                        np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
+                                delimiter=",", newline="\n")
+                nsuccess += 1
             if testmode > 0 and nsuccess > testmode:
                 print()
                 print("max ring size: ", maxringsize)
@@ -718,13 +759,24 @@ for i in range(yrsize[0]):
                 plt.close()
 
                 for i in range(len(dists)):
-                    dists[i] = math.log(dists[i])
+                    if dists[i] != 0:
+                        dists[i] = math.log(dists[i])
                 plt.figure()
                 plt.bar(diids, dists)
                 plt.title("log distribution of nlcd values over 5m regions / sample")
                 plt.savefig("../figures/nlcd_dist_log.png")
                 plt.cla()
                 plt.close()
+
+                ### dist things
+                #rasters_names_list = ["srtm", "nlcd", "slope", "aspect", "ecostress_WUE"]
+                #for idb in range(len(dbins)):
+                #    plt.figure()
+                #    plt.bar(dbins[idb])
+                #    plt.title(rasters_names_list[idb] + " distribution over 5m pixels")
+                #    plt.savefig("../figures/pixel_distributions/" + rasters_names_list[idb] + "_dbn.png")
+                #    plt.cla()
+                #    plt.close()
 
                 sys.exit("exiting after testmode samples")
 

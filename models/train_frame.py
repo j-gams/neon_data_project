@@ -67,7 +67,7 @@ train_params = [{"folds": dataset.k_folds,
                  "save_models": True}]
 
 
-load_list = ["test_regress"]
+load_list = ["lasso_r"]
 for mdl_str in load_list:
     if mdl_str == "train_1":
         models.append(train_1.test_conv)
@@ -76,12 +76,12 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
-                              "epochs": 50,
+                              "epochs": 20,
                               "use_best": True,
                               "save_last_epoch": True,
-                              "dropout": {"mode": "drop", "channels": [2, 3]},
+                              "dropout": {"mode": "drop", "channels": [0, 1, 2, 3]},
                               "verbosity": 1})
-        save_names.append("basic_convmodel_test_1")
+        save_names.append("basic_convmodel_gedi")
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)
         model_hparams.append({"model_name": "basic_regressor_1",
@@ -93,24 +93,24 @@ for mdl_str in load_list:
                               "save_last_epoch": True,
                               "penalty": "l2",
                               "alpha": 0.0001,
-                              "dropout": {"mode": "drop", "channels": [0, 1, 2, 3]},
+                              "dropout": {"mode": "none", "channels": [0, 1, 2, 3]},
                               #"dropout": {"mode": "keep", "channels": [0, 1]},
                               "avg_channel": True,
                               "retain_avg": True,
                               "batch_regress": False,
                               "normalize": False,
                               "verbosity": 1})
-        save_names.append("basic_linreg_gedi")
+        save_names.append("basic_linreg_all")
     elif mdl_str == "lasso_r":
         models.append(lasso_regress.lasso_regress)
         model_hparams.append({"model_name": "lasso",
                               "save_location": "placeholder",
                               "alpha": 0.2,
-                              "dropout": {"mode": "drop", "channels": [2, 3]},
+                              "dropout": {"mode": "none", "channels": [2, 3]},
                               "avg_channel": True,
                               "normalize": True,
                               "verbosity": 1})
-        save_names.append("lasso_regression_1")
+        save_names.append("lasso_final")
     elif mdl_str == "kernel_r":
         models.append(kernel_regress.kernel_regress)
         model_hparams.append({"model_name": "lasso",

@@ -36,7 +36,7 @@ class lasso_regress:
         self.model = Lasso(alpha = self.alpha)
             
     def dtransform(self, data):
-        if avg_channel:
+        if self.avg_channel:
             return self.mean_itr(data, nchannels = self.keeplen)
         else:
             return data
@@ -51,7 +51,8 @@ class lasso_regress:
 
     def change_restore(self, data, c_r, name):
         if c_r == "c":
-            self.crdict[name] = [data.flat_mode,
+            self.crdict[name] = [data.return_format,
+                                 data.flat_mode,
                                  data.keep_ids,
                                  data.drop_channels]
             #data.set_return("x")
@@ -70,7 +71,7 @@ class lasso_regress:
                 data.set_drops([])
                 data.set_keeps(data.drops_to_keeps())
         else:
-           #data.set_return(self.crdict[name][0])
+           data.set_return(self.crdict[name][0])
            data.set_flatten(self.crdict[name][1])
            data.set_keeps(self.crdict[name][2])
            data.set_drops(self.crdict[name][3])

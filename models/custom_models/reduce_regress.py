@@ -82,6 +82,7 @@ class decompose_regress:
         print("train dims:", fulltrain.shape, self.keeplen)
         print("keepids:", train_data.keep_ids)
         self.dmodel.fit(fulltrain)
+        
         transform_train = self.dmodel.transform(fulltrain)
         self.rmodel.fit(transform_train, train_data.y)
         self.change_restore(train_data, "r", "train_ae")
