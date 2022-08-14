@@ -67,7 +67,7 @@ train_params = [{"folds": dataset.k_folds,
                  "save_models": True}]
 
 
-load_list = ["lasso_r"]
+load_list = ["train_1"]
 for mdl_str in load_list:
     if mdl_str == "train_1":
         models.append(train_1.test_conv)
@@ -76,12 +76,12 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
-                              "epochs": 20,
+                              "epochs": 100,
                               "use_best": True,
                               "save_last_epoch": True,
                               "dropout": {"mode": "drop", "channels": [0, 1, 2, 3]},
                               "verbosity": 1})
-        save_names.append("basic_convmodel_gedi")
+        save_names.append("basic_convmodel_gedi_100e")
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)
         model_hparams.append({"model_name": "basic_regressor_1",
