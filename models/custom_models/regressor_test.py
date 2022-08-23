@@ -94,6 +94,7 @@ class test_regress:
                                  data.drop_channels]
             #data.set_return("x")
             data.set_flatten(True)
+            data.unshuffle()
             if self.dropmode == "keep":
                 data.set_keeps(self.dropout)
                 data.set_drops(data.keeps_to_drops())
@@ -140,16 +141,20 @@ class test_regress:
                 fulltrain[i*train_data.batch_size:min(len(fulltrain),
                                                       (i+1)*train_data.batch_size),
                           :] = self.dtransform(train_data[i][0])
+        ### test
+
         elif self.self_norm:
             for i in range(len(train_data)):
                 ### do norm... not yet implemented
                 pass
+        print(fulltrain)
         
         if self.retain_avg:
             print("retain-avg fitting ... dims =", fulltrain.shape)
             self.model.fit(fulltrain, train_data.y)
             self.change_restore(train_data, "r", "train")
-            
+            print("*** coeffs:")
+            print(self.model.coef_)
         else:
             for j in range(self.n_epochs):
                 print("epoch " + str(j) + " >", end="")
@@ -182,10 +187,14 @@ class test_regress:
         if typein == "simg":
             dumb_out = []
             self.change_restore(x_predict, "c", "eval")
+            d_transformed = []
             for i in range(len(x_predict)):
                 dumb_out.append(self.model.predict(self.dtransform(x_predict[i][0])))
+                d_transformed.append(self.dtransform(x_predict[i][0]))
             ret_y = np.array(dumb_out).reshape(-1).flatten()
             self.change_restore(x_predict, "r", "eval")
+            print("*** d_transformed")
+            #print(d_transformed)
         return ret_y
 
         #return self.model(x_predict)

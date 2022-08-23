@@ -40,9 +40,9 @@ class kernel_regress:
         elif kname == "lin":
             self.kernel = "linear"
         elif kname == "ply":
-            self.kernel = polynomial_kernel
+            self.kernel = "polynomial"
         elif kname == "sig":
-            self.kernel = sigmoid_kernel
+            self.kernel = "sigmoid"
             
         ### setup
         self.model = KernelRidge(alpha = self.alpha, kernel=self.kernel)
@@ -88,10 +88,17 @@ class kernel_regress:
            data.set_drops(self.crdict[name][2])
 
     def train(self, train_data, validation_data):
-        if self.dropmode == "drop":
+        self.data_channels = train_data.nchannels
+        if self.dropmode == "keep":
+            self.keeplen = len(self.dropout)
+        elif self.dropmode == "drop":
+            self.keeplen = self.data_channels - len(self.dropout)
+        else:
+            self.keeplen = self.data_channels
+        """ if self.dropmode == "drop":
             self.keeplen = train_data.nchannels - len(self.dropout)
         elif self.dropmode == "none":
-            self.keeplen = train_data.nchannels
+            self.keeplen = train_data.nchannels"""
         keep_mu = 1
         if not self.avg_channel:
             keep_mu = train_data.dims[0] * train_data.dims[1]

@@ -49,6 +49,8 @@
 ###                             - whether to add pixels around the basic image (for nicer img dimensions?)
 ### pad hash                    [-h int]
 ###                             - how many gridsquares to add around the raster (to catch everything)
+### h5 chunk size               [-u int, chunksize]
+###
 ### verbosity                   [-q {0, 1, 2}, optional (default 2, verbose)
 
 ### Usage Example:
@@ -75,6 +77,7 @@ pad_img = 0
 hash_pad = 1
 skip_save = False
 h5_mode = False
+h5chunksize = 1000
 if len(sys.argv) < 8:
     init_ok = False
 else:
@@ -118,6 +121,8 @@ else:
             pad_img = int(sys.argv[i+1])
         elif sys.argv[i] == "-h":
             hash_pad = int(sys.argv[i+1])
+        elif sys.argv[i] == "-u":
+            h5chunksize = int(sys.argv[i+1])
 if not init_ok:
     sys.exit("missing or incorrect command line arguments")
 imgsize = y_res // y_pix
@@ -144,6 +149,7 @@ import earthpy.plot as ep
 from osgeo import gdal
 from osgeo import ogr
 import shapefile
+import h5py
 from longsgis import voronoiDiagram4plg
 
 from rfdata_loader import rfloader, piloader
@@ -538,11 +544,25 @@ if skip_save:
     print("warning: running in skip save mode")
 
 if h5_mode:
+    #h5chunksize=1000
+    print("running in h5 mode!")
+    os.system("rm " + fs_loc + "/datasrc/x_h5.h5")
     h5_dataset = h5py.File(fs_loc + "/datasrc/x_h5.h5", "a")
-#    if testlen > 0:
-        
-#    h5dsetlen = 
-    h5_dataset.create_dataset("data", ())
+    if channel_first:
+        h5dset = h5_dataset.create_dataset("data", (h5chunksize, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)),
+                                           maxshape=(None, channels, imgsize+(2*pad_img), imgsize+(2*pad_img)),
+                                           chunks=(h5chunksize,channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
+    else:
+        h5dset = h5_dataset.create_dataset("data", (h5chunksize, imgsize+(2*pad_img), imgsize+(2*pad_img), channels),
+                                           maxshape=(None,imgsize+(2*pad_img), imgsize+(2*pad_img), channels),
+                                           chunks=(h5chunksize,imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
+    h5len = 0
+    h5tid = 0
+    h5chunkid = 0
+    if channel_first:
+        h5_chunk = np.zeros((h5chunksize, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)))
+    else:
+        h5_chunk = np.zeros((h5chunksize, imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels))
 
 diids = [ii for ii in range(101)]
 dists = [0 for ii in range(101)]
@@ -554,8 +574,6 @@ dbinsmaxs = [4500, 260, 70, 360, 3.5]
 if verbosity > 0:
     print("progress 0/50 ", end="", flush=True)
 
-#shuffleorder
-#prescreen,
 shuffleorder=True
 prescreen=False
 prescreen_dist = 35 ** 2
@@ -577,10 +595,11 @@ for i in irange_default:
         #if verbosity > 0 and progress % pr_unit == 0:
         #    print("-", end="", flush=True)
         if y_npar[i, j] != yndv:
-            if channel_first:
-                x_img = np.zeros((channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
-            else:
-                x_img = np.zeros((imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
+            if not h5_mode:
+                if channel_first:
+                    x_img = np.zeros((channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
+                else:
+                    x_img = np.zeros((imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
             nlcd_count = 0
             for k in range(len(xr_npar)):# in xr_npar:
                 binify = dbinsmaxs[k] - dbinsmins[k]
@@ -601,32 +620,17 @@ for i in irange_default:
                             extreme_encounter[k] += 1
                         if k == 1 and (xr_npar[k][tempi, tempj] <40 or xr_npar[k][tempi, tempj] > 45):
                             nlcd_count += 1
-                        if channel_first:
-                            x_img[k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
+                        if not h5_mode:
+                            if channel_first:
+                                x_img[k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
+                            else:
+                                x_img[si+pad_img, sj+pad_img, k] = xr_npar[k][tempi, tempj]
                         else:
-                            x_img[si+pad_img, sj+pad_img, k] = xr_npar[k][tempi, tempj]
+                            if channel_first:
+                                h5_chunk[h5tid, k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
+                            else:
+                                h5_chunk[h5tid, si+pad_img, sj+pad_img, k] = xr_npar[k][tempi, tempj]
                         ### do binning for analysis
-                        #print(k, xr_npar[k][tempi,tempj], math.floor(((xr_npar[k][tempi, tempj] - dbinsmins[k])/(binify))*20))
-                        #dbins[k][math.floor(((xr_npar[k][tempi, tempj] - dbinsmins[k])/(binify))*20)] += 1
-            #dbins[-1][math.floor(((y_npar[i, j] - dbinsmins[-1])/(dbinsmaxs[-1] - dbinsmins[-1]))*20)]
-                ### ... basic (14x14)
-                #for si in range(imgsize):
-                #    for sj in range(imgsize):
-                #        sxoffset = ((2 * si) + 1) / (2 * imgsize)
-                #        syoffset = ((2 * sj) + 1) / (2 * imgsize)
-                #        # convert index to coordinates with y raster crs
-                #        # then convert back to index with x raster crs
-                #        tempx, tempy = idx_pixctr(i+sxoffset, j+syoffset, yulh, yulv,
-                #                                  ypxh, ypxv, mode='ul')
-                #        tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
-                #                                  xr_params[k][2], xr_params[k][3])
-                #
-                #        # x_img[si, sj, 0] = srtm_npar[srtm_i, srtm_j]
-                #        #if channel_first:
-                #        #    x_img[k, si, sj] = xr_npar[k][tempi, tempj]
-                #        #else:
-                #        #    x_img[si, sj, k] = xr_npar[k][tempi, tempj]
-            #print("**", nlcd_count, round((((imgsize + (2*pad_img)) ** 2) - nlcd_count)/((imgsize + (2*pad_img)) ** 2) * 100))
             #non-forest fraction of x
             temp_lcpercent = nlcd_count / ((imgsize + (2*pad_img)) ** 2)
             dists[round((((imgsize + (2*pad_img)) ** 2) - nlcd_count)/((imgsize + (2*pad_img)) ** 2) * 100)] += 1
@@ -649,62 +653,54 @@ for i in irange_default:
                             mindist = tdist
                             minpt = pt_idx
                     for m in range(len(ptlayers)):
-                        if channel_first:
-                            x_img[len(xr_npar) + m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
+                        if not h5_mode:
+                            if channel_first:
+                                x_img[len(xr_npar) + m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
+                            else:
+                                x_img[si+pad_img, sj+pad_img, len(xr_npar) + m] = pgetter(m, minpt)
                         else:
-                            x_img[si+pad_img, sj+pad_img, len(xr_npar) + m] = pgetter(m, minpt)
+                            if channel_first:
+                                h5_chunk[h5tid, len(xr_npar)+m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
+                            else:
+                                h5_chunk[h5tid, si+pad_img, sj+pad_img, len(xr_npar)+m] = pgetter(m, minpt)
                         if pgetter(m, minpt) > 10000 or pgetter(m, minpt) < -10000:
                             extreme_encounter[m + len(xr_npar)] += 1
-                    if channel_first:
-                        x_img[len(xr_npar) + len(ptlayers), si+pad_img, sj+pad_img] = minpt
-                        x_img[len(xr_npar) + len(ptlayers) + 1, si+pad_img, sj+pad_img] = mindist
+                    if not h5_mode:
+                        if channel_first:
+                            x_img[len(xr_npar) + len(ptlayers), si+pad_img, sj+pad_img] = minpt
+                            x_img[len(xr_npar) + len(ptlayers) + 1, si+pad_img, sj+pad_img] = mindist
+                        else:
+                            x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers)] = minpt
+                            x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
                     else:
-                        x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers)] = minpt
-                        x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
-                    #if  xr_npar[k][tempi, tempj] > 10000 or xr_npar[k][tempi, tempj] < -10000:
-                    #    ### extreme
-                    #    extreme_encounter[k] += 1
-            ### ... basic (14x14)
-            #for si in range(imgsize):
-            #    for sj in range(imgsize):
-            #        sxoffset = (2 * si + 1) / (2 * imgsize)
-            #        syoffset = (2 * sj + 1) / (2 * imgsize)
-            #        tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv,
-            #                                  ypxh, ypxv, mode='ul')
-            #        # find kn_id pt closest to center of pixel
-            #        mindist = 100000
-            #        minpt = None
-            #        # a = grecs[i].record[3]
-            #        # b = grecs[i].record[2]
-            #        for pt_idx in k_ids:
-            #            tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempx, tempy)
-            #            if tdist < mindist:
-            #                mindist = tdist
-            #                minpt = pt_idx
-            #
-            #        #for m in range(len(ptlayers)):
-            #        #    if channel_first:
-            #        #        x_img[len(xr_npar) + m, si, sj] = pgetter(m, minpt)
-            #        #    else:
-            #        #        x_img[si, sj, len(xr_npar)] = pgetter(m, minpt)
-            #        #if channel_first:
-            #        #    x_img[len(xr_npar) + len(ptlayers), si, sj] = minpt
-            #        #    x_img[len(xr_npar) + len(ptlayers) + 1, si, sj] = mindist
-            #        #else:
-            #        #    x_img[si, sj, len(xr_npar) + len(ptlayers)] = minpt
-            #        #    x_img[si, sj, len(xr_npar) + len(ptlayers) + 1] = mindist
-            # 14 ... ids 7, 6
-            # 15 ... ids
-            if channel_first:
-                avg_mid_dist =  x_img[-1, (imgsize+(pad_img * 2))//2, (imgsize+(pad_img * 2))//2]/4 
-                avg_mid_dist += x_img[-1, (imgsize+(pad_img * 2) - 1)//2, (imgsize + (pad_img*2))//2]/4
-                avg_mid_dist += x_img[-1, (imgsize+(pad_img * 2))//2, (imgsize + (pad_img * 2) - 1)//2]/4
-                avg_mid_dist += x_img[-1, (imgsize+(pad_img * 2) - 1)//2, (imgsize + (pad_img * 2) - 1)//2]/4
+                        if channel_first:
+                            h5_chunk[h5tid, len(xr_npar)+len(ptlayers), si+pad_img, + sj+pad_img] = minpt
+                            h5_chunk[h5tid, len(xr_npar)+len(ptlayers) + 1, si+pad_img, + sj+pad_img] = mindist
+                        else:
+                            h5_chunk[h5tid, si+pad_img, + sj+pad_img, len(xr_npar)+len(ptlayers)] = minpt
+                            h5_chunk[h5tid, si+pad_img, + sj+pad_img, len(xr_npar)+len(ptlayers) + 1] = mindist
+            if h5_mode:
+                if channel_first:
+                    avg_mid_dist = h5_chunk[h5tid, -1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2] / 4
+                    avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2)) // 2] / 4
+                    avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
+                    avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
+                else:
+                    avg_mid_dist = h5_chunk[h5tid, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
+                    avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
+                    avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
+                    avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
             else:
-                avg_mid_dist =  x_img[(imgsize + (pad_img * 2))//2, (imgsize + (pad_img * 2))//2, -1]/4 
-                avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1)//2, (imgsize + (pad_img * 2))//2, -1]/4
-                avg_mid_dist += x_img[(imgsize + (pad_img * 2))//2, (imgsize + (pad_img * 2) - 1)//2, -1]/4 
-                avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1)//2, (imgsize + (pad_img * 2) - 1)//2, -1]/4
+                if channel_first:
+                    avg_mid_dist =  x_img[-1, (imgsize+(pad_img * 2))//2, (imgsize+(pad_img * 2))//2]/4
+                    avg_mid_dist += x_img[-1, (imgsize+(pad_img * 2) - 1)//2, (imgsize + (pad_img*2))//2]/4
+                    avg_mid_dist += x_img[-1, (imgsize+(pad_img * 2))//2, (imgsize + (pad_img * 2) - 1)//2]/4
+                    avg_mid_dist += x_img[-1, (imgsize+(pad_img * 2) - 1)//2, (imgsize + (pad_img * 2) - 1)//2]/4
+                else:
+                    avg_mid_dist =  x_img[(imgsize + (pad_img * 2))//2, (imgsize + (pad_img * 2))//2, -1]/4
+                    avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1)//2, (imgsize + (pad_img * 2))//2, -1]/4
+                    avg_mid_dist += x_img[(imgsize + (pad_img * 2))//2, (imgsize + (pad_img * 2) - 1)//2, -1]/4
+                    avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1)//2, (imgsize + (pad_img * 2) - 1)//2, -1]/4
             
             ### make a string of
             ### file name, y value, nsuccess, y raster coordinates, ..., average distance to nearest neighbor
@@ -725,7 +721,7 @@ for i in irange_default:
                 #else:
                 #    dbins = list(failsafe_copy)
             else:
-                if not skip_save:
+                if not skip_save and not h5_mode:
                     database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
                     if channel_first:
                         np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
@@ -733,6 +729,18 @@ for i in irange_default:
                     else:
                         np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
                                 delimiter=",", newline="\n")
+                elif h5_mode:
+                    database.append(["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+                    h5tid += 1
+                    h5len += 1
+                    #if (h5len + 1) % h5chunksize == 0:
+                    if h5tid == h5chunksize:
+                        h5chunkid += 1
+                        print("resizing h5 (" + str(h5chunkid) + ")")
+                        h5dset.resize(h5len, axis=0)
+                        h5dset[h5len-h5_chunk.shape[0]:h5len,:,:,:] = h5_chunk
+                        h5_chunk = np.zeros(h5_chunk.shape)
+                        h5tid = 0
                 nsuccess += 1
             if testmode > 0 and nsuccess > testmode:
                 print()
@@ -741,6 +749,14 @@ for i in irange_default:
                 print("saving ydata")
                 ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
                 ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
+                #save h5set
+                if h5_mode:
+                    ###need to make sure last chunk is saved
+                    print("saving last h5 chunk...")
+                    h5dset.resize(h5len, axis=0)
+                    h5dset[h5len-h5tid:h5len,:,:,:] = h5_chunk[:h5tid,:,:,:]
+                    print("saving h5 dset...")
+                    h5_dataset.close()
                 #print("max ring size: ", maxringsize)
                 print("extreme encounter report:")
                 no_enc = True

@@ -88,7 +88,7 @@ def spec_graphs(eval_x, eval_y, yhat, channel_list, modelname, saveat):
     ### 2
     plt.figure()
     plt.scatter(eval_y, mae)
-    plt.title("Absolute errmutior over ecostress values, " + modelname)
+    plt.title("Absolute error over ecostress values, " + modelname)
     plt.xlabel("ecostress value")
     plt.ylabel("absolute error")
     plt.savefig(saveat + "/abs_error_by_ecos.png")

@@ -2,15 +2,18 @@ import pandas as pd
 import numpy as np
 import tensorflow.keras.utils as kr_utils
 import math
+import h5py
 
 ### TODO -- need to go through this carefully to double check certain aspects of computing means and stds, etc.
 ### TODO -- comment
+### TODO -- h5mode
 class satimg_set (kr_utils.Sequence):
-    def __init__ (self, data_in, shuffle, path_prefix, batch_size, x_ref_idx, y_col_idx,
+    def __init__ (self, data_in, run_h5, shuffle, path_prefix, batch_size, x_ref_idx, y_col_idx,
                   mean_stds, channel_names, rformat="both", orientation = "hwc", dataname = "", mem_sensitive=True, 
-                  observe_mode="per", flatten=False, dropout = []):
+                  observe_mode="per", flatten=False, dropout = [], h5_ref_idx=0):
         print("initializing datafold: " + dataname)
 
+        self.h5mode = run_h5
         ### parameters
         ### name of data fold
         self.dataname = dataname
@@ -20,7 +23,6 @@ class satimg_set (kr_utils.Sequence):
         self.batch_size = batch_size
         ### path prefix to use when loading x data cubes... essentially just file path to dataset
         self.path_prefix = path_prefix
-        ### TODO -- I forget... think this is df with file locations
         self.full_data = data_in
         # expect [(n_channels,), (n_channels,)]
         ### precomputed means, std deviations
@@ -30,7 +32,11 @@ class satimg_set (kr_utils.Sequence):
 
         ### channel, height, width or height, width, channel
         self.ori = orientation
-        
+
+        if self.h5mode:
+            self.h5_src = h5py.File(self.path_prefix + '/datasrc/x_h5.h5','r')
+            self.h5_dataset = self.h5_src["data"]
+            self.h5_ref = self.full_data[:, h5_ref_idx].flatten()
         ### whether to return x, y or just x/y
         ### so both/x/y
         self.return_format = rformat
@@ -53,7 +59,10 @@ class satimg_set (kr_utils.Sequence):
         self.X_ref = data_in[:, x_ref_idx].flatten()
 
         ### practice loading in one sample to get dimension info
-        info_cube = self.load_dcube(self.path_prefix + self.X_ref[0], skip=True)
+        if self.h5mode:
+            info_cube = self.load_dcube(self.h5_ref[0], skip=True)
+        else:
+            info_cube = self.load_dcube(self.path_prefix + self.X_ref[0], skip=True)
         ### shape to expect for all X samples
         ### example: data cubes created by match_create_set are (channels, rows, cols)
         ### or (~60, 14, 14)
@@ -114,13 +123,19 @@ class satimg_set (kr_utils.Sequence):
                 sum_x_x = np.zeros(self.dims)
 
                 ### iterate through each sample and load the data cube
-                for i in range(self.full_data.shape[0]):
-                    self.img_memory[i] = self.load_dcube(self.path_prefix + self.X_ref[i])
-                    # compute on here
-                    # temp_img = self.load_img(self.path_prefix + self.X_img_ref[i, 0], fake_ms)
-                    ### do some math... needed to compute means, stds
-                    sum_x += self.img_memory[i]
-                    sum_x_x += self.img_memory[i] * self.img_memory[i]
+                if self.h5mode:
+                    for i in range(self.full_data.shape[0]):
+                        self.img_memory[i]= self.load_dcube(self.h5_ref[i], skip=True)
+                        sum_x += self.img_memory[i]
+                        sum_x_x += self.img_memory[i] * self.img_memory[i]
+                else:
+                    for i in range(self.full_data.shape[0]):
+                        self.img_memory[i] = self.load_dcube(self.path_prefix + self.X_ref[i])
+                        # compute on here
+                        # temp_img = self.load_img(self.path_prefix + self.X_img_ref[i, 0], fake_ms)
+                        ### do some math... needed to compute means, stds
+                        sum_x += self.img_memory[i]
+                        sum_x_x += self.img_memory[i] * self.img_memory[i]
                 print("loaded", self.full_data.shape[0], "images.")
                 ### only this far...
                 ### do more setup for math... copy observed means, stds, etc over to permanent locations
@@ -175,7 +190,19 @@ class satimg_set (kr_utils.Sequence):
             temp_img = np.zeros(self.dims)
             sum_x = np.zeros(self.dims)
             sum_x_x = np.zeros(self.dims)
-            for i in range(self.full_data.shape[0]):
+
+            if self.h5mode:
+                for i in range(self.full_data.shape[0]):
+                    temp_img = self.load_dcube(self.h5_ref[i], fake_m_s, skip=True)
+                    sum_x += temp_img
+                    sum_x_x += np.multiply(temp_img, temp_img)
+            else:
+                for i in range(self.full_data.shape[0]):
+                    temp_img = self.load_dcube(self.path_prefix + self.X_ref[i], fake_m_s, skip=True)
+                    sum_x += temp_img
+                    sum_x_x += np.multiply(temp_img, temp_img)
+
+            """for i in range(self.full_data.shape[0]):
                 temp_img = self.load_dcube(self.path_prefix + self.X_ref[i], fake_m_s, skip=True)
                 #self.load_dcube(self.path_prefix + self.X_img_ref[i], fake_m_s, skip=True).astype('int64')
                 sum_x += temp_img
@@ -183,7 +210,7 @@ class satimg_set (kr_utils.Sequence):
                 #print("**")
                 #print(temp_img)
                 #print(np.multiply(temp_img, temp_img))
-                #print("**")
+                #print("**")"""
             for i in range(self.nchannels):
                 if self.ori == "hwc":
                     self.observed_x[i] = np.sum(sum_x[:,:,i])
@@ -258,62 +285,96 @@ class satimg_set (kr_utils.Sequence):
             np.random.shuffle(self.indexes)
 
     def load_dcube(self, cube_loc, m_s="use_standard", skip=False):
-        if m_s == "use_standard":
-            m_s = self.mean_stds
-        #image = np.array()
-        ## need to assume these are square probably
-        ### TODO - generalize this
-        image_in = np.genfromtxt(cube_loc, delimiter=',')
-        ### do dropout
-        #if self.drop_channels != []:
-        if self.drop_channels != []:
-            if self.ori == "hwc":
-                image_in = image_in[:,self.keep_ids]
-            else:
-                image_in = image_in[self.keep_ids]
-        if self.flat_mode:
-            image = image_in.flatten()
-        else:
-            if self.ori == "hwc":
-                image = image_in.reshape(int(math.sqrt(image_in.shape[0])),int(math.sqrt(image_in.shape[0])),
-                        image_in.shape[1])
-                #if self.crop_channels != []
-            else:
-                image = image_in.reshape(image_in.shape[0], int(math.sqrt(image_in.shape[1])),
-                        int(math.sqrt(image_in.shape[1])))
-                #if self.crop_channels != []:
-                #    image = image[self.keep_ids]
-        #image = np.array(Image.open(img_loc))[:, :, :3]
-        # print(image.shape, m_s, self.dataname)
-        # if not isinstance(image, np.ndarray):
-        #    if image == None:
-        #        print("uhoh")
-        if not skip:
+        if self.h5mode:
+            if m_s == "use_standard":
+                m_s = self.mean_stds
+            image = np.array(self.h5_dataset[cube_loc])
+            if self.drop_channels != []:
+                if self.ori == "hwc":
+                    image = image[:,:,self.keep_ids]
+                else:
+                    image = image[self.keep_ids]
             if self.flat_mode:
-                ### ...normalize???
-                pass
+                image = image.flatten()
+
+            if not skip:
+                if self.flat_mode:
+                    pass
+                else:
+                    if self.ori == "hwc":
+                        if self.drop_channels != []:
+                            for i in range(image.shape[2]):
+                                if m_s[1][self.keep_ids[i]] != 0:
+                                    image[:,:,i] = (image[:,:,i] - m_s[0][self.keep_ids[i]]) / m_s[1][self.keep_ids[i]]
+                        else:
+                            for i in range(image.shape[2]):
+                                if m_s[1][i] != 0:
+                                    image[:, :, i] = (image[:, :, i] - m_s[0][i]) / m_s[1][i]
+                    else:
+                        if self.drop_channels != []:
+                            for i in range(image.shape[0]):
+                                if m_s[1][self.keep_ids[i]] != 0:
+                                    image[i] = (image[i] - m_s[0][self.keep_ids[i]]) / m_s[1][self.keep_ids[i]]
+                        else:
+                            for i in range(image.shape[0]):
+                                if m_s[1][self.keep_ids[i]] != 0:
+                                    image[i] = (image[i] - m_s[0][i]) / m_s[1][i]
+            return image
+        else:
+            if m_s == "use_standard":
+                m_s = self.mean_stds
+            #image = np.array()
+            ## need to assume these are square probably
+            ### TODO - generalize this
+            image_in = np.genfromtxt(cube_loc, delimiter=',')
+            ### do dropout
+            #if self.drop_channels != []:
+            if self.drop_channels != []:
+                if self.ori == "hwc":
+                    image_in = image_in[:,self.keep_ids]
+                else:
+                    image_in = image_in[self.keep_ids]
+            if self.flat_mode:
+                image = image_in.flatten()
             else:
                 if self.ori == "hwc":
-                    if self.drop_channels != []:
-                        for i in range(image.shape[2]):
-                            if m_s[1][self.keep_ids[i]] != 0:
-                                image[:,:,i] = (image[:,:,i] - m_s[0][self.keep_ids[i]]) / m_s[1][self.keep_ids[i]]
-                    else:
-                        for i in range(image.shape[2]):
-                            if m_s[1][i] != 0:
-                                image[:,:,i] = (image[:,:,i] - m_s[0][i]) / m_s[1][i]
+                    image = image_in.reshape(int(math.sqrt(image_in.shape[0])),int(math.sqrt(image_in.shape[0])),
+                            image_in.shape[1])
+                    #if self.crop_channels != []
                 else:
-                    if self.drop_channels != []:
-                        for i in range(image.shape[0]):
-                            if m_s[1][self.keep_ids[i]] != 0:
-                                image[i] = (image[i] - m_s[0][self.keep_ids[i]]) / m_s[1][self.keep_ids[i]]
+                    image = image_in.reshape(image_in.shape[0], int(math.sqrt(image_in.shape[1])),
+                            int(math.sqrt(image_in.shape[1])))
+                    #if self.crop_channels != []:
+                    #    image = image[self.keep_ids]
+            #image = np.array(Image.open(img_loc))[:, :, :3]
+            # print(image.shape, m_s, self.dataname)
+            # if not isinstance(image, np.ndarray):
+            #    if image == None:
+            #        print("uhoh")
+            if not skip:
+                if self.flat_mode:
+                    ### ...normalize???
+                    pass
+                else:
+                    if self.ori == "hwc":
+                        if self.drop_channels != []:
+                            for i in range(image.shape[2]):
+                                if m_s[1][self.keep_ids[i]] != 0:
+                                    image[:,:,i] = (image[:,:,i] - m_s[0][self.keep_ids[i]]) / m_s[1][self.keep_ids[i]]
+                        else:
+                            for i in range(image.shape[2]):
+                                if m_s[1][i] != 0:
+                                    image[:,:,i] = (image[:,:,i] - m_s[0][i]) / m_s[1][i]
                     else:
-                        for i in range(image.shape[0]):
-                            if m_s[1][self.keep_ids[i]] != 0:
-                                image[i] = (image[i] - m_s[0][i]) / m_s[1][i]
-                        #image[:, :, i] = (image[:, :, i] - m_s[0][i]) / m_s[1][i]
-
-        return image
+                        if self.drop_channels != []:
+                            for i in range(image.shape[0]):
+                                if m_s[1][self.keep_ids[i]] != 0:
+                                    image[i] = (image[i] - m_s[0][self.keep_ids[i]]) / m_s[1][self.keep_ids[i]]
+                        else:
+                            for i in range(image.shape[0]):
+                                if m_s[1][self.keep_ids[i]] != 0:
+                                    image[i] = (image[i] - m_s[0][i]) / m_s[1][i]
+            return image
 
     def get_n_samples (self):
         return len(self.y)
@@ -345,7 +406,7 @@ class satimg_set (kr_utils.Sequence):
         return dis
     
     def unshuffle (self):
-        self.indexes = np.arange(self.full_data.shape[0]) 
+        self.indexes = np.arange(self.full_data.shape[0])
 
     def set_keeps (self, keeps):
         self.keep_ids = keeps
@@ -372,7 +433,7 @@ class satimg_set (kr_utils.Sequence):
     def __getitem__(self, idx):
         # return picture data batch
         ### TODO - account for dropped channels in return size
-        ret_indices = self.indexes[idx * self.batch_size: min(((idx + 1) * self.batch_size), self.full_data.shape[0])]
+        ret_indices = self.indexes[idx * self.batch_size: min(((idx+1) * self.batch_size), self.full_data.shape[0])]
         if self.mem_sensitive:
             # print(ret_indices)
             if self.flat_mode:
@@ -392,9 +453,13 @@ class satimg_set (kr_utils.Sequence):
 
                 ### TODO - include for other drop channels option
                 #ret_imgs = np.zeros((len(ret_indices), self.dims[0], self.dims[1], self.dims[2]))
-            for i in range(len(ret_indices)):
-                # print("img_ref=", self.path_prefix+self.X_img_ref[i])
-                ret_imgs[i] = self.load_dcube(self.path_prefix + self.X_ref[ret_indices[i]])
+            if self.h5mode:
+                for i in range(len(ret_indices)):
+                    ret_imgs[i] = self.load_dcube(self.h5_ref[ret_indices[i]])
+            else:
+                for i in range(len(ret_indices)):
+                    # print("img_ref=", self.path_prefix+self.X_img_ref[i])
+                    ret_imgs[i] = self.load_dcube(self.path_prefix + self.X_ref[ret_indices[i]])
             #if self.return_format == "both":
             #    return ret_imgs, self.y[ret_indices]
             if self.return_format == "x":

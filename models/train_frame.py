@@ -12,6 +12,8 @@ from custom_models import auto_regress
 from custom_models import lasso_regress
 from custom_models import kernel_regress
 from custom_models import reduce_regress
+from custom_models import svr_1
+from custom_models import rf_regress
 sys.path.insert(0, '../create_data')
 
 from dat_obj import datacube_loader
@@ -23,12 +25,19 @@ def qprint(pstr, importance):
         print(pstr)
 
 ### TODO - read in file params from config file... eventually
+run_h5mode = False
 if sys.argv[1] == "1":
     dataset = "minidata"
     folding = "test_kfold"
 else:
     dataset = "data_interpolated"
     folding = "test_fold"
+override_mdl = None
+if len(sys.argv) == 3:
+    override_mdl = sys.argv[2]
+if len(sys.argv) == 4:
+    if sys.argv[3] == "h5":
+        run_h5mode = True
 ### dataset parameters
 #dataset = "minidata_nosa"
 #dataset = "minidata"
@@ -43,13 +52,15 @@ d_meanstd = ["default", "default", "default"]
 ### TODO - move these to meta file
 d_xref = 1
 d_yref = 2
+d_h5ref = 0
 d_mmode = [True, True, True]
 d_omode = ["per", "per", "per"]
 d_cmode = "hwc"
+d_h5mode = run_h5mode
 
 ### initialize dataset
 qprint("initializing dataset", 2)
-dataset = datacube_loader(dataset, folding, d_shuffle, d_batch, d_xref, d_yref, d_meanstd, d_mmode, d_omode, d_cmode)
+dataset = datacube_loader(dataset, folding, d_shuffle, d_batch, d_xref, d_yref, d_h5ref, d_meanstd, d_mmode, d_omode, d_cmode, d_h5mode)
 qprint("done initializing dataset", 2)
 
 cross_folds = dataset.k_folds
@@ -66,8 +77,10 @@ train_params = [{"folds": dataset.k_folds,
                  "load_from": "na",
                  "save_models": True}]
 
-
-load_list = ["train_1"]
+if override_mdl != None:
+    load_list = [override_mdl]
+else:
+    load_list = ["svr"]
 for mdl_str in load_list:
     if mdl_str == "train_1":
         models.append(train_1.test_conv)
@@ -79,9 +92,9 @@ for mdl_str in load_list:
                               "epochs": 100,
                               "use_best": True,
                               "save_last_epoch": True,
-                              "dropout": {"mode": "drop", "channels": [0, 1, 2, 3]},
+                              "dropout": {"mode": "none", "channels": [0, 1, 2, 3]},
                               "verbosity": 1})
-        save_names.append("basic_convmodel_gedi_100e")
+        save_names.append("basic_convmodel_all_100e")
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)
         model_hparams.append({"model_name": "basic_regressor_1",
@@ -93,7 +106,7 @@ for mdl_str in load_list:
                               "save_last_epoch": True,
                               "penalty": "l2",
                               "alpha": 0.0001,
-                              "dropout": {"mode": "none", "channels": [0, 1, 2, 3]},
+                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
                               #"dropout": {"mode": "keep", "channels": [0, 1]},
                               "avg_channel": True,
                               "retain_avg": True,
@@ -116,8 +129,8 @@ for mdl_str in load_list:
         model_hparams.append({"model_name": "lasso",
                               "save_location": "placeholder",
                               "alpha": 0.2,
-                              "kernel": "rbf",
-                              "dropout": {"mode": "drop", "channels": [2, 3]},
+                              "kernel": "ply",
+                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
                               "avg_channel": True,
                               "normalize": True,
                               "verbosity": 1})
@@ -148,6 +161,24 @@ for mdl_str in load_list:
                               "rmode": "lr",
                               "dmode": "pca"})
         save_names.append("pca_reduce")
+    elif mdl_str == "svr":
+        models.append(svr_1.svregress)
+        model_hparams.append({"model_name": "svr_test",
+                              "save_location": "placeholder",
+                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
+                              "kernel": "poly",
+                              "poly_degree": 5,
+                              "gamma": "scale"})
+        save_names.append("svr_t1")
+    elif mdl_str == "rfr":
+        models.append(rf_regress.rfregressor)
+        model_hparams.append({"model_name": "rfr_test",
+                              "save_location": "placeholder",
+                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
+                              "n_estimators": 500,
+                              "max_depth": None,
+                              "n_jobs": -1})
+        save_names.append("svr_t1")
 ### now dispatch to the model trainer...?
 
 for i in range(len(models)):

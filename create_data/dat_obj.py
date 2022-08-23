@@ -21,7 +21,7 @@ class datacube_loader:
     ### satimg_set(data_in, shuffle, path_prefix, batch_size, x_ref_idx, y_col_idx, mean_stds, depth_ax, dataname,
     ### mem_sensitive, observe_mode)
     ### TODO -- incorporate channel names ... load from meta/channel_names
-    def __init__ (self, dataname, dataext, shuffle, batch, x_ref_idx, y_col_idx, musigs, mem, omode, cmode):
+    def __init__ (self, dataname, dataext, shuffle, batch, x_ref_idx, y_col_idx, h5_ref_idx, musigs, mem, omode, cmode, h5mode):
         print("building sets...")
         self.dataset_name = dataname
         #self.k_folds = expect_folds
@@ -54,9 +54,9 @@ class datacube_loader:
         self.test_data_raw = alldata_np[test_info]
         self.validation_data_raw = []
         self.train_data_raw = []
-        self.test = satimg_set(self.test_data_raw, shuffle[2], "../data/" + dataname, batch[2], x_ref_idx, y_col_idx,
+        self.test = satimg_set(self.test_data_raw, h5mode, shuffle[2], "../data/" + dataname, batch[2], x_ref_idx, y_col_idx,
                 musigs[2], channel_names, dataname="test set", mem_sensitive=mem[2], observe_mode=omode[2],
-                orientation = self.channel_mode)
+                orientation = self.channel_mode, h5_ref_idx = h5_ref_idx)
         self.train = []
         self.validation = []
         self.train_m_s = []
@@ -67,15 +67,15 @@ class datacube_loader:
                     delimiter=',').astype(int)
             self.validation_data_raw.append(alldata_np[tval])
             self.train_data_raw.append(alldata_np[ttrain])
-            self.train.append(satimg_set(self.train_data_raw[-1], shuffle[0], "../data/" + dataname, batch[0],
+            self.train.append(satimg_set(self.train_data_raw[-1], h5mode, shuffle[0], "../data/" + dataname, batch[0],
                 x_ref_idx, y_col_idx, musigs[0], channel_names, dataname = "train set " + str(i), mem_sensitive=mem[0],
-                observe_mode=omode[0], orientation = self.channel_mode))
+                observe_mode=omode[0], orientation = self.channel_mode, h5_ref_idx = h5_ref_idx))
             fold_m_s = self.train[-1].get_or_compute_m_s(mode_in=omode[0])
             self.train_m_s.append(fold_m_s)
             self.train[-1].apply_observed_m_s()
-            self.validation.append(satimg_set(self.validation_data_raw[-1], shuffle[1], "../data/" + dataname,
+            self.validation.append(satimg_set(self.validation_data_raw[-1], h5mode, shuffle[1], "../data/" + dataname,
                 batch[1], x_ref_idx, y_col_idx, fold_m_s, channel_names, dataname = "validation set " + str(i),
-                mem_sensitive = mem[1], observe_mode=omode[1], orientation = self.channel_mode))
+                mem_sensitive = mem[1], observe_mode=omode[1], orientation = self.channel_mode, h5_ref_idx = h5_ref_idx))
         #test_data_in_np = pd.read_csv("../data/" + dataname + "/datasrc/fold_data/" + data_ext + "/test/test_set.csv")
         #test_data_in_np = test_data_in_np.to_numpy()
         #self.test_set = satimg_set(test_data_in_np, )
