@@ -1,5 +1,21 @@
 # NEON Data Project
 
+## Summary
+This repository build
+
+## Requirements
+
+## Directory structure
+
+parent_directory
+ - "raw_data"
+   - 
+ - "data"
+ - "create_data"
+ - "models"
+ - "figures"
+ - "logs"
+
 What is on github at present:
 - pipeline for creating dataset (create_data/)
   - tif_merge_convert.py (merge multiple geotifs into one raster dataset)
