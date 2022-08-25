@@ -55,7 +55,10 @@ This does the following, with certain default settings:
 | pad image | (optional, default 0) -p int to set image pad | This is used to nudge the dimensions of the output samples. Ecostress is 70m resolution, GEDI is 25m, and the other raster data is 30m. If we want the resolution of the output to be 5m (the greatest common factor of these) then the output is 14x14, which is an awkward dimension. Padding 1 pixel allows for a much nicer 16x16. To achieve this, data is sampled from a 16x16 grid at 5m resolution centered on the 70x70m raster square instead of a 14x14 grid at 5m resolution centered on the 70m raster square. This slightly larger datacube is still associated with the 'y' value of the central ecostress square. In general, a padding value of n will result in a 14+2n x 14+2n sample. | -p 1 |
 | pad hash | (optional, default 1) -h int to pad the nearest neighbor hash | This is a parameter for part of an algorithm used to speed up the nearest-neighbor interpolation used on GEDI data. The recommended hash pad value is 10. Too small a number will lead to incorrect interpolation or broken code, and too high a number will lead to increased memory usage. | -h 10 |
 | h5 chunk size |  (optional, default 1000) -u int to set chunk size | This determines the chunk size for h5 files, if in use. Larger numbers may speed up computation slightly but result in higher memory usage. 1000 - 10000 recommended. | -u 1000 |
-| verbosity | -q {0, 1, 2} to set verbosity | This is largely not yet implemented | -q 1 | 
+| verbosity | -q {0, 1, 2} to set verbosity | This is largely not yet implemented | -q 1 |
+#### Recommended command
+
+### Under the hood
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
