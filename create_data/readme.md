@@ -56,9 +56,18 @@ This does the following, with certain default settings:
 | pad hash | (optional, default 1) -h int to pad the nearest neighbor hash | This is a parameter for part of an algorithm used to speed up the nearest-neighbor interpolation used on GEDI data. The recommended hash pad value is 10. Too small a number will lead to incorrect interpolation or broken code, and too high a number will lead to increased memory usage. | -h 10 |
 | h5 chunk size |  (optional, default 1000) -u int to set chunk size | This determines the chunk size for h5 files, if in use. Larger numbers may speed up computation slightly but result in higher memory usage. 1000 - 10000 recommended. | -u 1000 |
 | verbosity | -q {0, 1, 2} to set verbosity | This is largely not yet implemented | -q 1 |
-#### Recommended command
+#### Recommended commands
+First time use (h5 mode, entire dataset):
+```
+python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/slope_raw/slope_clipped.tif,../raw_data/aspct_raw/aspct_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/wue_median_composite_clipped.tif 70 5 true ../data/data_h51 --lomem --gencoords --genetc --override --h5mode --prescreen -c cover,pavd,fhd --m hwc -p 1 -h 10 -u 1000 -q 2
+```
 
-### Under the hood
+Remaking (revising) a pre-existing dataset:
+```
+python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/slope_raw/slope_clipped.tif,../raw_data/aspct_raw/aspct_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/wue_median_composite_clipped.tif 70 5 true ../data/data_h51 --lomem --gencoords --genetc --h5mode --prescreen -c cover,pavd,fhd --m hwc -p 1 -h 10 -u 1000 -q 2
+```
+
+#### Under the hood
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
