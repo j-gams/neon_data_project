@@ -69,7 +69,7 @@ python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlc
 
 #### Under the hood
 ##### Loading Raster Data
-The file separated file paths are parsed and added to the list x_raster_locs. The raster files are loading with GDAL and information about nodata values and coordinate reference systems are recorded. The raster is then saved as a numpy array for ease of use
+The file separated file paths are parsed and added to the list x_raster_locs. The raster files are loading with GDAL and information about nodata values and coordinate reference systems are recorded. The raster is then saved as a numpy array for ease of use. The below process is mirrored for loading the y raster
 ```python
 for loc in x_raster_locs:
     tdataname = loc.split("/")[-1]                                        ### parsing file name
@@ -83,7 +83,28 @@ for loc in x_raster_locs:
     xr_params.append((tulh, tulv, tpxh, tpxv))                            ### record crs parameters
     xr_npar.append(xraster[-1].ReadAsArray().transpose())                 ### record raster data as array
 ```
-#### Resampling 
+##### GEDI shapefile records
+Part 1: Reading the shapefile and store the records in the list 'grecs'. Here pt is referencing the gedi data file path.
+```python
+xpoints.append(shapefile.Reader(pt))
+grecs.append(xpoints[-1].shapeRecords())
+```
+Part 2: Building and saving metadata for the gedi data. We want to use every field that contains a keyword given in the -c command line argument. The code below iteratively locates these fields and saves their names for future reference and interpretability. The order of fields in this list also dictates the order of gedi channels when the unified datacubes are constructed. The code also builds a point indexer (ptindexer) that is saved for future use. This allows for easy translation between the keyword, the index of the field in the list of fields containing a keyword, and the index of the field in the shapefile. It also allows for separation of shapefile data in the event that another shapefile point-data source should be incorporated into the dataset.
+Here critical_fields is a list of keywords.
+```python
+for i in range(len(critical_fields)):
+    ptl_idx = 0
+    for j in range(len(xpoints[-1].fields)):
+        if critical_fields[i] in xpoints[-1].fields[j][0]:
+            ### given the layer (key) provides the ptfile #, critical field #, field index within that shape,
+            ### and id within the np array (if exists)
+            ptindexer[len(ptlayers)] = (len(xpoints) -1, i, j, ptl_idx)
+            ptlayers.append(critical_fields[i] + "_" + str(ptl_idx))
+            ptlnames.append(xpoints[-1].fields[j][0])
+            ptl_idx += 1
+```
+Part 3: Reformat data. This uninteresting section of the code loads GEDI data from the fields selected in the previous step and saves them to a much less cumbersome csv file.
+
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
