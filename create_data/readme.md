@@ -32,6 +32,10 @@ This does the following, with certain default settings:
 | Parameters | Usage | Function | Default (example) |
 | --- | --- | --- | --- |
 | X raster data path(s) | (required) comma separated file paths | Which clipped raster data to include in the unified dataset | ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif |
+
+| point-interpolated data path(s) | (required) comma separated file paths | which point shapefiles to include in the unified dataset | ../raw_data/gedi_pts/GEDI_2B_clean.shp |
+
+| y raster data path | (required) file path | raster data to use as y value for datacube samples | ../raw_data/ecos_wue/wue_median_composite_clipped.tif |
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
