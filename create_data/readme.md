@@ -29,8 +29,9 @@ This does the following, with certain default settings:
 ### check_clip.py
 ### reset_raster_nd.py
 ### match_create_set.py
-| Parameters | Usage | Function |
-| --- | --- | --- |
+| Parameters | Usage | Function | Default (example) |
+| --- | --- | --- | --- |
+| X raster data path(s) | (required) comma separated file paths | Which clipped raster data to include in the unified dataset | ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif |
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
