@@ -1,9 +1,10 @@
-### PIPELINE TO CREATE DATA SET
-This is all coded out in create_data.sh:
+# PIPELINE TO CREATE DATA SET
+## Run the entire data creation pipeline with create_data.sh
+This does the following, with certain default settings:
 - tif_merge_convert.py
-  (the srtm data comes in multiples smaller geotifs. Feed them to this to create one larger, merged .tif)
+  (the srtm data comes in multiples smaller geotifs. This merges them into one combined geotif)
 - code_match.py
-  (the raster data is not clipped to the aoi. Feed the data and the aoi to this and it will clip them)
+  (the raster data is not clipped to the aoi. This clips all raster input data to the aoi)
 - analyze_clipped.py
   (plot distribution of raster values for each raster data type at each gedi centroid)
 - check_clip.py
