@@ -29,6 +29,7 @@ This does the following, with certain default settings:
 ### check_clip.py
 ### reset_raster_nd.py
 ### match_create_set.py
+This is the central piece of the entire data creation pipeline, so I will outline this file in greater detail.
 #### Parameters
 | Parameter | Usage | Function | Example usage |
 | --- | --- | --- | --- |
