@@ -34,6 +34,11 @@ This does the following, with certain default settings:
 | X raster data path(s) | (required) comma separated file paths | Which clipped raster data to include in the unified dataset | ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif |
 | point-interpolated data path(s) | (required) comma separated file paths | which point shapefiles to include in the unified dataset | ../raw_data/gedi_pts/GEDI_2B_clean.shp |
 | y raster data path | (required) file path | raster data to use as y value for datacube samples | ../raw_data/ecos_wue/wue_median_composite_clipped.tif |
+| y resolution | (required) int | resolution in meters of y raster data. Used to determine the size of datacubes with y pixel size. | 70 |
+| y pixel size | (required) int | resolution in meters of output datacubes | 5 |
+| create file structure | (required) {T, t, True, true, F, f, False, false} | whether to try to create a new file structure for the dataset or assume one already exists (this should be True when first creating a dataset and False when revising one) | True |
+| dataset path | (required) path for root directory of the dataset | ../data/data_h51 |
+| low-memory mode | (optional, default false) --lomem to run in low memory mode | whether to be cautious about loading a lot of data into memory at once. If in low-memory mode the program will rewrite relevant fields (specified by the critical fields argument) in a way that reduces memory required but will take longer, if generate coordinates and /or generate other data are set to true. Every field containing the same keyword will be written to the same file. Again, this will take a long time. 
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
