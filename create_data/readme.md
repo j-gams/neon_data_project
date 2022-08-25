@@ -68,6 +68,23 @@ python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlc
 ```
 
 #### Under the hood
+##### Loading Raster Data
+The file separated file paths are parsed and added to the list x_raster_locs. The raster files are loading with GDAL and information about nodata values and coordinate reference systems are recorded. The raster is then saved as a numpy array for ease of use
+```python
+for loc in x_raster_locs:
+    ### parsing
+    tdataname = loc.split("/")[-1]
+    qprint("loading " + tdataname + " data...", 2)
+    xraster.append(gdal.Open(loc))
+    layernames.append(tdataname.split(".")[0])
+    tdata_rband = xraster[-1].GetRasterBand(1)
+    ndv_vals.append(tdata_rband.GetNoDataValue())
+    xr_rsize.append((xraster[-1].RasterXSize, xraster[-1].RasterYSize))
+    tulh, tpxh, _, tulv, _, tpxv = xraster[-1].GetGeoTransform()
+    tpxv = abs(tpxv)
+    xr_params.append((tulh, tulv, tpxh, tpxv))
+    xr_npar.append(xraster[-1].ReadAsArray().transpose())
+```
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
