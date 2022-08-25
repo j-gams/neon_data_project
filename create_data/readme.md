@@ -13,14 +13,25 @@ This does the following, with certain default settings:
   (The srtm data might have an incorrect no-data value. This allows for checking no-data (nd) values and correcting them if any are not 'nan'.)
 - testbed.py
   (This tests stuff. At present, it prints out data field names for gedi data.)
-- h5_sanitycheck
-  (This compares samples from an h5-structured dataset to those from a csv-structured dataset to make sure that the samples have the same values.)
 - match_create_set.py
   (This is the monstrous script that creates datasets. Check the default settings to make sure that it is doing the right thing!)
 - test_xdata.py
   (This plots channels of x samples as images as a sanity check for match_create_set.py.)
 - build_train_val_test.py
   (This creates train/validation/test splits on already created datasets. Check the default settings for this as well!)
+- h5_sanitycheck
+  (This compares samples from an h5-structured dataset to those from a csv-structured dataset to make sure that the samples have the same values.)
   
-  ## Documentation
-  ### tif_merge_convert.py
+## Documentation
+### tif_merge_convert.py
+### code_match.py
+### analyze_clipped.py
+### check_clip.py
+### reset_raster_nd.py
+### match_create_set.py
+| Parameters | Usage | Function |
+| --- | --- | --- |
+### build_train_val_test.py
+### datacube_set.py
+### dat_obj.py
+### h5_sanitycheck.py
