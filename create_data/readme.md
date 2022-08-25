@@ -83,6 +83,7 @@ for loc in x_raster_locs:
     xr_params.append((tulh, tulv, tpxh, tpxv))                            ### record crs parameters
     xr_npar.append(xraster[-1].ReadAsArray().transpose())                 ### record raster data as array
 ```
+#### Resampling 
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
