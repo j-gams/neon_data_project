@@ -29,7 +29,8 @@ This does the following, with certain default settings:
 ### check_clip.py
 ### reset_raster_nd.py
 ### match_create_set.py
-| Parameters | Usage | Function | Default (example) |
+#### Parameters
+| Parameter | Usage | Function | Example usage |
 | --- | --- | --- | --- |
 | X raster data path(s) | (required) comma separated file paths | Which clipped raster data to include in the unified dataset | ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif |
 | point-interpolated data path(s) | (required) comma separated file paths | which point shapefiles to include in the unified dataset | ../raw_data/gedi_pts/GEDI_2B_clean.shp |
@@ -42,6 +43,10 @@ This does the following, with certain default settings:
 | generate coordinates | (optional, default false) --gencoords to reformat gedi coordinate data | This reformats gedi coordinate data in a more memory-friendly way (by saving to np array instead of keeping in shapefile) that also reduces future overhead when revising the dataset | --gencoords |
 | generate other data | (optional, default false) --genetc to reformat critical field data | This reformats all fields containing keywords specified in the critical fields parameter in a more memory-friendly way that also reduces future overhead when revising the dataset | --genetc |
 | override restructuring | (optional, default false) --override to delete and replace any preexisting reformatted data files. | When run in low memory mode without override, the script will attempt to load files even if --gencoords and --genetc are toggled. When run with override, the files will be ignored and recomputed. | --override | 
+| skip save | (optional, default false) --skipsave to generate samples but not save them | This is useful when debugging code, but shouldn't be used otherwise. | --skipsave |
+| hdf5 mode | (optional, default false) --h5mode to run in hdf5 mode | This will save samples in one large h5 file instead of individual csv files. This is recommended in most cases because it is much faster for machine learning. The drawback to using h5 files is they cannot be visually inspected as easily as  csv files. | --h5mode |
+| hdf5 and csv mode | (optional, default false) --h5both to save to h5 and csv files | This will save the same samples to an h5 dataset and csv files with the same indices. This is required to run h5_sanitycheck.py |
+| no shuffle mode | (optional, default false) --noshuffle to turn off index shuffling | When creating unified samples, the program iterates through every grid square in the y raster. By default, the order in which the array is traversed is randomized (it iterates through shuffled lists of x and y indices). This option will prevent the indices from being shuffled, so the order of traversal will be standard. | --noshuffle |
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
