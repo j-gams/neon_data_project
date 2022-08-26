@@ -154,6 +154,9 @@ def idx_pixctr(ix, iy, ulh, ulv, psh, psv, mode='ul'):
     cy = ulv - (iy * psv) + offsety
     return cx, cy
 ```
+#### Nearest neighbor interpolation method
+The problem 
+
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
