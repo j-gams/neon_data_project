@@ -104,8 +104,56 @@ for i in range(len(critical_fields)):
             ptlnames.append(xpoints[-1].fields[j][0])
             ptl_idx += 1
 ```
-Part 3: Reformat data. This uninteresting section of the code loads GEDI data from the fields selected in the previous step and saves them to a much less cumbersome csv file.
-
+Part 3: Reformat data if low-memory mode is on. This uninteresting section of the code loads GEDI data from the fields selected in the previous step and saves them to a much less cumbersome csv file.
+Part 4: Clear GEDI data from memory and reload them from the csv files we just made, if low memory mode is on.
+##### Indexing helpers
+With all of the different datasets, coordinate systems, and indexing systems involved, the following code helps streamline some ways in which we will be interacting with the data a lot later.
+cgetter returns the coordinates in the GEDI data's crs of a point at a specified index:
+```python
+def cgetter(index, xy):
+    if lo_mem:
+        return npcoords[index, xy]
+    else:
+        return grecs[0][index].record[3-xy]
+```
+clen returns the number of centroids in the GEDI dataset:
+```python
+def clen():
+    if lo_mem:
+        return npcoords.shape[0]
+    else:
+        return len(grecs[0])
+```
+pgetter returns the value of a specified field (layer) for a specified point (index):
+```python
+def pgetter(layer, index):
+    #print(layer)
+    if lo_mem:
+        ### use crit_npar
+        return crit_npar[ptindexer[layer][1]][index, ptindexer[layer][3]]
+    else:
+        return grecs[ptindexer[layer][0]][index].record[ptindexer[layer][2]]
+```
+##### CRS helpers
+The following are critical functions. The first converts a coordinate in a crs to the encompassing index in the raster array. Here, cx and cy are the crs coordinates whereas ix and iy are array indices, and the other parameters specify the crs.
+```python
+def coords_idx(cx, cy, ulh, ulv, psh, psv):
+    ix = int((cx - ulh)/psh)
+    iy = int((ulv - cy)/psv)
+    return ix, iy
+```
+The second converts an array index to a coordinate in a crs. This is tricky because the crs coordinates are continuous but the pixels represented by array values are some meters wide and high. By default, it will compute the coordinate of the upper left corner of the pixel, but if the mode is set to center (mode='ctr') then it will compute the coordinate of the center of the pixel.
+```python
+def idx_pixctr(ix, iy, ulh, ulv, psh, psv, mode='ul'):
+    offsetx = 0
+    offsety = 0
+    if mode=='ctr':
+        offsetx = psh/2
+        offsety = psv/2
+    cx = ulh + (ix * psh) + offsetx
+    cy = ulv - (iy * psv) + offsety
+    return cx, cy
+```
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
