@@ -155,7 +155,48 @@ def idx_pixctr(ix, iy, ulh, ulv, psh, psv, mode='ul'):
     return cx, cy
 ```
 #### Nearest neighbor interpolation method
-The problem 
+The problem with applying nearest neighbor interpolation to this problem is that there are hundreds of thousands of GEDI centerpoints and millions of grid squares in the ECOSTRESS AOI raster - and even worse, the interpolation needs to be done on a 16*16 grid within each GEDI grid square. The number of options involved makes naive methods of finding nearest neighbors too computationally difficult to be practical here. This algorithm takes advantage of some structural properties of the GEDI centroids: they are somewhat evenly spaced across the AOI, and there are a small number of other centroids within a short distance like 70m of each centroid.
+
+First, it hashes the indices of each centroid to a large 70m array mirroring the ecostress raster array. The snippet below creates a large numpy array and fills it with empty lists. hash_pad is provided in the command line arguments, and creates a buffer around the edge of the hash array so that the algorithm does not look in an out-of-bounds array location in following steps.
+```
+ygrid_pt_hash = np.zeros((yrsize[0] + (2*hash_pad), yrsize[1] + (2*hash_pad)), dtype='object')
+for i in range(ygrid_pt_hash.shape[0]):
+    for j in range(ygrid_pt_hash.shape[1]):
+        ygrid_pt_hash[i, j] = []
+```
+Now the hashing can take place. for each GEDI centroid, its in-crs coordinates are mapped to array indices. If the sample falls out of bounds, some diagnostic information is printed, since this will create problems down the road. If not, the index is added to the list in the appropriate cell of the large array:
+```
+for i in range(clen()):
+    xi, yi = coords_idx(cgetter(i, 0), cgetter(i, 1), yulh, yulv, ypxh, ypxv)
+    if xi+hash_pad < 0 or yi+hash_pad < 0 or xi > yrsize[0]+(hash_pad*2) or yi > yrsize[1]+(2*hash_pad):
+        print("big uh-oh!!!")
+        print(i)
+        print(cgetter(i, 0), cgetter(i, 1))
+        print(xi, yi)
+    else:
+        actual_added += 1
+        ygrid_pt_hash[xi+hash_pad, yi+hash_pad].append(i)
+```
+The final step is using this hash to compute a subset of gedi centroids that nearest neighbors can be computed from for each GEDI grid square. The algorithm starts at the grid square in question and works outwards in rings of grid squares, building a list of all gedi centroids in each visited grid square. These grid squares are obviously square and not circular like rings of equal euclidean distance from the center of the first grid square should be. To address this, the algorithm does not stop at the first centroid found, but at the ceil(sqrt(2) * first_centroid_ring), and always searches at least 2 rings:
+```
+def krings(x_in, y_in, min_k):
+    ring_size = 0
+    found_list = []
+    cap = -1
+    while(cap < 0 or ring_size <= cap):
+        i_boundaries = [max(0-hash_pad, x_in-ring_size), min(yrsize[0]+hash_pad, x_in+ring_size+1)]
+        j_boundaries = [max(0-hash_pad, y_in-ring_size), min(yrsize[1]+hash_pad, y_in+ring_size+1)]
+        for i in range(i_boundaries[0], i_boundaries[1]):
+            for j in range(j_boundaries[0], j_boundaries[1]):
+                if i == i_boundaries[0] or i+1 == i_boundaries[1] or j == j_boundaries[0] or j+1 == j_boundaries[1]:
+                    if len(ygrid_pt_hash[i+1, j+1]) > 0:
+                        if cap == -1:
+                            cap = max(math.ceil(mem_root2 * ring_size), 2)
+                        for k in ygrid_pt_hash[i+1, j+1]:
+                            found_list.append(k)
+        ring_size += 1
+    return found_list, ring_size
+```
 
 ### build_train_val_test.py
 ### datacube_set.py
