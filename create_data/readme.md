@@ -177,26 +177,43 @@ for i in range(clen()):
         actual_added += 1
         ygrid_pt_hash[xi+hash_pad, yi+hash_pad].append(i)
 ```
-The final step is using this hash to compute a subset of gedi centroids that nearest neighbors can be computed from for each GEDI grid square. The algorithm starts at the grid square in question and works outwards in rings of grid squares, building a list of all gedi centroids in each visited grid square. These grid squares are obviously square and not circular like rings of equal euclidean distance from the center of the first grid square should be. To address this, the algorithm does not stop at the first centroid found, but at the ceil(sqrt(2) * first_centroid_ring), and always searches at least 2 rings:
+The final step is using this hash to compute a subset of gedi centroids that nearest neighbors can be computed from for each GEDI grid square. The algorithm starts at the grid square in question and works outwards in rings of grid squares, building a list of all gedi centroids in each visited grid square.
+
+The smallest possible distance between a centroid encountered in ring n and the nearest point in the central grid square is n-1. The largest possible distance between a centroid encountered in ring n and the farthest possible point in the central grid square is sqrt(2) * n. Because of this, if the first centroid c1 is encountered in ring n, There may still be centroids closer than c1 to some point within the central grid square until ring sqrt(2)*n + 1. This is made to be an integer with ceiling(sqrt(2)*n) + 1.
+
+In short, if the first centroid is found in ring n, then the furthest possible centroid that could still be the nearest neighbor to some point in the grid square is in ring ceiling(sqrt(2)*n) + 1. So the algorithm can stop at that point.
 ```
 def krings(x_in, y_in, min_k):
     ring_size = 0
     found_list = []
     cap = -1
+    ### continue to look at the next ring until the stopping point has been reached
     while(cap < 0 or ring_size <= cap):
         i_boundaries = [max(0-hash_pad, x_in-ring_size), min(yrsize[0]+hash_pad, x_in+ring_size+1)]
         j_boundaries = [max(0-hash_pad, y_in-ring_size), min(yrsize[1]+hash_pad, y_in+ring_size+1)]
+        ### iterate throigh all the points in the curent ring
         for i in range(i_boundaries[0], i_boundaries[1]):
             for j in range(j_boundaries[0], j_boundaries[1]):
                 if i == i_boundaries[0] or i+1 == i_boundaries[1] or j == j_boundaries[0] or j+1 == j_boundaries[1]:
+                    ### if any centroids have been hashed to this location, copy them over to our short list.
+                    ### if this is the first centroid to be found (cap = -1) then the stopping point can be set.
                     if len(ygrid_pt_hash[i+1, j+1]) > 0:
                         if cap == -1:
-                            cap = max(math.ceil(mem_root2 * ring_size), 2)
+                            cap = max(math.ceil(mem_root2 * ring_size), 1) + 1
                         for k in ygrid_pt_hash[i+1, j+1]:
                             found_list.append(k)
         ring_size += 1
     return found_list, ring_size
 ```
+If shuffle_order is set to true in the command line arguments, the order in which the raster indices are iterated through is shuffled:
+```
+irange_default = np.arange(yrsize[0])
+jrange_default = np.arange(yrsize[1])
+np.random.shuffle(irange_default)
+np.random.shuffle(jrange_default)
+```
+Finally, the raster squares can be iterated through to build the dataset:
+
 
 ### build_train_val_test.py
 ### datacube_set.py
