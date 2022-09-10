@@ -229,7 +229,28 @@ for i in irange_default:
             nlcd_count = 0
 ```
 
-Still within the no-data conditional, the code below iterates through each raster dataset and through each 5m pixel within the 70m ecostress grid square (plus padding pixels) to resample raster values at the center of each pixel. 
+Still within the no-data conditional, the code below iterates through each raster dataset and through each 5m pixel within the 70m ecostress grid square (plus padding pixels) to resample raster values at the center of each pixel. The resampling is performed by computing the i and j index offsets, or the location of the centerpoint of the pixel if the raster grid square were 1x1. This is the location that should be resampled in the ecostress raster array index coordinate system. This is then converted to x and y coordinates in the ecostress raster geospatial coordinate system with idx_pixtr(), described above. This crs is shared with the x raster data, so the coordinates are converted again into the x raster array index coordinate system with coords_idx(), again described above. The value at these indices 
+```python
+            for k in range(len(xr_npar)):
+                for si in range(0 - pad_img, imgsize+pad_img):
+                    for sj in range(0 - pad_img, imgsize+pad_img):
+                        sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                        syoffset = ((2 * sj) + 1) / (2 * imgsize)
+                        tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
+                                ypxv, mode = 'ul')
+                        tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
+                                xr_params[k][2], xr_params[k][3])
+                        if not h5_mode or (h5_mode and h5_scsv):
+                            if channel_first:
+                                x_img[k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
+                            else:
+                                x_img[si+pad_img, sj+pad_img, k] = xr_npar[k][tempi, tempj]
+                        if h5_mode:
+                            if channel_first:
+                                h5_chunk[h5tid, k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
+                            else:
+                                h5_chunk[h5tid, si+pad_img, sj+pad_img, k] = xr_npar[k][tempi, tempj]
+```
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
