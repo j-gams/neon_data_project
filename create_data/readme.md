@@ -301,7 +301,36 @@ Not all ecostress raster grid squares have a gedi centroid within or near them. 
                     avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
                     avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
 ```
+
+Finally, the datacube created above is recorded based on h5mode, and administrative work related to h5 chunks is performed in that case.
+```python
+            if ...
+                if not skip_save and (not h5_mode or (h5_mode and h5_scsv)):
+                    if channel_first:
+                        np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
+                                delimiter=",", newline="\n")
+                    else:
+                        np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
+                                delimiter=",", newline="\n")
+                if not skip_save and h5_mode:
+                    h5tid += 1
+                    h5len += 1
+                    if h5tid == h5chunksize:
+                        h5chunkid += 1
+                        h5dset.resize(h5len, axis=0)
+                        h5dset[h5len-h5chunksize:h5len,:,:,:] = np.array(h5_chunk[:,:,:,:])
+                        h5_chunk = np.zeros(h5_chunk.shape)
+                        h5_chunk.fill(-1)
+                        h5tid = 0
+                if not skip_save:
+                    database.append(["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+                nsuccess += 1
+```
+The X data is either saved to a csv above or automatically saved to a hdf5 database. The y data is saved to a csv as well, concluding the dataset building process.
+
 ### build_train_val_test.py
+This script is used to partition the data into training and test data, and create crossvalidation folds. In reality, these splits are done by building a list of indices and subdividing the array with scikit-learn's train_test_split
+
 ### datacube_set.py
 ### dat_obj.py
 ### h5_sanitycheck.py
