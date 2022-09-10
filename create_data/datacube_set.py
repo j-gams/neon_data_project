@@ -36,6 +36,7 @@ class satimg_set (kr_utils.Sequence):
         if self.h5mode:
             self.h5_src = h5py.File(self.path_prefix + '/datasrc/x_h5.h5','r')
             self.h5_dataset = self.h5_src["data"]
+            print("h5 shape:", self.h5_dataset.shape)
             self.h5_ref = self.full_data[:, h5_ref_idx].flatten()
         ### whether to return x, y or just x/y
         ### so both/x/y
@@ -73,7 +74,8 @@ class satimg_set (kr_utils.Sequence):
             self.nchannels = self.dims[0]
 
         if mean_stds == "default":
-            mean_stds = self.blank_fake_ms(self.dims[0])
+
+            self.mean_stds = self.blank_fake_ms(self.nchannels)
         print("datacube dimensions: ", self.dims)
         ### clean up memory
         del info_cube

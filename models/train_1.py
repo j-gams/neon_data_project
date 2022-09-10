@@ -81,17 +81,34 @@ class test_conv:
                                          keras.layers.Conv2D(filters=512, kernel_size=(3, 3), strides=2, padding='same',
                                              activation='relu'),
                                          keras.layers.Flatten(),
+                                         keras.layers.Dense(1024, activation='relu'),
                                          keras.layers.Dense(512, activation='relu'),
                                          keras.layers.Dense(256, activation='relu'),
-                                         keras.layers.Dense(128, activation='sigmoid'),
+                                         keras.layers.Dense(128, activation='relu'),
+                                         keras.layers.Dense(64, activation='sigmoid'),
                                          keras.layers.Dense(1)])
+        """self.model = keras.models.Sequential([keras.layers.InputLayer(input_shape=self.imgsize),
+                                              keras.layers.Conv2D(filters=128, kernel_size=(3, 3), strides=2,
+                                                                  padding='same',
+                                                                  activation='relu'),
+                                              keras.layers.MaxPooling2D(2, 2),
+                                              keras.layers.Conv2D(filters=256, kernel_size=(3, 3), strides=2,
+                                                                  padding='same',
+                                                                  activation='relu'),
+                                              keras.layers.Flatten(),
+                                              keras.layers.Dense(512, activation='relu'),
+                                              keras.layers.Dense(256, activation='relu'),
+                                              keras.layers.Dense(128, activation='relu'),
+                                              keras.layers.Dense(64, activation='sigmoid'),
+                                              keras.layers.Dense(32, activation='relu'),
+                                              keras.layers.Dense(1)])"""
         if self.verbosity >= 2:
             print(self.model.summary())
-        self.model.compile(loss=self.tmetric, metrics=self.metricset)
+        self.model.compile(loss=self.tmetric, metrics=self.metricset, optimizer='adam')
         self.callbacks = []
         if self.savechecks:
             callback = ModelCheckpoint(self.save_dir + "/checkpoint.h5",
-                    monitor="val_"+self.tmetric,
+                    monitor="val_mean_squared_error",
                     verbose=1,
                     mode="min",
                     save_best_only=True,
@@ -100,15 +117,15 @@ class test_conv:
             self.callbacks.append(callback)
 
     def train(self, train_data, validation_data):
-        self.change_restore(train_data, "c", "train")
-        self.change_restore(validation_data, "c", "val")
+        #self.change_restore(train_data, "c", "train")
+        #self.change_restore(validation_data, "c", "val")
         self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data, verbose = self.verbosity)
         if self.save_last:
             self.model.save_weights(self.save_dir + "/last_epoch.h5")
         if self.reload_best and self.savechecks:
             self.model.load_weights(self.save_dir + "/checkpoint.h5")
-        self.change_restore(train_data, "r", "train")
-        self.change_restore(validation_data, "r", "val")
+        #self.change_restore(train_data, "r", "train")
+        #self.change_restore(validation_data, "r", "val")
 
     def predict(self, x_predict, typein="simg"):
         #print(type(x_predict))

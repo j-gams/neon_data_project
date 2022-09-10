@@ -29,14 +29,18 @@ run_h5mode = False
 if sys.argv[1] == "1":
     dataset = "minidata"
     folding = "test_kfold"
+elif sys.argv[1] == "2":
+    dataset = "data_h51"
+    folding = "fold_1"
 else:
     dataset = "data_interpolated"
     folding = "test_fold"
 override_mdl = None
-if len(sys.argv) == 3:
+if len(sys.argv) >= 3:
     override_mdl = sys.argv[2]
 if len(sys.argv) == 4:
     if sys.argv[3] == "h5":
+        print("running in h5 mode")
         run_h5mode = True
 ### dataset parameters
 #dataset = "minidata_nosa"
@@ -80,7 +84,7 @@ train_params = [{"folds": dataset.k_folds,
 if override_mdl != None:
     load_list = [override_mdl]
 else:
-    load_list = ["svr"]
+    load_list = ["train_1"]
 for mdl_str in load_list:
     if mdl_str == "train_1":
         models.append(train_1.test_conv)
@@ -89,7 +93,7 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
-                              "epochs": 100,
+                              "epochs": 200,
                               "use_best": True,
                               "save_last_epoch": True,
                               "dropout": {"mode": "none", "channels": [0, 1, 2, 3]},
@@ -178,7 +182,7 @@ for mdl_str in load_list:
                               "n_estimators": 500,
                               "max_depth": None,
                               "n_jobs": -1})
-        save_names.append("svr_t1")
+        save_names.append("rvr_t1")
 ### now dispatch to the model trainer...?
 
 for i in range(len(models)):

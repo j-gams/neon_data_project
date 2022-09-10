@@ -39,6 +39,9 @@
 ###                             - whether to override pre-existing restructured data files
 ### skip save                   [--skipsave]
 ### hdf5 mode                   [--h5mode]
+### hdf5 write both             [--h5both]
+### no shuffle mode             [--noshuffle]
+### prescreen extreme samples   [--prescreen]
 ### critical fields             [-c comma separated field keywords, optional]
 ###                             - fields to include in the output samples
 ### k closest approximation     [-k int, optional (default 10)]
@@ -77,7 +80,10 @@ pad_img = 0
 hash_pad = 1
 skip_save = False
 h5_mode = False
+h5_scsv = False
 h5chunksize = 1000
+shuffleorder=True
+prescreen2=False
 if len(sys.argv) < 8:
     init_ok = False
 else:
@@ -104,6 +110,14 @@ else:
             skip_save = True
         elif sys.argv[i] == "--h5mode":
             h5_mode = True
+            h5_scsv = False
+        elif sys.argv[i] == "--h5both":
+            h5_mode = True
+            h5_scsv = True
+        elif sys.argv[i] == "--noshuffle":
+            shuffleorder = False
+        elif sys.argv[i] == "--prescreen":
+            prescreen2 = True
         elif sys.argv[i] == "-c":
             critical_fields = sys.argv[i+1].split(",")
         elif sys.argv[i] == "-q":
@@ -502,7 +516,7 @@ def krings(x_in, y_in, min_k):
                 if i == i_boundaries[0] or i+1 == i_boundaries[1] or j == j_boundaries[0] or j+1 == j_boundaries[1]:
                     if len(ygrid_pt_hash[i+1, j+1]) > 0:
                         if cap == -1:
-                            cap = math.ceil(mem_root2 * ring_size)
+                            cap = max(math.ceil(mem_root2 * ring_size), 1) + 1
                         for k in ygrid_pt_hash[i+1, j+1]:
                             found_list.append(k)
         ring_size += 1
@@ -563,6 +577,7 @@ if h5_mode:
         h5_chunk = np.zeros((h5chunksize, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)))
     else:
         h5_chunk = np.zeros((h5chunksize, imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels))
+        h5_chunk.fill(-1)
 
 diids = [ii for ii in range(101)]
 dists = [0 for ii in range(101)]
@@ -571,18 +586,18 @@ dbins = [[0 for jj in range(20)] for ii in range(len(xr_npar))]
 dbinsmins = [0, 0, 0, 0, 0]
 dbinsmaxs = [4500, 260, 70, 360, 3.5]
 
-if verbosity > 0:
-    print("progress 0/50 ", end="", flush=True)
+#if verbosity > 0:
+#    print("progress 0/50 ", end="", flush=True)
 
-shuffleorder=True
-prescreen=False
+prescreen1=False
+extreme_bounds = [-100000, 100000]
 prescreen_dist = 35 ** 2
 prescreen_forestp = 0.95
 if shuffleorder:
     irange_default = np.arange(yrsize[0])
     jrange_default = np.arange(yrsize[1])
-    np.random.shuffle(np.arange(yrsize[0]))
-    np.random.shuffle(np.arange(yrsize[1]))
+    np.random.shuffle(irange_default)
+    np.random.shuffle(jrange_default)
 else:
     irange_default = np.arange(yrsize[0])
     jrange_default = np.arange(yrsize[1])
@@ -594,15 +609,16 @@ for i in irange_default:
         #failsafe_copy = list(dbins)
         #if verbosity > 0 and progress % pr_unit == 0:
         #    print("-", end="", flush=True)
+        extreme_warning = False
         if y_npar[i, j] != yndv:
-            if not h5_mode:
+            if not h5_mode or (h5_mode and h5_scsv):
                 if channel_first:
                     x_img = np.zeros((channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
                 else:
                     x_img = np.zeros((imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
             nlcd_count = 0
             for k in range(len(xr_npar)):# in xr_npar:
-                binify = dbinsmaxs[k] - dbinsmins[k]
+                #binify = dbinsmaxs[k] - dbinsmins[k]
                 ### ... Try again with a buffer to get 16x16 image
                 for si in range(0 - pad_img, imgsize+pad_img):
                     for sj in range(0 - pad_img, imgsize+pad_img):
@@ -615,25 +631,26 @@ for i in irange_default:
                                 xr_params[k][2], xr_params[k][3])
                         #...
                         ### extreme encounters
-                        if  xr_npar[k][tempi, tempj] > 10000 or xr_npar[k][tempi, tempj] < -10000:
+                        if  xr_npar[k][tempi, tempj] > extreme_bounds[1] or xr_npar[k][tempi, tempj] < extreme_bounds[0]:
                             ### extreme
+                            extreme_warning = True
                             extreme_encounter[k] += 1
                         if k == 1 and (xr_npar[k][tempi, tempj] <40 or xr_npar[k][tempi, tempj] > 45):
                             nlcd_count += 1
-                        if not h5_mode:
+                        if not h5_mode or (h5_mode and h5_scsv):
                             if channel_first:
                                 x_img[k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
                             else:
                                 x_img[si+pad_img, sj+pad_img, k] = xr_npar[k][tempi, tempj]
-                        else:
+                        if h5_mode:
                             if channel_first:
                                 h5_chunk[h5tid, k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
                             else:
                                 h5_chunk[h5tid, si+pad_img, sj+pad_img, k] = xr_npar[k][tempi, tempj]
                         ### do binning for analysis
             #non-forest fraction of x
-            temp_lcpercent = nlcd_count / ((imgsize + (2*pad_img)) ** 2)
-            dists[round((((imgsize + (2*pad_img)) ** 2) - nlcd_count)/((imgsize + (2*pad_img)) ** 2) * 100)] += 1
+            #temp_lcpercent = nlcd_count / ((imgsize + (2*pad_img)) ** 2)
+            #dists[round((((imgsize + (2*pad_img)) ** 2) - nlcd_count)/((imgsize + (2*pad_img)) ** 2) * 100)] += 1
             k_ids, rings = krings(i, j, k_approx)
             avgringsize += rings
             if rings > maxringsize:
@@ -653,32 +670,32 @@ for i in irange_default:
                             mindist = tdist
                             minpt = pt_idx
                     for m in range(len(ptlayers)):
-                        if not h5_mode:
+                        if not h5_mode or (h5_mode and h5_scsv):
                             if channel_first:
                                 x_img[len(xr_npar) + m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
                             else:
                                 x_img[si+pad_img, sj+pad_img, len(xr_npar) + m] = pgetter(m, minpt)
-                        else:
+                        if h5_mode:
                             if channel_first:
                                 h5_chunk[h5tid, len(xr_npar)+m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
                             else:
                                 h5_chunk[h5tid, si+pad_img, sj+pad_img, len(xr_npar)+m] = pgetter(m, minpt)
                         if pgetter(m, minpt) > 10000 or pgetter(m, minpt) < -10000:
                             extreme_encounter[m + len(xr_npar)] += 1
-                    if not h5_mode:
+                    if not h5_mode or (h5_mode and h5_scsv):
                         if channel_first:
                             x_img[len(xr_npar) + len(ptlayers), si+pad_img, sj+pad_img] = minpt
                             x_img[len(xr_npar) + len(ptlayers) + 1, si+pad_img, sj+pad_img] = mindist
                         else:
                             x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers)] = minpt
                             x_img[si+pad_img, sj+pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
-                    else:
+                    if h5_mode:
                         if channel_first:
                             h5_chunk[h5tid, len(xr_npar)+len(ptlayers), si+pad_img, + sj+pad_img] = minpt
                             h5_chunk[h5tid, len(xr_npar)+len(ptlayers) + 1, si+pad_img, + sj+pad_img] = mindist
                         else:
-                            h5_chunk[h5tid, si+pad_img, + sj+pad_img, len(xr_npar)+len(ptlayers)] = minpt
-                            h5_chunk[h5tid, si+pad_img, + sj+pad_img, len(xr_npar)+len(ptlayers) + 1] = mindist
+                            h5_chunk[h5tid, si+pad_img, sj+pad_img, len(xr_npar)+len(ptlayers)] = minpt
+                            h5_chunk[h5tid, si+pad_img, sj+pad_img, len(xr_npar)+len(ptlayers) + 1] = mindist
             if h5_mode:
                 if channel_first:
                     avg_mid_dist = h5_chunk[h5tid, -1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2] / 4
@@ -704,7 +721,7 @@ for i in irange_default:
             
             ### make a string of
             ### file name, y value, nsuccess, y raster coordinates, ..., average distance to nearest neighbor
-            if prescreen:
+            if prescreen1:
                 if avg_mid_dist <= prescreen_dist and temp_lcpercent <= (1 - prescreen_forestp):
                     #good to save
                     if not skip_save:
@@ -720,27 +737,32 @@ for i in irange_default:
                         print("-", end="", flush=True)
                 #else:
                 #    dbins = list(failsafe_copy)
-            else:
-                if not skip_save and not h5_mode:
-                    database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+            elif (not extreme_warning and prescreen2) or not prescreen2:
+                if not skip_save and (not h5_mode or (h5_mode and h5_scsv)):
+                    #database.append(["/datasrc/x_img/x_" +str(nsuccess)+ ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
                     if channel_first:
                         np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
                                 delimiter=",", newline="\n")
                     else:
                         np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
                                 delimiter=",", newline="\n")
-                elif h5_mode:
-                    database.append(["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+                if not skip_save and h5_mode:
+                    #database.append(["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
                     h5tid += 1
                     h5len += 1
                     #if (h5len + 1) % h5chunksize == 0:
+                    if h5tid % (h5chunksize//10) == 0:
+                        print("-", end="", flush=True)
                     if h5tid == h5chunksize:
                         h5chunkid += 1
-                        print("resizing h5 (" + str(h5chunkid) + ")")
+                        print("> resizing h5 (" + str(h5chunkid) + ")")
                         h5dset.resize(h5len, axis=0)
-                        h5dset[h5len-h5_chunk.shape[0]:h5len,:,:,:] = h5_chunk
+                        h5dset[h5len-h5chunksize:h5len,:,:,:] = np.array(h5_chunk[:,:,:,:])
                         h5_chunk = np.zeros(h5_chunk.shape)
+                        h5_chunk.fill(-1)
                         h5tid = 0
+                if not skip_save:
+                    database.append(["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
                 nsuccess += 1
             if testmode > 0 and nsuccess > testmode:
                 print()
@@ -798,230 +820,48 @@ for i in irange_default:
 
 print()
 #print(maxringsize)
-
+"""
 print("max ring size: ", maxringsize)
 print("saving ydata")
 ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
-ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
+ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")"""
 
+print("max ring size: ", maxringsize)
+print("avg ring size: ", avgringsize//nsuccess)
+print("saving ydata")
+ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
+ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
+#save h5set
+if h5_mode:
+    ###need to make sure last chunk is saved
+    print("saving last h5 chunk...")
+    h5dset.resize(h5len, axis=0)
+    h5dset[h5len-h5tid:h5len,:,:,:] = h5_chunk[:h5tid,:,:,:]
+    print("saving h5 dset...")
+    h5_dataset.close()
+#print("max ring size: ", maxringsize)
 print("extreme encounter report:")
+no_enc = True
 for i in range(len(extreme_encounter)):
     if extreme_encounter[i] > 0:
+        no_enc = False
         print(" ", i, extreme_encounter[i])
+if no_enc:
+    print("no extreme encounters")
 
-"""
-### TODO NOT REFACTORED YET
+plt.figure()
+plt.bar(diids, dists)
+plt.title("distribution of nlcd values over 5m regions / sample")
+plt.savefig("../figures/nlcd_dist_.png")
+plt.cla()
+plt.close()
 
-print("reformatting grecs...?")
-if gencoords:
-    print("reformatting coordinate data")
-    progress = 0
-    for i in range(len(grecs)):
-        progress += 1
-        if progress % (len(grecs) // 50) == 0:
-            print("-", end="", flush=True)
-        a, b = grecs[i].record[3], grecs[i].record[2]
-        os.system('echo "' + str(a) + ',' + str(b) + '\n" >> ' + fs_name + '/gedi_reformat/gedi_coords.txt')
-    print("---> ")
-    print("done reformatting coordinate data")
-
-if genelse:
-    for elt in regen:
-        progress = 0
-        print("reformatting " + elt + " data")
-        for i in range(len(grecs)):
-            progress += 1
-            if progress % (len(grecs) // 50) == 0:
-                print("-", end="", flush=True)
-            dumpstr = ""
-            for j in range(len(gedi_pts.fields)):
-                if elt in gedi_pts.fields[j][0]:
-                    dumpstr += str(grecs[i].record[j]) + ","
-            os.system('echo "' + dumpstr[:-1] + ';" >> ' + fs_name + '/gedi_reformat/gedi_' + elt + '.txt')
-        print("---> ")
-        print("done reformatting " + elt + " data")
-
-sys.exit("wank")
-print("done reformatting grecs.")
-print("loading gedi coords...")
-del grecs
-
-#with open(fs_name + '/gedi_reformat/gedi_coords.txt', 'r', newline=';') as ff1:
-#    gedi_pts_npar = np.loadtxt(ff1, dtype='float', usecols=(0,1))
-gedi_pts_npar = np.genfromtxt(fs_name + '/gedi_reformat/gedi_coords.txt', delimiter=',')
-print(gedi_pts_npar)
-n_gedi = len(gedi_pts_npar)
-print("gedi coords shape:", gedi_pts_npar.shape)
-
-print("*** data info ***")
-### get ecostress data info
-ecos_rband = ecos_g.GetRasterBand(1)
-ecos_ndv = ecos_rband.GetNoDataValue()
-ecos_rsize = (ecos_g.RasterXSize, ecos_g.RasterYSize)
-ecos_UL_h, ecos_h_spac, _, ecos_UL_v, _, ecos_v_spac = ecos_g.GetGeoTransform()
-#account for negative pixel size:
-ecos_v_spac = abs(ecos_v_spac)
-print("ECOSTRESS crs info:", ecos_UL_h, ecos_UL_v, ecos_h_spac, ecos_v_spac)
-print("ECOSTRESS raster size:", ecos_rsize)
-print("ECOSTRESS no data value:", ecos_ndv)
-ecos_npar = ecos_g.ReadAsArray().transpose()
-print(ecos_npar.shape)
-
-### get srtm data info
-srtm_rband = srtm_g.GetRasterBand(1)
-srtm_ndv = srtm_rband.GetNoDataValue()
-srtm_rsize = (srtm_g.RasterXSize, srtm_g.RasterYSize)
-srtm_UL_h, srtm_h_spac, _, srtm_UL_v, _, srtm_v_spac = srtm_g.GetGeoTransform()
-#account for negative pixel size:
-srtm_v_spac = abs(srtm_v_spac)
-print("SRTM crs info:", srtm_UL_h, srtm_UL_v, srtm_h_spac, srtm_v_spac)
-print("SRTM raster size:", srtm_rsize)
-print("SRTM no data value:", srtm_ndv)
-srtm_npar = srtm_g.ReadAsArray().transpose()
-
-### get srtm data info
-nlcd_rband = nlcd_g.GetRasterBand(1)
-nlcd_ndv = nlcd_rband.GetNoDataValue()
-nlcd_rsize = (nlcd_g.RasterXSize, nlcd_g.RasterYSize)
-nlcd_UL_h, nlcd_h_spac, _, nlcd_UL_v, _, nlcd_v_spac = nlcd_g.GetGeoTransform()
-#account for negative pixel size:
-nlcd_v_spac = abs(nlcd_v_spac)
-print("NLCD crs info:", nlcd_UL_h, nlcd_UL_v, nlcd_h_spac, nlcd_v_spac)
-print("NLCD raster size:", nlcd_rsize)
-print("NLCD no data value:", nlcd_ndv)
-nlcd_npar = nlcd_g.ReadAsArray().transpose()
-
-### test transformations
-print("testing transformations:")
-tix, tiy = 0, 0
-print(tix, tiy)
-tcx, tcy = idx_pixctr(tix, tiy, ecos_UL_h, ecos_UL_v, ecos_h_spac, ecos_v_spac, mode='ctr')
-print(tcx, tcy)
-tix, tiy = coords_idx(tcx, tcy, ecos_UL_h, ecos_UL_v, ecos_h_spac, ecos_v_spac)
-print(tix, tiy)
-
-#channels: srtm (0), nlcd (1), gedi(2)
-channels = 3
-print("generating data...")
-print("constructing X,y pairs...")
-progress = 0
-steps = 100
-outta = (ecos_rsize[0] * ecos_rsize[1]) // steps
-
-test
-### test
-print("setting diagnostic tiles:")
-print(nlcd_v_spac/ecos_v_spac)
-test_x, test_y = idx_pixctr(0, 0, ecos_UL_h, ecos_UL_v, ecos_h_spac, ecos_v_spac)
-test_i, test_j = coords_idx(test_x, test_y, srtm_UL_h, srtm_UL_v, srtm_h_spac, srtm_v_spac)
-print(test_x, test_y)
-print(test_i, test_j)
-ecos_npar[0, 0] = 5
-srtm_npar[test_i, test_j] = 5
-srtm_npar[test_i+1, test_j] = 10
-srtm_npar[test_i+2, test_j] = 0
-srtm_npar[test_i,test_j+1] = 4
-srtm_npar[test_i+1, test_j+1] = 8
-srtm_npar[test_i+2, test_j+1] = 8
-srtm_npar[test_i,test_j+2] = 5
-srtm_npar[test_i+1,test_j+2]  =2
-srtm_npar[test_i+2, test_j+2] = 10
-print(srtm_npar[test_i:test_i+3, test_j:test_j+3])
-
-print("ecos_UL in srtm")
-kclose = 10
-printall = True
-gotone = False
-nsuccess = 0
-gedi_mode = ["voronoi", "nn"]
-if "voronoi" in gedi_mode:
-    print("loading points in geopandas")
-    #need to load with geopandas...
-    gedi_bup = gpd.read_file("GEDI_2B_clean/GEDI_2B_clean.shp")
-    bdry_wrap = shapefile.Writer("tpath")
-    bdry_wrap.poly()
-
-for i in range(ecos_rsize[0]):
-    for j in range(ecos_rsize[1]):
-        progress += 1
-        if progress % outta == 0:
-            print("-", end="", flush=True)
-        if ecos_npar[i, j] == ecos_ndv:
-            if i == 0 and j == 0:
-                print(ecos_npar[i, j])
-            continue
-        #x_img = np.zeros((imgsize, imgsize, channels))
-        x_img = np.zeros((channels, imgsize, imgsize))
-        yval = ecos_npar[i, j]
-        #do srtm (ch0)
-        for si in range(imgsize):
-            for sj in range(imgsize):
-                sxoffset = (2*si + 1)/(2*imgsize)
-                syoffset = (2*sj + 1)/(2*imgsize)
-                # convert index to coordinates with ecostress crs
-                # then convert back to index with srtm crs
-                srtm_x, srtm_y = idx_pixctr(i+sxoffset, j+syoffset, ecos_UL_h, ecos_UL_v, ecos_h_spac, ecos_v_spac,
-                                            mode='cst')
-                srtm_i, srtm_j = coords_idx(srtm_x, srtm_y, srtm_UL_h, srtm_UL_v, srtm_h_spac, srtm_v_spac)
-                #x_img[si, sj, 0] = srtm_npar[srtm_i, srtm_j]
-                x_img[0, si, sj] = srtm_npar[srtm_i, srtm_j]
-        #do nlcd (ch1)
-        for si in range(imgsize):
-            for sj in range(imgsize):
-                sxoffset = (2 * si + 1) / (2 * imgsize)
-                syoffset = (2 * sj + 1) / (2 * imgsize)
-                # convert index to coordinates with ecostress crs
-                # then convert back to index with nlcd crs
-                nlcd_x, nlcd_y = idx_pixctr(i+sxoffset, j+syoffset, ecos_UL_h, ecos_UL_v, ecos_h_spac, ecos_v_spac,
-                                            mode='cst')
-                nlcd_i, nlcd_j = coords_idx(nlcd_x, nlcd_y, nlcd_UL_h, nlcd_UL_v, nlcd_h_spac, nlcd_v_spac)
-                #x_img[si, sj, 1] = nlcd_npar[nlcd_i, nlcd_j]
-                x_img[1, si, sj] = nlcd_npar[nlcd_i, nlcd_j]
-        if "nn" in gedi_mode:
-            #get k closest to center of 70m pixel
-            kn_ids = getkclose(gedi_pts_npar, i, j, kclose, ecos_UL_h, ecos_UL_v, ecos_h_spac, ecos_v_spac)
-            for si in range(imgsize):
-                for sj in range(imgsize):
-                    sxoffset = (2 * si + 1) / (2 * imgsize)
-                    syoffset = (2 * sj + 1) / (2 * imgsize)
-                    gedi_x, gedi_y = idx_pixctr(i+sxoffset, j+syoffset, ecos_UL_h, ecos_UL_v, ecos_h_spac, ecos_v_spac,
-                                                mode='cst')
-                    #find kn_id pt closest to center of pixel
-                    mindist = 180
-                    minpt = None
-                    #a = grecs[i].record[3]
-                    #b = grecs[i].record[2]
-                    for k in range(kclose):
-                        tdist = cdist(gedi_pts_npar[kn_ids[k], 0], gedi_pts_npar[kn_ids[k], 1], gedi_x, gedi_y)
-                        if tdist < mindist:
-                            mindist = tdist
-                            minpt = kn_ids[k]
-                    #get value of nearest elt
-                    # x_img[si, sj, 1] = nlcd_npar[nlcd_i, nlcd_j]
-                    x_img[2, si, sj] = minpt #TEMPORARY#nlcd_npar[nlcd_i, nlcd_j]
-        #if "voronoi" in gedi_mode:
-
-
-        #plot image
-        if printall and False:
-            print("diagnostics:")
-            print("i, j: ", i, j)
-            print("offset base", ecos_h_spac/imgsize)
-            test_x, test_y = idx_pixctr(i, j, ecos_UL_h, ecos_UL_v, ecos_h_spac, ecos_v_spac)
-            test_i, test_j = coords_idx(test_x, test_y, srtm_UL_h, srtm_UL_v, srtm_h_spac, srtm_v_spac)
-            print(srtm_npar[test_i:test_i+3, test_j:test_j+3])
-            print(x_img[0])
-            print(yval)
-            print(x_img.shape, x_img.dtype, imgsize, channels)
-            printall = False
-            print(x_img[10000000])
-        if len(np.unique(x_img[1])) > 2 and False:
-            plt.imshow(x_img[2])
-            plt.show()
-        #save file
-        np.savetxt(fs_name + "/datasrc/x_img/x_" + str(nsuccess) +".csv", x_img.reshape(x_img.shape[0],-1), delimiter=",")
-        #load with loaded_array.reshape(loadedArr.shape[0], loadedArr.shape[1]//arr.shape[2], arr.shape[2]
-        nsuccess += 1
-print()
-print("done")
-"""
+for i in range(len(dists)):
+    if dists[i] != 0:
+        dists[i] = math.log(dists[i])
+plt.figure()
+plt.bar(diids, dists)
+plt.title("log distribution of nlcd values over 5m regions / sample")
+plt.savefig("../figures/nlcd_dist_log.png")
+plt.cla()
+plt.close()

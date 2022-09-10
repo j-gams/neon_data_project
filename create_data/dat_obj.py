@@ -76,6 +76,11 @@ class datacube_loader:
             self.validation.append(satimg_set(self.validation_data_raw[-1], h5mode, shuffle[1], "../data/" + dataname,
                 batch[1], x_ref_idx, y_col_idx, fold_m_s, channel_names, dataname = "validation set " + str(i),
                 mem_sensitive = mem[1], observe_mode=omode[1], orientation = self.channel_mode, h5_ref_idx = h5_ref_idx))
+            #self.validation.append(satimg_set(self.validation_data_raw[-1], h5mode, shuffle[1], "../data/" + dataname,
+            #                                  batch[1], x_ref_idx, y_col_idx, musigs[0], channel_names,
+            #                                  dataname="validation set " + str(i),
+            #                                  mem_sensitive=mem[1], observe_mode=omode[1],
+            #                                  orientation=self.channel_mode, h5_ref_idx=h5_ref_idx))
         #test_data_in_np = pd.read_csv("../data/" + dataname + "/datasrc/fold_data/" + data_ext + "/test/test_set.csv")
         #test_data_in_np = test_data_in_np.to_numpy()
         #self.test_set = satimg_set(test_data_in_np, )
