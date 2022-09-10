@@ -154,7 +154,7 @@ def idx_pixctr(ix, iy, ulh, ulv, psh, psv, mode='ul'):
     cy = ulv - (iy * psv) + offsety
     return cx, cy
 ```
-#### Nearest neighbor interpolation method
+##### Nearest neighbor interpolation method
 The problem with applying nearest neighbor interpolation to this problem is that there are hundreds of thousands of GEDI centerpoints and millions of grid squares in the ECOSTRESS AOI raster - and even worse, the interpolation needs to be done on a 16*16 grid within each GEDI grid square. The number of options involved makes naive methods of finding nearest neighbors too computationally difficult to be practical here. This algorithm takes advantage of some structural properties of the GEDI centroids: they are somewhat evenly spaced across the AOI, and there are a small number of other centroids within a short distance like 70m of each centroid.
 
 First, it hashes the indices of each centroid to a large 70m array mirroring the ecostress raster array. The snippet below creates a large numpy array and fills it with empty lists. hash_pad is provided in the command line arguments, and creates a buffer around the edge of the hash array so that the algorithm does not look in an out-of-bounds array location in following steps.
@@ -206,6 +206,7 @@ def krings(x_in, y_in, min_k):
     return found_list, ring_size
 ```
 
+##### Building the New Dataset
 Some setup is required for building the new dataset.
 The database used to store y values and some metadata is initialized below, as is the h5 dataset and a numpy array used to store an h5 chunk before it is written to the h5 dataset (which greatly speeds up the process, based on experimentation).
 If shuffle_order is set to true in the command line arguments, the order in which the raster indices are iterated through is shuffled:
