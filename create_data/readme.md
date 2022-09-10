@@ -158,14 +158,14 @@ def idx_pixctr(ix, iy, ulh, ulv, psh, psv, mode='ul'):
 The problem with applying nearest neighbor interpolation to this problem is that there are hundreds of thousands of GEDI centerpoints and millions of grid squares in the ECOSTRESS AOI raster - and even worse, the interpolation needs to be done on a 16*16 grid within each GEDI grid square. The number of options involved makes naive methods of finding nearest neighbors too computationally difficult to be practical here. This algorithm takes advantage of some structural properties of the GEDI centroids: they are somewhat evenly spaced across the AOI, and there are a small number of other centroids within a short distance like 70m of each centroid.
 
 First, it hashes the indices of each centroid to a large 70m array mirroring the ecostress raster array. The snippet below creates a large numpy array and fills it with empty lists. hash_pad is provided in the command line arguments, and creates a buffer around the edge of the hash array so that the algorithm does not look in an out-of-bounds array location in following steps.
-```
+```python
 ygrid_pt_hash = np.zeros((yrsize[0] + (2*hash_pad), yrsize[1] + (2*hash_pad)), dtype='object')
 for i in range(ygrid_pt_hash.shape[0]):
     for j in range(ygrid_pt_hash.shape[1]):
         ygrid_pt_hash[i, j] = []
 ```
 Now the hashing can take place. for each GEDI centroid, its in-crs coordinates are mapped to array indices. If the sample falls out of bounds, some diagnostic information is printed, since this will create problems down the road. If not, the index is added to the list in the appropriate cell of the large array:
-```
+```python
 for i in range(clen()):
     xi, yi = coords_idx(cgetter(i, 0), cgetter(i, 1), yulh, yulv, ypxh, ypxv)
     if xi+hash_pad < 0 or yi+hash_pad < 0 or xi > yrsize[0]+(hash_pad*2) or yi > yrsize[1]+(2*hash_pad):
@@ -182,7 +182,7 @@ The final step is using this hash to compute a subset of gedi centroids that nea
 The smallest possible distance between a centroid encountered in ring n and the nearest point in the central grid square is n-1. The largest possible distance between a centroid encountered in ring n and the farthest possible point in the central grid square is sqrt(2) * n. Because of this, if the first centroid c1 is encountered in ring n, There may still be centroids closer than c1 to some point within the central grid square until ring sqrt(2)*n + 1. This is made to be an integer with ceiling(sqrt(2)*n) + 1.
 
 In short, if the first centroid is found in ring n, then the furthest possible centroid that could still be the nearest neighbor to some point in the grid square is in ring ceiling(sqrt(2)*n) + 1. So the algorithm can stop at that point.
-```
+```python
 def krings(x_in, y_in, min_k):
     ring_size = 0
     found_list = []
@@ -206,7 +206,7 @@ def krings(x_in, y_in, min_k):
     return found_list, ring_size
 ```
 If shuffle_order is set to true in the command line arguments, the order in which the raster indices are iterated through is shuffled:
-```
+```python
 irange_default = np.arange(yrsize[0])
 jrange_default = np.arange(yrsize[1])
 np.random.shuffle(irange_default)
