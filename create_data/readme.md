@@ -205,6 +205,9 @@ def krings(x_in, y_in, min_k):
         ring_size += 1
     return found_list, ring_size
 ```
+
+Some setup is required for building the new dataset.
+The database used to store y values and some metadata is initialized below, as is the h5 dataset and a numpy array used to store an h5 chunk before it is written to the h5 dataset (which greatly speeds up the process, based on experimentation).
 If shuffle_order is set to true in the command line arguments, the order in which the raster indices are iterated through is shuffled:
 ```python
 irange_default = np.arange(yrsize[0])
@@ -212,9 +215,21 @@ jrange_default = np.arange(yrsize[1])
 np.random.shuffle(irange_default)
 np.random.shuffle(jrange_default)
 ```
-Finally, the raster squares can be iterated through to build the dataset:
 
+Finally, the raster squares can be iterated through to build the dataset. First, the code below checks whether the y raster square is the no-data value, which would indicate that the square is outside of the AOI. Then, it initializes a datacube, which is used for building the .csv-style dataset.
+```python
+for i in irange_default:
+    for j in jrange_default:
+        if y_npar[i, j] != yndv:
+            if not h5_mode or (h5_mode and h5_scsv):
+                if channel_first:
+                    x_img = np.zeros((channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
+                else:
+                    x_img = np.zeros((imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
+            nlcd_count = 0
+```
 
+Still within the no-data conditional, the code below iterates through each raster dataset and through each 5m pixel within the 70m ecostress grid square (plus padding pixels) to resample raster values at the center of each pixel. 
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
