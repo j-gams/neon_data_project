@@ -291,6 +291,16 @@ It then finds the closest gedi centroid to the center of the pixel with brute fo
                             x_img[len(xr_npar) + len(ptlayers), si+pad_img, sj+pad_img] = minpt
                             x_img[len(xr_npar) + len(ptlayers) + 1, si+pad_img, sj+pad_img] = mindist
 ```
+
+Not all ecostress raster grid squares have a gedi centroid within or near them. These samples might be unreliable if gedi centroid data is interpolated from centroids that are many meters outside of the grid square. However, setting this threshold in the dataset building process will make it difficult and time consuming to check later. Therefore, the distance from the center of the grid square to the nearest centroid is recorded as metadata, so that thresholding can take place later with greater flexibility. There are an even number of pixels, so no one pixel is at the center, so the code below computes the average distance from the four pixels surrounding the center. Only one case is shown due to the repetitive nature of this task:
+```python
+            if h5_mode:
+                if channel_first:
+                    avg_mid_dist = h5_chunk[h5tid, -1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2] / 4
+                    avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2)) // 2] / 4
+                    avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
+                    avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
+```
 ### build_train_val_test.py
 ### datacube_set.py
 ### dat_obj.py
