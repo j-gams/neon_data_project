@@ -229,7 +229,8 @@ for i in irange_default:
             nlcd_count = 0
 ```
 
-Still within the no-data conditional, the code below iterates through each raster dataset and through each 5m pixel within the 70m ecostress grid square (plus padding pixels) to resample raster values at the center of each pixel. The resampling is performed by computing the i and j index offsets, or the location of the centerpoint of the pixel if the raster grid square were 1x1. This is the location that should be resampled in the ecostress raster array index coordinate system. This is then converted to x and y coordinates in the ecostress raster geospatial coordinate system with idx_pixtr(), described above. This crs is shared with the x raster data, so the coordinates are converted again into the x raster array index coordinate system with coords_idx(), again described above. The value at these indices 
+Still within the no-data conditional, the code below iterates through each raster dataset and through each 5m pixel within the 70m ecostress grid square (plus padding pixels) to resample raster values at the center of each pixel. The resampling is performed by computing the i and j index offsets, or the location of the centerpoint of the pixel if the raster grid square were 1x1. This is the location that should be resampled in the ecostress raster array index coordinate system. This is then converted to x and y coordinates in the ecostress raster geospatial coordinate system with idx_pixtr(), described above. This crs is shared with the x raster data, so the coordinates are converted again into the x raster array index coordinate system with coords_idx(), again described above. The value at these indices are the values that we want to sample.
+The last section of the code stores the data in the sample based on h5 mode and sample orientation.
 ```python
             for k in range(len(xr_npar)):
                 for si in range(0 - pad_img, imgsize+pad_img):
@@ -240,6 +241,7 @@ Still within the no-data conditional, the code below iterates through each raste
                                 ypxv, mode = 'ul')
                         tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
                                 xr_params[k][2], xr_params[k][3])
+                        ### save to datacube one way or another
                         if not h5_mode or (h5_mode and h5_scsv):
                             if channel_first:
                                 x_img[k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
@@ -250,6 +252,43 @@ Still within the no-data conditional, the code below iterates through each raste
                                 h5_chunk[h5tid, k, si+pad_img, sj+pad_img] = xr_npar[k][tempi, tempj]
                             else:
                                 h5_chunk[h5tid, si+pad_img, sj+pad_img, k] = xr_npar[k][tempi, tempj]
+```
+
+Also within the no-data conditional, the code below uses krings() described above to retreive a list of possible nearest neighbors for the ecostress grid square at this index. Next, it iterates through each of the 5m pixels. It computes the i and j offsets again, and converts the indices back to the geospatial crs.
+```python
+            k_ids, rings = krings(i, j, k_approx)
+            for si in range(0-pad_img, imgsize+pad_img):
+                for sj in range(0-pad_img, imgsize+pad_img):
+                    sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                    syoffset = ((2 * sj) + 1) / (2 * imgsize)
+                    tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
+                            ypxv, mode='ul')
+```
+
+It then finds the closest gedi centroid to the center of the pixel with brute force, which is ok because the number of centroids involved is very small relative to the total number in the dataset. The index of the centroid with the smallest distance is saved as minpt, and its distance is saved as mindist. The data from each relevant field from the closest gedi centroid is then recorded, based on h5 mode and sample orientation. Finally, mindist and minpt are recorded - This is only shown for one case due to its repetitive nature.
+```python
+                    mindist = 100000
+                    minpt = None
+                    for pt_idx in k_ids:
+                        tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempx, tempy)
+                        if tdist < mindist:
+                            mindist = tdist
+                            minpt = pt_idx
+                    for m in range(len(ptlayers)):
+                        if not h5_mode or (h5_mode and h5_scsv):
+                            if channel_first:
+                                x_img[len(xr_npar) + m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
+                            else:
+                                x_img[si+pad_img, sj+pad_img, len(xr_npar) + m] = pgetter(m, minpt)
+                        if h5_mode:
+                            if channel_first:
+                                h5_chunk[h5tid, len(xr_npar)+m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
+                            else:
+                                h5_chunk[h5tid, si+pad_img, sj+pad_img, len(xr_npar)+m] = pgetter(m, minpt)
+                    if not h5_mode or (h5_mode and h5_scsv):
+                        if channel_first:
+                            x_img[len(xr_npar) + len(ptlayers), si+pad_img, sj+pad_img] = minpt
+                            x_img[len(xr_npar) + len(ptlayers) + 1, si+pad_img, sj+pad_img] = mindist
 ```
 ### build_train_val_test.py
 ### datacube_set.py
