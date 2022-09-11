@@ -24,6 +24,7 @@ This does the following, with certain default settings:
   
 ## Documentation
 ### tif_merge_convert.py
+| Parameter | Usage | Function | 
 ### code_match.py
 ### analyze_clipped.py
 ### check_clip.py
@@ -330,7 +331,34 @@ The X data is either saved to a csv above or automatically saved to a hdf5 datab
 
 ### build_train_val_test.py
 This script is used to partition the data into training and test data, and create crossvalidation folds. In reality, these splits are done by building a list of indices and subdividing the array with scikit-learn's train_test_split
+#### Parameters
+| parameter | Usage | Function |
+| dataset | required string | name of dataset to partition | 
+| split_name | required string | name if the split to create (since each dataset can have more than one split)|
+| folds | required int | number of cross-validation folds to create |
+| test fraction | required number in \[0, 1\] | fraction of total data to be set aside for the test set |
+| validation fraction | required float in \[0, 1\] | fraction of data for each validation fold to be given to validation set as opposed to train set |
 
-### datacube_set.py
+#### Recommended commands
+Create 5 validation folds with 0.2 and 0.3 splits:
+```
+python build_train_val_test.py dataset_name split_name 5 0.2 0.3
+```
+#### Under the hood
+The code manages directories for this train/validation/test split, creating a directory for the split (if one does not already exist) and then creates a directory for each validation fold, then divides up the data. It reads in the y data and metadata csv and determines how many samples are included. It then creates an index array which is randomly divided into a test set and a remaining set for training and validation with scikit-learn's model_selection.train_test_split. This produces a test set with test_fraction of the data and a train/validation set with 1-test_fraction of the data:
+```python
+rawdata = pd.read_csv(prefix + "ydata.csv").to_numpy()
+idx_split = np.arange(rawdata.shape[0])
+train_ids, test_ids, = train_test_split(idx_split, test_size=test_frac)
+```
+for each validation fold, the remaining train/validation set is divided randomly into a validation set with validation_frac and a train set with 1-validation_frac of the train/validation data. This is done with replacement, so each split has the same total number of samples as the train/validation set:
+```python
+for i in range(folds):
+    print("building validation fold " + str(i))
+    train_i, val_i = train_test_split(train_ids, test_size=val_frac)
+    print("fold ", len(train_i), len(val_i))
+```
+Each of these index arrays are saved as csv files to their respective fold directories, concluding the contents of this file.
 ### dat_obj.py
+
 ### h5_sanitycheck.py
