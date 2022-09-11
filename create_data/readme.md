@@ -32,16 +32,73 @@ This is used to stitch multiple geotifs from the same dataset into one combined 
 | target directories | required string of comma separated directories | the directories to look in |
 | subdirectory mode | (optional, default False) --subdirs to engage subdirectory mode | engage this to look for geotifs to stitch together in subdirectories of the target directory, not the directory itself. This is useful, for example, if the constituent geotifs come in .zip files that place the geotifs in individual subdirectories |
 
-#### Example commands
+#### Example command
 ```
 python tif_merge_convert.py .hgt --subdirs ../raw_data/srtm_raw
 ```
 #### Summary
+This script is not technical or critical enough to warrant an in-depth review of its mechanics, but in short:
+
 This script locates every file within the specified target directory with the specified file extension when not in subdirs mode. When in subdirs mode, it locates every subdirectory of the target directory, and locates every file with the extension within those subdirectories. It then uses gdal to stitch the files together into a geotif (.tif), which is saved in the target directory.
 
 ### code_match.py
+This is used to clip geotif raster data files to a specified AOI. 
+#### Parameters
+| Parameter | Usage | Function |
+| --- | --- | --- |
+| raster data paths | required comma-separated file paths (string) | paths of raster data files to clip |
+| output data paths | required comma-separated fild paths (string) | paths to which clipped raster data files should be saved |
+| bounding shape paths | required file path (string) | shapefile to be used to clip raster data |
+| visualize data | (optional, default none) -v {all, none, comma-separated indices} | which clipped raster datasets to visualize |
+
+#### Example command
+The command below clips reduced_nlcd.tif to nlcd_clipped.tif and combined.tif to srtm_clipped.tif, using NEON_3D_Boundary as the clipping shape. It visualizes neither of the datasets.
+```
+python code_match.py ../raw_data/nlcd_raw/reduced_nlcd.tif,../raw_data/srtm_raw/combined.tif ../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/srtm_raw/srtm_clipped.tif ../raw_data/neon_aoi/NEON_3D_Boundary.shp -v none -q 2
+```
+####  Summary
+This script is not technical or critical enough to warrant an in-depth review of its mechanics, but in short:
+
+This script parses the comma separated file paths from the command line arguments and iteratively loads all of the raster files. For each file, it clips the dataset to the specified shape using rioxarray.clip, and plots the resulting clipped raster data with matplotlib, saving the plot to figures/data.
+If the index of the raster file in the comma separated list of files is one specified in the visualize data command line argument, the visualization will also be plotted with gui. Note that this can be a helpful sanity check, but may interrupt the execution of the code.
+
 ### analyze_clipped.py
+This is used to gather information about raster data at a series of points. Within the scope of this project, it plots distributions of raster data values at GEDI centroids.
+
+#### Parameters
+| Parameter | Usage | Function |
+| --- | --- | --- |
+| raster data paths | required comma separated series of file paths (string) | raster data files to look at |
+| points of interest shapefile | required file path (string) | shapefile containing points at which to analyze the raster data |
+| test mode | (optional, default -1) -t int | whether to run on all points (-1) or run on the first n samples |
+| verbosity | (optional, default 2) -q {0, 1, 2} | verbosity level, where 0 is less verbose and 2 is more verbose |
+
+#### Example command
+The command below will run basic analysis on srtm, nlcd, and ecostress WUE data at gedi centroids specified in GEDI_2B_clean.shp. This analysis will be run on all samples.
+```
+python analyze_clipped.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/ecos_wue/WUE_Median_Composite_AOI.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp -t -1 -q 2
+```
+
+#### Summary 
+This script is not technical or critical enough to warrant an in-depth review of its mechanics, but in short:
+
+This script loads the shapefile (the GEDI data) and iteratively loads each raster data file. For each file, it iterates through every point (gedi centroid) and records the value of the raster data at that point. It then produces plots related to the distribution of the data at the points.
+These plots are saved to figures/gedi_distributions.
+
 ### check_clip.py
+This is used as an additional sanity check for the clipped raster data. Use this to visually inspect clipped raster data files.
+#### Parameters
+| Parameter | Usage | Function |
+| --- | --- | --- |
+| raster data paths | required comma separated series of file paths (string) | raster data files to visually inspect |
+
+#### Example command
+python check_clip.py ../raw_data/srtm_raw/srtm_clipped.tif ../raw_data/nlcd_raw/nlcd_clipped.tif
+
+#### Summary
+This script is not technical or critical enough to warrant an in-depth review of its mechanics; it simply loads and plots raster data files.
+
+
 ### reset_raster_nd.py
 ### match_create_set.py
 This is the central piece of the entire data creation pipeline, so I will outline this file in greater detail.
