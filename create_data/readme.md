@@ -24,7 +24,21 @@ This does the following, with certain default settings:
   
 ## Documentation
 ### tif_merge_convert.py
-| Parameter | Usage | Function | 
+This is used to stitch multiple geotifs from the same dataset into one combined geotif.
+#### Parameters
+| Parameter | Usage | Function |
+| --- | --- | --- |
+| target extension | required string | The file extension to look for |
+| target directories | required string of comma separated directories | the directories to look in |
+| subdirectory mode | (optional, default False) --subdirs to engage subdirectory mode | engage this to look for geotifs to stitch together in subdirectories of the target directory, not the directory itself. This is useful, for example, if the constituent geotifs come in .zip files that place the geotifs in individual subdirectories |
+
+#### Example commands
+```
+python tif_merge_convert.py .hgt --subdirs ../raw_data/srtm_raw
+```
+#### Summary
+This script locates every file within the specified target directory with the specified file extension when not in subdirs mode. When in subdirs mode, it locates every subdirectory of the target directory, and locates every file with the extension within those subdirectories. It then uses gdal to stitch the files together into a geotif (.tif), which is saved in the target directory.
+
 ### code_match.py
 ### analyze_clipped.py
 ### check_clip.py
