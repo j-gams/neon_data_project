@@ -32,3 +32,5 @@ train() which trains the model on provided train X and y
 predict() which makes predictions on provided data
 
 diagnostics() which returns relevant diagnostic information about the model (such as weights, performance by epoch, etc.) to be recorded.
+
+And any necessary helper functions.
