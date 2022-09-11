@@ -404,6 +404,7 @@ The X data is either saved to a csv above or automatically saved to a hdf5 datab
 This script is used to partition the data into training and test data, and create crossvalidation folds. In reality, these splits are done by building a list of indices and subdividing the array with scikit-learn's train_test_split
 #### Parameters
 | parameter | Usage | Function |
+| --- | --- | --- |
 | dataset | required string | name of dataset to partition | 
 | split_name | required string | name if the split to create (since each dataset can have more than one split)|
 | folds | required int | number of cross-validation folds to create |
