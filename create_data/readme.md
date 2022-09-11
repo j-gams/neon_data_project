@@ -452,6 +452,7 @@ for i in range(folds):
     print("fold ", len(train_i), len(val_i))
 ```
 Each of these index arrays are saved as csv files to their respective fold directories, concluding the contents of this file.
-### dat_obj.py
 
 ### h5_sanitycheck.py
+Verify that the samples created in csv mode are the same (up to some small epsilon) as the ones created in h5 mode.
+This script has no parameters. This will only work if the dataset is generated in h5_both mode (or if random shuffle is off), so that the indices of the samples in the raster and the meta csv are consistent between the two methods.
