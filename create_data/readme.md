@@ -93,13 +93,34 @@ This is used as an additional sanity check for the clipped raster data. Use this
 | raster data paths | required comma separated series of file paths (string) | raster data files to visually inspect |
 
 #### Example command
+```
 python check_clip.py ../raw_data/srtm_raw/srtm_clipped.tif ../raw_data/nlcd_raw/nlcd_clipped.tif
+```
 
 #### Summary
 This script is not technical or critical enough to warrant an in-depth review of its mechanics; it simply loads and plots raster data files.
 
 
 ### reset_raster_nd.py
+This is used to alter no-data values in raster data files.
+
+#### Parameters
+| Parameter | Usage | Function |
+| --- | --- | --- |
+| file path | required file path (string) | raster dataset to inspect and/or alter |
+| nodata value | required nodata value (int) | value to set as no-data value, if in edit mode |
+| edit mode | required {t, f} | whether to edit the no-data value or just inspect it (get it and print it out) |
+
+#### Example command
+```
+python reset_rasted_nd.py ../raw_data/srtm_raw/srtm_clipped.tif 0 f
+```
+
+#### Summary 
+This script is not technical or critical enough to warrant an in-depth review of its mechanics, but in short:
+
+The SRTM data as I worked with it had no-data values that were not nan. This would in all likelihood not create problems elsewhere in the data creation pipeline, but it was inconsistent and created a visually unappealing background on plots of the raster datset. When not running in edit mode, this script loads the specified raster data file and obtains the original no-data value using rioxarray, then prints it. In edit mode, it does the same but then sets the no-data value to the one specified in the command line argument and saves the file.
+
 ### match_create_set.py
 This is the central piece of the entire data creation pipeline, so I will outline this file in greater detail.
 #### Parameters
