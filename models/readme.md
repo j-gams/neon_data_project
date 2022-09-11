@@ -25,7 +25,10 @@ mutils.py provides tools to compute performance metrics (MSE, MAE, and more), do
 each model file contains a class that wraps around a scikit-learn or keras model. Included are CNN, lasso regression, kernel ridge regression, PCA + regression, Autoencoding + regression, random forest regression, and support vector regression. These wrappers are easy to write for a new model, and help de-clutter other parts of the training process.
 Each model includes the following functions:
 
-__init__ () which initializes the model
+\_\_init\_\_ () which initializes the model
+
 train() which trains the model on provided train X and y
+
 predict() which makes predictions on provided data
+
 diagnostics() which returns relevant diagnostic information about the model (such as weights, performance by epoch, etc.) to be recorded.
