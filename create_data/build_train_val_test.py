@@ -11,8 +11,8 @@ dataset = sys.argv[1]
 mini_name = sys.argv[2]
 force = True
 folds = int(sys.argv[3])
-test_frac = 0.2
-val_frac = 0.3
+test_frac = float(sys.argv[4])#0.2
+val_frac = float(sys.argv[5])#0.3
 if not os.path.isdir(dataset + "/fold_data"):
     os.mkdir(dataset + "/fold_data")
 if not os.path.isdir(dataset + "/fold_data/" + mini_name):

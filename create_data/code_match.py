@@ -103,20 +103,6 @@ if verbosity == 2:
 sns.set(font_scale=1.5)
 
 #TODO - send this to its own file
-if False:
-    print(" - converting srtm .hgt files to .tif")
-    prefix1 = "srtm_raw/"
-    mergeall = ""
-    for n in range(38, 42):
-        for w in range(105, 108):
-            tname = "N" + str(n) + "W" + str(w)
-            os.system("gdal_translate -of GTiff " + prefix1 + tname + ".SRTMGL1.hgt/" + tname + ".hgt " + prefix1 + tname + ".tif")
-            mergeall += prefix1 + tname + ".tif "
-    print(" - merging .tif files")
-    os.system("gdal_merge.py -o srtm_raw/combined.tif " + mergeall)
-    print(" - done")
-
-
 
 ### open datasets provided in command line arguments
 ### open with rioxarray. Keep masked=True, squeezed

@@ -26,8 +26,9 @@ class datacube_loader:
         self.dataset_name = dataname
         #self.k_folds = expect_folds
         
-        meta_folds = 0 
-
+        meta_folds = 0
+        self.testmode_ready = False
+        self.testmode = False
         ### load in
         with open("../data/" + dataname + "/fold_data/" + dataext + "/meta.txt") as fff:
             alllines = fff.readlines()
@@ -85,6 +86,35 @@ class datacube_loader:
         #test_data_in_np = test_data_in_np.to_numpy()
         #self.test_set = satimg_set(test_data_in_np, )
 
+    ### TODO -- complete this stuff
+    def enter_testmode(self):
+        if not self.testmode_ready:
+            print("entering testmode for the first time")
+            self.train_data_combined_raw = np.concatenate(self.validation_data_raw[0], self.train_data_raw[0])
+            self.train_combined = satimg_set(self.train_data_combined_raw, h5mode, shuffle[0], "../data/" + dataname,
+                                             batch[0], x_ref_idx, y_col_idx, musigs[0], channel_names,
+                                             dataname = "train set combined", mem_sensitive = mem[0],
+                                             observe_mode = omode[0], orientation=self.channel_mode,
+                                             h5_ref_idx=h5_ref_idx)
+            combined_m_s = self.train_combined.get_or_compute_m_s()
+            self.train_combined.apply_observed_m_s()
+            self.testmode_ready = True
+        self.test.apply_given_m_s(combined_m_s)
+        self.testmode = True
+
+    def exit_testmode(self):
+        self.test.unapply_m_s()
+        self.testmode = False
+
+    def get_mode(self):
+        if self.testmode:
+            print("test mode is activated")
+        else:
+            print("test mode is not activated")
+        return testmode
+
+    def threshold_data(self):
+        pass
     def summarize(self):
         print("dataset overview:")
         print("  source data: " + str(self.all.shape[0]) + " samples")

@@ -282,6 +282,16 @@ class satimg_set (kr_utils.Sequence):
                     else:
                         self.img_memory[i, j] = (self.img_memory[i, j] - self.mean_stds[0][j]) / self.mean_stds[1][j]
 
+    def unapply_m_s(self):
+        if not self.mem_sensitive:
+            for i in range(self.full_data.shape[0]):
+                for j in range(self.nchannels):
+                    if self.ori == "hwc":
+                        self.img_memory[i,:,:,j] = (self.img_memory[i,:,:,j] * self.mean_stds[1][j]) + self.mean_stds[0][j]
+                    else:
+                        self.img_memory[i, j] = (self.img_memory[i,j] * self.mean_stds[1][j]) + self.mean_stds[0][j]
+        self.mean_stds = self.blank_fake_ms(self.nchannels)
+
     def on_epoch_end(self):
         if self.shuffle:
             np.random.shuffle(self.indexes)
