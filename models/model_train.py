@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### train model, report info
 
 ### import ...

@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 #per earthlab tutorial
 #https://www.earthdatascience.org/courses/use-data-open-source-python/intro-raster-data-python/raster-data-processing/
 #crop-raster-data-with-shapefile-in-python/

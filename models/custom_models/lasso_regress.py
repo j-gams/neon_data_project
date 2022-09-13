@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### sklearn lasso
 
 import numpy as np

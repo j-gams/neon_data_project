@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 import numpy as np
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.metrics.pairwise import rbf_kernel, linear_kernel, polynomial_kernel, sigmoid_kernel

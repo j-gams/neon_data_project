@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 import numpy as np
 
 def rfloader(fpath):

@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### autoencode
 
 import numpy as np

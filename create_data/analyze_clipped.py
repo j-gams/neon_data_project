@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### WHAT DOES THIS CODE DO?
 ### - opens a series of raster data files
 ### - opens a shapefile containing points

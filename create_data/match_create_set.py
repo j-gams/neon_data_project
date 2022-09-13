@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### WHAT DOES THIS CODE DO?
 ### - 
 
@@ -54,6 +56,7 @@
 ###                             - how many gridsquares to add around the raster (to catch everything)
 ### h5 chunk size               [-u int, chunksize]
 ###
+### set numpy random seed       [-s int, random seed]
 ### verbosity                   [-q {0, 1, 2}, optional (default 2, verbose)
 
 ### Usage Example:
@@ -84,6 +87,7 @@ h5_scsv = False
 h5chunksize = 1000
 shuffleorder=True
 prescreen2=False
+npseed = None
 if len(sys.argv) < 8:
     init_ok = False
 else:
@@ -137,6 +141,11 @@ else:
             hash_pad = int(sys.argv[i+1])
         elif sys.argv[i] == "-u":
             h5chunksize = int(sys.argv[i+1])
+        elif sys.argv[i] == "-s":
+            np.random.seed(int(sys.argv[i+1]))
+            npseed = int(sys.argv[i+1])
+
+print("numpy random seed set to", npseed)
 if not init_ok:
     sys.exit("missing or incorrect command line arguments")
 imgsize = y_res // y_pix
@@ -449,7 +458,7 @@ def idx_pixctr(ix, iy, ulh, ulv, psh, psv, mode='ul'):
     return cx, cy
 
 def cdist(x1, y1, x2, y2):
-    return (x1 - x2) ** 2 + (y1 - y2) ** 2
+    return (((x1 - x2) ** 2) + ((y1 - y2) ** 2))
 
 ### stupid k nearest
 def getkclose(shapes, centerx, centery, k, ulh, ulv, psh, psv):
@@ -662,7 +671,7 @@ for i in irange_default:
                     syoffset = ((2 * sj) + 1) / (2 * imgsize)
                     tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
                             ypxv, mode='ul')
-                    mindist = 100000
+                    mindist = 1000000
                     minpt = None
                     for pt_idx in k_ids:
                         tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempx, tempy)

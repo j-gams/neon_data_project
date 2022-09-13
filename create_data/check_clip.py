@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### WHAT DOES THIS CODE DO?
 ### - opens specified geotif files
 ### - plots them
@@ -41,7 +43,7 @@ else:
 for fname in fnames:
     data_name = fname.split('/')[-1]
     rxr_data = rxr.open_rasterio(fname, masked=True).squeeze()
-    f, ax = plt.subplots(figsize=(10, 10), num=1, clear=True)
+    f, ax = plt.subplots(figsize=(8, 16), num=1, clear=True)
     rxr_data.plot.imshow()
     ax.set(title="post-clipped " + data_name)
     ax.set_axis_off()
@@ -49,3 +51,5 @@ for fname in fnames:
     plt.cla()
 
     del rxr_data
+    del f
+    del ax

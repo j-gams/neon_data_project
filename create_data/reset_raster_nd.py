@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### WHAT DOES THIS CODE DO?
 ### - sets nodata value of a specified geotif file to a specified value
 

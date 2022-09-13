@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### WHAT DOES THIS CODE DO?
 ### - finds all files with specified extension in specified directory
 ### - if in subdirs mode, looks for files in every subdirectory of specified directory instead

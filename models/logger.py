@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### logger
 
 class mdl_log:

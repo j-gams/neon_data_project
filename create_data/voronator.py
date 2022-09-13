@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 import numpy as np
 import geopandas as gpd
 #from geovoronoi import voronoi_regions_from_coords, points_to_coords

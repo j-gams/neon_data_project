@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 import pandas as pd
 import numpy as np
 import os
@@ -13,6 +15,11 @@ force = True
 folds = int(sys.argv[3])
 test_frac = float(sys.argv[4])#0.2
 val_frac = float(sys.argv[5])#0.3
+if len(sys.argv) > 6:
+    print("obtaining np random seed")
+    npseed = int(sys.argv[6])
+    np.random.state(npseed)
+    print("numpy random state set to", npseed)
 if not os.path.isdir(dataset + "/fold_data"):
     os.mkdir(dataset + "/fold_data")
 if not os.path.isdir(dataset + "/fold_data/" + mini_name):

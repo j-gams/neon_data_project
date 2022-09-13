@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### PCA
 
 import numpy as np

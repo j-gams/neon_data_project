@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 import numpy as np
 import sys
 sys.path.insert(0, '../create_data')

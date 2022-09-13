@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### utils
 import math
 import numpy as np

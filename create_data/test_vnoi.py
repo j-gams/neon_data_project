@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 print("importing...")
 import os
 import matplotlib.pyplot as plt

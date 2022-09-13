@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 import mutils

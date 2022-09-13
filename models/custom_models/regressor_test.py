@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### TEST REGRESSOR 1
 
 ### TEMPLATE???

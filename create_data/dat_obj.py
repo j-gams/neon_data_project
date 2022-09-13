@@ -1,3 +1,4 @@
+### Written by Jerry Gammie @j-gams
 
 import pandas as pd
 import numpy as np

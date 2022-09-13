@@ -1,3 +1,5 @@
+### Written by Jerry Gammie @j-gams
+
 ### Framework for managing training models
 
 ### imports...
@@ -96,7 +98,7 @@ for mdl_str in load_list:
                               "epochs": 200,
                               "use_best": True,
                               "save_last_epoch": True,
-                              "dropout": {"mode": "none", "channels": [0, 1, 2, 3]},
+                              "dropout": {"mode": "drop", "channels": [66, 67]},
                               "verbosity": 1})
         save_names.append("basic_convmodel_all_100e")
     elif mdl_str == "test_regress":
@@ -123,11 +125,11 @@ for mdl_str in load_list:
         model_hparams.append({"model_name": "lasso",
                               "save_location": "placeholder",
                               "alpha": 0.2,
-                              "dropout": {"mode": "none", "channels": [2, 3]},
+                              "dropout": {"mode": "drop", "channels": [66, 67]},
                               "avg_channel": True,
                               "normalize": True,
                               "verbosity": 1})
-        save_names.append("lasso_final")
+        save_names.append("lasso_h5_a02_allchannels")
     elif mdl_str == "kernel_r":
         models.append(kernel_regress.kernel_regress)
         model_hparams.append({"model_name": "lasso",
@@ -178,10 +180,10 @@ for mdl_str in load_list:
         models.append(rf_regress.rfregressor)
         model_hparams.append({"model_name": "rfr_test",
                               "save_location": "placeholder",
-                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
+                              "dropout": {"mode": "drop", "channels": [66, 67]},
                               "n_estimators": 500,
                               "max_depth": None,
-                              "n_jobs": -1})
+                              "n_jobs": 1})
         save_names.append("rvr_t1")
 ### now dispatch to the model trainer...?
 
