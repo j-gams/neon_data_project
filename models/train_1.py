@@ -77,21 +77,22 @@ class test_conv:
         #self.modelname = model_name
         #self.imgsize = input_size
         #self.save_checks = save_checkpoints
-        """self.model = keras.models.Sequential([keras.layers.InputLayer(input_shape=self.imgsize),
+        self.model = keras.models.Sequential([keras.layers.InputLayer(input_shape=self.imgsize),
                                          keras.layers.Conv2D(filters=256, kernel_size=(3, 3), strides=2, padding='same',
                                              activation='relu'),
                                          keras.layers.MaxPooling2D(2, 2),
                                          keras.layers.Conv2D(filters=512, kernel_size=(3, 3), strides=2, padding='same',
                                              activation='relu'),
                                          keras.layers.Flatten(),
-                                         keras.layers.Dense(1024, activation='relu'),
-                                         keras.layers.Dense(512, activation='relu'),
-                                         keras.layers.Dense(256, activation='relu'),
-                                         keras.layers.Dense(128, activation='relu'),
-                                         keras.layers.Dense(64, activation='sigmoid'),
-                                         keras.layers.Dense(1)])"""
+                                         keras.layers.Dense(1024, activation='relu', kernel_initializer=
+                                            keras.initializers.RandomUniform(minval=-0.5, maxval=0.5, seed=None)),
+                                         keras.layers.Dense(1024, activation='relu', kernel_initializer=
+                                            keras.initializers.RandomUniform(minval=-0.5, maxval=0.5, seed=None)),
+                                         keras.layers.Dense(64, activation='relu', kernel_initializer=
+                                            keras.initializers.RandomUniform(minval=-0.5, maxval=0.5, seed=None)),
+                                         keras.layers.Dense(1)])
 
-        self.model = keras.models.Sequential([keras.layers.InputLayer(input_shape=self.imgsize),
+        """self.model = keras.models.Sequential([keras.layers.InputLayer(input_shape=self.imgsize),
                                               keras.layers.Conv2D(filters=132, kernel_size=(3, 3), strides=2,
                                                                   padding='same',
                                                                   activation='relu'),
@@ -103,15 +104,15 @@ class test_conv:
                                               keras.layers.Dense(512, activation='relu'),
                                               keras.layers.Dense(256, activation='relu'),
                                               keras.layers.Dense(32, activation='relu'),
-                                              keras.layers.Dense(1)])
+                                              keras.layers.Dense(1)])"""
         if self.verbosity >= 2:
             print(self.model.summary())
-        self.model.compile(loss=self.tmetric, metrics=self.metricset, optimizer='adam')
+        self.model.compile(loss=self.tmetric, metrics=self.metricset, optimizer=keras.optimizers.Adam(learning_rate=0.0005))
         self.callbacks = []
         if self.savechecks:
             callback = ModelCheckpoint(self.save_dir + "/checkpoint.h5",
                     monitor="val_mean_squared_error",
-                    verbose=0,
+                    verbose=2,
                     mode="min",
                     save_best_only=True,
                     save_freq="epoch",
@@ -121,7 +122,7 @@ class test_conv:
     def train(self, train_data, validation_data):
         self.change_restore(train_data, "c", "train")
         self.change_restore(validation_data, "c", "val")
-        self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data, verbose = 1)#self.verbosity)
+        self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data, verbose = 2)#self.verbosity)
         if self.save_last:
             self.model.save_weights(self.save_dir + "/last_epoch.h5")
         if self.reload_best and self.savechecks:

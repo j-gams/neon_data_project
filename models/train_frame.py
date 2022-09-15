@@ -33,7 +33,7 @@ if sys.argv[1] == "1":
     folding = "test_kfold"
 elif sys.argv[1] == "2":
     dataset = "data_h51"
-    folding = "fold_1"
+    folding = "fold_2"
 else:
     dataset = "data_interpolated"
     folding = "test_fold"
@@ -86,9 +86,9 @@ train_params = [{"folds": dataset.k_folds,
 if override_mdl != None:
     load_list = [override_mdl]
 else:
-    load_list = ["train_1"]
+    load_list = ["cnn1"]
 for mdl_str in load_list:
-    if mdl_str == "train_1":
+    if mdl_str == "cnn1":
         models.append(train_1.test_conv)
         model_hparams.append({"model_name": "basic_convmodel_1",
                               "save_location": "placeholder",
@@ -98,7 +98,7 @@ for mdl_str in load_list:
                               "epochs": 200,
                               "use_best": True,
                               "save_last_epoch": True,
-                              "dropout": {"mode": "drop", "channels": [66, 67]},
+                              "dropout": {"mode": "drop", "channels": [66]},
                               "verbosity": 1})
         save_names.append("basic_convmodel_all_100e")
     elif mdl_str == "test_regress":
@@ -183,7 +183,7 @@ for mdl_str in load_list:
                               "dropout": {"mode": "drop", "channels": [66, 67]},
                               "n_estimators": 500,
                               "max_depth": None,
-                              "n_jobs": 1})
+                              "n_jobs": -1})
         save_names.append("rvr_t1")
 ### now dispatch to the model trainer...?
 

@@ -15,9 +15,12 @@ force = True
 folds = int(sys.argv[3])
 test_frac = float(sys.argv[4])#0.2
 val_frac = float(sys.argv[5])#0.3
+subsample = -1
 if len(sys.argv) > 6:
+    subsample = int(sys.argv[6])
+if len(sys.argv) > 7:
     print("obtaining np random seed")
-    npseed = int(sys.argv[6])
+    npseed = int(sys.argv[7])
     np.random.state(npseed)
     print("numpy random state set to", npseed)
 if not os.path.isdir(dataset + "/fold_data"):
@@ -30,11 +33,16 @@ if not os.path.isdir(dataset + "/fold_data/" + mini_name):
 elif not force:
     sys.exit("data split already exists")
 
+### TODO - create log of parameters used
+
 print("building test set")
 prefix = dataset + "/datasrc/"
 rawdata = pd.read_csv(prefix + "ydata.csv").to_numpy()
 idx_split = np.arange(rawdata.shape[0])
 print("ntotal", rawdata.shape[0])
+if subsample != -1:
+    idx_split = np.random.choice(idx_split, min(len(idx_split), subsample), replace=False)
+    print("subsampling " + str(min(len(idx_split), subsample)) + " datapoints")
 train_ids, test_ids, = train_test_split(idx_split, test_size=test_frac)
 print("test ", len(test_ids))
 np.savetxt(dataset + "/fold_data/" + mini_name + "/test/test_set.csv", test_ids, delimiter=",")

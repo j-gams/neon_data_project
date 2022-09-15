@@ -145,6 +145,11 @@ else:
             np.random.seed(int(sys.argv[i+1]))
             npseed = int(sys.argv[i+1])
 
+### TODO -- create a log of parameters used
+#txt_out = open("../ " ".txt", "w+")
+#log_string = ["* DATASET CREATED WITH THE FOLLOWING PARAMETERS"]
+
+
 print("numpy random seed set to", npseed)
 if not init_ok:
     sys.exit("missing or incorrect command line arguments")
