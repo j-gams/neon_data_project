@@ -171,14 +171,14 @@ import pandas as pd
 from shapely.geometry import mapping
 import rioxarray as rxr
 import xarray as xr
-import geopandas as gpd
-import earthpy as et
-import earthpy.plot as ep
+#import geopandas as gpd
+#import earthpy as et
+#import earthpy.plot as ep
 from osgeo import gdal
 from osgeo import ogr
 import shapefile
 import h5py
-from longsgis import voronoiDiagram4plg
+#from longsgis import voronoiDiagram4plg
 
 from rfdata_loader import rfloader, piloader
 

@@ -83,7 +83,7 @@ import numpy as np
 from shapely.geometry import mapping
 import rioxarray as rxr
 import xarray as xr
-import geopandas as gpd
+#import geopandas as gpd
 from osgeo import gdal
 from osgeo import ogr
 from osgeo import osr

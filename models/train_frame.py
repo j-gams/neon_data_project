@@ -95,7 +95,7 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
-                              "epochs": 200,
+                              "epochs": 10,
                               "use_best": True,
                               "save_last_epoch": True,
                               "dropout": {"mode": "drop", "channels": [66]},

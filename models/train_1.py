@@ -51,6 +51,8 @@ class test_conv:
             elif key == "dropout":
                 self.dropmode = hparam_dict[key]["mode"]
                 self.dropout = hparam_dict[key]["channels"]
+            elif key == "optimizer":
+                self.optimizerstr = hparam_dict[key]
 
         if self.dropmode == "keep":
             self.keeplen = len(self.dropout)
@@ -72,7 +74,10 @@ class test_conv:
         else:
             self.tmetric = train_metric
         
-        self.save_dir = save_dir 
+        self.save_dir = save_dir
+
+        #if self.optimizerstr == "adam":
+        #    pass
 
         #self.modelname = model_name
         #self.imgsize = input_size
@@ -80,9 +85,11 @@ class test_conv:
         self.model = keras.models.Sequential([keras.layers.InputLayer(input_shape=self.imgsize),
                                          keras.layers.Conv2D(filters=256, kernel_size=(3, 3), strides=2, padding='same',
                                              activation='relu'),
-                                         keras.layers.MaxPooling2D(2, 2),
                                          keras.layers.Conv2D(filters=512, kernel_size=(3, 3), strides=2, padding='same',
                                              activation='relu'),
+                                         keras.layers.Conv2D(filters=1024, kernel_size=(3, 3), strides=2,
+                                                                  padding='same',
+                                                                  activation='relu'),
                                          keras.layers.Flatten(),
                                          keras.layers.Dense(1024, activation='relu', kernel_initializer=
                                             keras.initializers.RandomUniform(minval=-0.5, maxval=0.5, seed=None)),
@@ -107,7 +114,7 @@ class test_conv:
                                               keras.layers.Dense(1)])"""
         if self.verbosity >= 2:
             print(self.model.summary())
-        self.model.compile(loss=self.tmetric, metrics=self.metricset, optimizer=keras.optimizers.Adam(learning_rate=0.0005))
+        self.model.compile(loss=self.tmetric, metrics=self.metricset, optimizer=keras.optimizers.Adam(learning_rate=0.0001))
         self.callbacks = []
         if self.savechecks:
             callback = ModelCheckpoint(self.save_dir + "/checkpoint.h5",
