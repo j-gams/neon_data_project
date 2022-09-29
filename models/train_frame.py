@@ -9,6 +9,8 @@ import sys
 import model_train
 
 import train_1
+import train_3
+import train_noise
 from custom_models import regressor_test
 from custom_models import auto_regress
 from custom_models import lasso_regress
@@ -95,12 +97,38 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
-                              "epochs": 10,
+                              "epochs": 15,
                               "use_best": True,
                               "save_last_epoch": True,
-                              "dropout": {"mode": "drop", "channels": [66]},
+                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
                               "verbosity": 1})
         save_names.append("basic_convmodel_all_100e")
+    elif mdl_str == "cnn3":
+        models.append(train_3.test_conv)
+        model_hparams.append({"model_name": "basic_convmodel_1",
+                              "save_location": "placeholder",
+                              "input_size": dataset.test.dims,
+                              "save_checkpoints": True,
+                              "train_metric": "mean_squared_error",
+                              "epochs": 15,
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
+                              "verbosity": 1})
+        save_names.append("basic_convmodel3_all_100e")
+    elif mdl_str == "cnne":
+        models.append(train_noise.test_conv)
+        model_hparams.append({"model_name": "basic_convmodel_e",
+                              "save_location": "placeholder",
+                              "input_size": dataset.test.dims,
+                              "save_checkpoints": True,
+                              "train_metric": "mean_squared_error",
+                              "epochs": 100,
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
+                              "verbosity": 1})
+        save_names.append("basic_convmodelnoise_all_100e")
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)
         model_hparams.append({"model_name": "basic_regressor_1",

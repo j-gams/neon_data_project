@@ -62,6 +62,16 @@
 ### Usage Example:
 ### python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/WUE_Median_Composite_AOI.tif 70 5 true ../data/data_interpolated --lomem --gencoords --override --genetc -c cover,pavd,fhd -q 2
 import sys
+
+def isf(s):
+    if s == "F" or s == "f" or s == "False" or s == "false":
+        return True
+    return False
+def ist(s):
+    if s == "T" or s == "t" or s == "True" or s == "true":
+        return True
+    return False
+
 init_ok = True
 x_raster_locs = []
 point_shape = []
@@ -96,9 +106,9 @@ else:
     y_raster_loc = sys.argv[3]
     y_res = int(sys.argv[4])
     y_pix = int(sys.argv[5])
-    if sys.argv[6] == "T" or sys.argv[6] == 't' or sys.argv[6] == "True" or sys.argv[6] == "true":
+    if ist(sys.argv[6]):
         create_fs = True
-    if sys.argv[6] == "F" or sys.argv[6] == 'f' or sys.argv[6] == "False" or sys.argv[6] == "false":
+    if isf(sys.argv[6]):
         create_fs = False
     fs_loc = sys.argv[7]
     for i in range(8, len(sys.argv)):
@@ -144,6 +154,54 @@ else:
         elif sys.argv[i] == "-s":
             np.random.seed(int(sys.argv[i+1]))
             npseed = int(sys.argv[i+1])
+    ### NEW PARSER
+    for i in range(8, len(sys.argv)):
+        ### T/F
+        if sys.argv[i] == "--lomem":
+            lo_mem = True
+        elif sys.argv[i] == "--gencoords":
+            gen_coords = True
+        elif sys.argv[i] == "--genetc":
+            gen_etc = True
+        elif sys.argv[i] == "--override":
+            override_regen = True
+        elif sys.argv[i] == "--skipsave":
+            skip_save = True
+        elif sys.argv[i] == "--noshuffle":
+            shuffleorder = False
+        elif sys.argv[i] == "--prescreen":
+            prescreen2 = True
+        ### Other Args
+        elif sys.argv[i][:9] == "--h5mode=":
+            if sys.argv[i][9:] == "h5":
+                h5_mode = True
+                h5_scsv = False
+            elif sys.argv[i][9:] == "both":
+                h5_mode = True
+                h5_scsv = True
+        elif sys.argv[i][:10] == "--cfields=":
+            critical_fields = sys.argv[i][10:].split(",")
+        elif sys.argv[i][:10] == "--kapprox=":
+            k_approx = int(sys.argv[i][10:])
+        elif sys.argv[i][:7] == "--test=":
+            testmode = int(sys.argv[i][7:])
+        elif sys.argv[i][:9] == "--orient=":
+            if sys.argv[i][9:] == "chw":
+                channel_first = True
+            else:
+                channel_first = False
+        elif sys.argv[i][:6] == "--pad=":
+            pad_img = int(sys.argv[i][6:])
+        elif sys.argv[i][:10] == "--hashpad=":
+            hash_pad = int(sys.argv[i][10:])
+        elif sys.argv[i][:8] == "--chunk=":
+            h5chunksize = int(sys.argv[i][8:])
+        elif sys.argv[i][:9] == "--npseed=":
+            npseed = int(sys.argv[i][:9])
+            np.random.seed(npseed)
+        elif sys.argv[i][:4] == "--q=":
+            verbosity = int(sys.argv[i][4:])
+
 
 ### TODO -- create a log of parameters used
 #txt_out = open("../ " ".txt", "w+")
@@ -240,6 +298,63 @@ if create_fs:
     arrReshaped = test_img_.reshape(test_img_.shape[0], -1) #see bookmarked page on how to invert this
     np.savetxt(fs_loc + "/datasrc/x_img/x_test.csv", arrReshaped, delimiter=",", newline="\n")
     print("shape:", arrReshaped.shape)
+
+### generate log of parameters used
+txt_param_out = open("../ " ".txt", "w+")
+log_param_string =  ["* DATASET CREATED WITH THE FOLLOWING PARAMETERS"]
+log_param_string += ["  - x_raster_locs () " + str(x_raster_locs)]
+log_param_string += ["  - point_shape " + str(point_shape)]
+log_param_string += ["  - y_raster_locs " + str(y_raster_loc)]
+log_param_string += ["  - y_res " + str(y_res)]
+log_param_string += ["  - y_pix " + str(y_pix)]
+log_param_string += ["  - create_fs " + str(create_fs)]
+log_param_string += ["  - fs_loc " + str(fs_loc)]
+log_param_string += ["  - lo_mem " + str(lo_mem)]
+log_param_string += ["  - gen_coords " + str(gen_coords)]
+log_param_string += ["  - gen_etc " + str(gen_etc)]
+log_param_string += ["  - override_regen " + str(override_regen)]
+log_param_string += ["  - critical_fields " + str(critical_fields)]
+log_param_string += ["  - k_approx " + str(k_approx)]
+log_param_string += ["  - testmode " + str(testmode)]
+log_param_string += ["  - channel_first " + str(channel_first)]
+log_param_string += ["  - pad_img " + str(pad_img)]
+log_param_string += ["  - hash_pad " + str(hash_pad)]
+log_param_string += ["  - skip_save " + str(skip_save)]
+log_param_string += ["  - h5_mode " + str(h5_mode)]
+log_param_string += ["  - h5_chunksize " + str(h5chunksize)]
+log_param_string += ["  - shuffleorder " + str(shuffleorder)]
+log_param_string += ["  - prescreen2 " + str(prescreen2)]
+log_param_string += ["  - npseed " + str(npseed)]
+
+
+"""import sys
+init_ok = True
+x_raster_locs = []
+point_shape = []
+y_raster_loc = ""
+y_res = 70
+y_pix = 5
+create_fs = True
+fs_loc = "../data/default"
+lo_mem = True
+gen_coords = False
+gen_etc = False
+override_regen = False
+critical_fields = []
+verbosity = 2
+k_approx = 10
+testmode = -1
+channel_first = False
+pad_img = 0
+hash_pad = 1
+skip_save = False
+h5_mode = False
+h5_scsv = False
+h5chunksize = 1000
+shuffleorder=True
+prescreen2=False
+npseed = None"""
+
 
 ### load x raster
 xraster = []

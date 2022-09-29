@@ -77,6 +77,27 @@ def spec_graphs(eval_x, eval_y, yhat, channel_list, modelname, saveat):
     plt.cla()
     plt.close()
 
+    nevalbin = 1000
+    evalbins = np.zeros((nevalbin, nevalbin))
+    yhmin = 0
+    yhmax = 2
+    yemin = 0
+    yemax = 2
+    for i in range(len(eval_y)):
+        evalbins[int(((yhat[i] - yhmin)/yhmax)*nevalbin), int(((eval_y[i] - yemin)/yemax)*nevalbin)] += 1
+    fig1, ax1 = plt.subplots()
+    im1 = ax1.imshow(evalbins)
+    plt.colorbar(im1)
+    xax1 = np.around(np.linspace(yemin, yemax, num=10), 2)
+    yax1 = np.around(np.linspace(yhmin, yhmax, num=10), 2)
+    ax1.set_xticklabels(xax1, rotation=45)
+    ax1.set_yticklabels(yax1, rotation=45)
+    ax1.set(xlabel="ecostress value", ylabel="predicted value")
+    plt.savefig(saveat + "/y_yhat_heatmap.png")
+    plt.cla()
+    plt.close()
+
+
     ### 1
     plt.figure()
     plt.scatter(eval_y, mse)
