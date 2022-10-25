@@ -171,6 +171,7 @@ def make_log_list(source_dir):
     log_param_string += ["  - hash_pad " + str(hash_pad)]
     log_param_string += ["  - h5_chunksize " + str(h5chunksize)]
     log_param_string += ["  - npseed " + str(npseed)]
+    log_param_string += ["  - import_root: " + str(import_root)]
     for lineout in log_param_string:
         txt_param_out.write(lineout + "\n")
     qprint("saving parameter log to meta/log.txt", 2)
@@ -289,6 +290,7 @@ if create_fs:
 
 ### import files from elsewhere
 if import_root != None:
+    qprint("importing coordinate and field data")
     for i in range(len(critical_fields)):
         for j in range(len(critical_fields[i])):
             if os.path.exists(import_root + "/point_reformat/pt_" + str(i) +
