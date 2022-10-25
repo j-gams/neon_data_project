@@ -296,6 +296,9 @@ if import_root != None:
                 os.system("cp " + import_root + "/point_reformat/pt_" + str(i) + "_" +
                           critical_fields[i][j] + ".txt " + fs_loc + "/point_reformat/pt_" +
                           str(i) + "_" + critical_fields[i][j] + ".txt")
+                qprint("copied file " + "pt_" + str(i) + "_" + critical_fields[i][j] +
+                       ".txt from " + import_root, 2)
+
 
 ### write a log of the parameters used to create the dataset
 make_log_list(fs_loc + "/meta")
