@@ -206,7 +206,7 @@ from rfdata_loader import rfloader, piloader
 qprint("done importing packages", 1)
 
 found_coord = False
-found_etc = [False for i in range(len(critical_fields))]
+found_etc = [[False for i in range(len(critical_fields[j]))] for j in range(len(critical_fields))]
 
 ### Prints related to creating the directory structure
 if lo_mem:
@@ -274,7 +274,7 @@ if create_fs:
                     else:
                         qprint("reformatted " + critical_fields[i][j] + " (data " + str(i) +
                                ") file detected, skipping.", 2)
-                        found_etc[i] = True
+                        found_etc[i][j] = True
 
     ### create a test image in the directoru to ensure things are working
     test_img_ = np.zeros((3, 14, 14))
@@ -335,6 +335,37 @@ ptindexer = {}
 grecs = []
 ptlnames = []
 
+def field_parallel_dispatch(gen_etc_disp, found_etc_disp, xpoints_disp, crit_fields_disp, grecs_disp):
+    if gen_etc_disp and not found_etc_disp[i]:
+        ### sweet progress bar
+        qprint("reformatting critical field " + crit_fields_disp[j][i] + ". This could take a while...", 1)
+        if verbosity > 0:
+            print("progress 0/50 ", end="", flush=True)
+        progress = 0
+        ### build list of field indices, names:
+        fields_ids = []
+        fields_names = ""
+        for k in range(len(xpoints[-1].fields)):
+            if critical_fields[j][i] in xpoints[-1].fields[k][0]:
+                fields_ids.append(k)
+                fields_names += xpoints[-1].fields[k][0] + ","
+        ### header
+        os.system('echo "' + fields_names[:-1] + '" >> ' + fs_loc + "/point_reformat/pt_" +
+                  str(j) + "_" + critical_fields[j][i] + ".txt")
+        for jz in range(len(grecs[-1])):
+            progress += 1
+            if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
+                print("-", end="", flush=True)
+            dumpstr = ""
+            for k in fields_ids:
+                # for k in range(len(xpoints[-1].fields)):
+                if critical_fields[j][i] in xpoints[-1].fields[k][0]:
+                    dumpstr += str(grecs[-1][jz].record[k]) + ","
+            os.system('echo "' + dumpstr[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' +
+                      str(j) + "_" + critical_fields[j][i] + '.txt')
+        qprint("---> 50/50 (done)", 1)
+    qprint("done reformatting " + critical_fields[j][i] + " data", 1)
+
 for j in range(len(point_shape)):
     pt = point_shape[j]
     ### only do this if we actually need to load in the big files
@@ -392,7 +423,7 @@ for j in range(len(point_shape)):
         ### do the same thing for pointfile field data
         ### TODO -- introduce parallelization
         for i in range(len(critical_fields[j])):
-            if gen_etc and not found_etc[i]:
+            if gen_etc and not found_etc[j][i]:
                 ### sweet progress bar
                 qprint("reformatting critical field " + critical_fields[j][i] + ". This could take a while...", 1)
                 if verbosity > 0:
