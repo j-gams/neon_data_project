@@ -522,7 +522,7 @@ if lo_mem:
     qprint("low memory layer number audit: " +  str(len(ptlayers)), 2)
     qprint("reloaded coordinate and point field data", 1)
 
-qprint(crit_npar, 3)
+#qprint(crit_npar, 3)
 ### now we have all the data loaded in?
 ### SAVE CHANNEL NAMES
 save_channelnames = layernames + ptlayers
@@ -880,7 +880,6 @@ for i in irange_default:
 
                 ### if we want to save this point to the h5 database
                 if not skip_save and h5_mode:
-                    print("writing saving")
                     h5tid += 1
                     h5len += 1
 
@@ -908,7 +907,7 @@ for i in irange_default:
                 ### if we actually want to save this datapoint, record y value / metadata
                 if not skip_save:
                     database.append(["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
-                qprint("success", 2)
+                #qprint("success", 2)
                 nsuccess += 1
 
             ### if we are stoppping early and the conditions are met, stop!
