@@ -713,7 +713,7 @@ for i in irange_default:
         qprint("tick", 3)
         ### only proceed if the y value is not the no-data value
         if y_npar[i, j] != yndv:
-            print("not ndv")
+            qprint("not ndv", 3)
             ### initialize array for csv - data
             if not h5_mode or (h5_mode and h5_scsv):
                 if channel_first:
@@ -755,8 +755,10 @@ for i in irange_default:
                                     h5_chunk[h5tid, k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
                                 else:
                                     h5_chunk[h5tid, si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
+            qprint("did raster layers", 3)
             ### get subset of nearest neighbors to this grid square
             k_ids, rings = krings(i, j, 0)
+            qprint("did krings", 3)
             avgringsize += rings
             ### record maximum ring size encountered
             if rings > maxringsize:
@@ -809,6 +811,7 @@ for i in irange_default:
                             h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers)] = minpt
                             h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
 
+            qprint("did points", 3)
             ### keep track of the distance to nearest point centroid from center of the datacube
             if h5_mode:
                 if channel_first:
@@ -842,7 +845,7 @@ for i in irange_default:
                     avg_mid_dist += x_img[(imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
                     avg_mid_dist += x_img[
                                         (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
-
+            qprint("did mid avg", 3)
             qprint("tick " + str(extreme_warning) + " " + str(prescreen2), 2)
             ### record y data, metadata to database
             if (not extreme_warning and prescreen2) or not prescreen2:
