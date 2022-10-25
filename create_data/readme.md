@@ -121,7 +121,7 @@ This script is not technical or critical enough to warrant an in-depth review of
 
 The SRTM data as I worked with it had no-data values that were not nan. This would in all likelihood not create problems elsewhere in the data creation pipeline, but it was inconsistent and created a visually unappealing background on plots of the raster datset. When not running in edit mode, this script loads the specified raster data file and obtains the original no-data value using rioxarray, then prints it. In edit mode, it does the same but then sets the no-data value to the one specified in the command line argument and saves the file.
 
-### match_create_set.py
+### create_2.py
 This is the central piece of the entire data creation pipeline, so I will outline this file in greater detail.
 #### Parameters
 | Parameter | Usage | Function | Example usage |
@@ -153,12 +153,12 @@ This is the central piece of the entire data creation pipeline, so I will outlin
 #### Recommended commands
 First time use (h5 mode, entire dataset):
 ```
-python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/slope_raw/slope_clipped.tif,../raw_data/aspct_raw/aspct_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/wue_median_composite_clipped.tif 70 5 true ../data/data_h51 --lomem --gencoords --genetc --override --h5mode --prescreen -c cover,pavd,fhd --m hwc -p 1 -h 10 -u 1000 -q 2
+python create_2.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/slope_raw/slope_clipped.tif,../raw_data/aspct_raw/aspct_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/wue_median_composite_clipped.tif 70 5 true ../data/data_h5test --lomem --gencoords --genetc --override --prescreen --h5mode=h5 --cfields=cover,pavd,fhd --orient=hwc --pad=1 --hashpad=10 --chunk=10  --q=2
 ```
 
 Remaking (revising) a pre-existing dataset:
 ```
-python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/slope_raw/slope_clipped.tif,../raw_data/aspct_raw/aspct_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/wue_median_composite_clipped.tif 70 5 true ../data/data_h51 --lomem --gencoords --genetc --h5mode --prescreen -c cover,pavd,fhd --m hwc -p 1 -h 10 -u 1000 -q 2
+python create_2.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif,../raw_data/slope_raw/slope_clipped.tif,../raw_data/aspct_raw/aspct_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/wue_median_composite_clipped.tif 70 5 true ../data/data_h5test --lomem --gencoords --genetc --prescreen --h5mode=h5 --cfields=cover,pavd,fhd --orient=hwc --pad=1 --hashpad=10 --chunk=10  --q=2
 ```
 
 #### Under the hood
