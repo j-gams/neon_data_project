@@ -293,9 +293,9 @@ if import_root != None:
     qprint("importing coordinate and field data", 2)
     for i in range(len(critical_fields)):
         for j in range(len(critical_fields[i])):
-            if os.path.exists(import_root + "/point_reformat/pt_" + str(i) +
-                                    "_" + critical_fields[i][j] + ".txt"):
-                os.system("cp " + import_root + "/point_reformat/pt_" + str(i) + "_" +
+            if os.path.exists(import_root + "/point_reformat/pt_" +
+                              critical_fields[i][j] + ".txt"):
+                os.system("cp " + import_root + "/point_reformat/pt_" + 
                           critical_fields[i][j] + ".txt " + fs_loc + "/point_reformat/pt_" +
                           str(i) + "_" + critical_fields[i][j] + ".txt")
                 qprint("copied file " + "pt_" + str(i) + "_" + critical_fields[i][j] +
