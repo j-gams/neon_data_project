@@ -41,6 +41,7 @@ parallelize = True
 ### Parameters
 h5_mode = False
 h5_scsv = False
+fields_dsets = None
 critical_fields = []
 testmode = -1
 channel_first = False
@@ -106,7 +107,9 @@ else:
         ### comma-separated list of critical fields
         elif sys.argv[i][:10] == "--cfields=":
             ### TODO -- more nuane here to allow multiple pointfiles
-            critical_fields = sys.argv[i][10:].split(",")
+            fields_dsets = sys.argv[i][10:].split(";")
+            for elt in fields_dsets:
+                critical_fields.append(elt.split(","))
         ### run in test mode (generate a subset of possible samples
         elif sys.argv[i][:7] == "--test=":
             testmode = int(sys.argv[i][7:])
@@ -251,19 +254,27 @@ if create_fs:
         ### same as above but for critical field data
         if gen_etc:
             for i in range(len(critical_fields)):
-                ### if we want to wipe and start over
-                if override_regen:
-                    qprint("forcibly creating file for reformatted " + critical_fields[i] + " data", 2)
-                    os.system("rm " + fs_loc + "/point_reformat/pt_" + critical_fields[i] + ".txt")
-                    os.system("touch " + fs_loc + "/point_reformat/pt_" + critical_fields[i] + ".txt")
-                ### if we can't find existing files
-                elif not os.path.exists(fs_loc + "/point_reformat/pt_" + critical_fields[i] + ".txt"):
-                    qprint("no file detected, creating file for reformatted " + critical_fields[i] + " data", 2)
-                    os.system("touch " + fs_loc + "/point_reformat/pt_" + critical_fields[i] + ".txt")
-                ### if we can find and want to use existing files
-                else:
-                    qprint("reformatted " + critical_fields[i] + " file detected, skipping.", 2)
-                    found_etc[i] = True
+                for j in range(len(critical_fields[i])):
+                    ### if we want to wipe and start over
+                    if override_regen:
+                        qprint("forcibly creating file for reformatted " +
+                               critical_fields[i][j] + " data " + str(i), 2)
+                        os.system("rm " + fs_loc + "/point_reformat/pt_" + str(i) +
+                                  "_" + critical_fields[i][j] + ".txt")
+                        os.system("touch " + fs_loc + "/point_reformat/pt_" + str(i) +
+                                  "_" + critical_fields[i][j] + ".txt")
+                    ### if we can't find existing files
+                    elif not os.path.exists(fs_loc + "/point_reformat/pt_" + str(i) +
+                                  "_" + critical_fields[i][j] + ".txt"):
+                        qprint("no file detected, creating file for reformatted " +
+                               critical_fields[i][j] + " data " + str(i), 2)
+                        os.system("touch " + fs_loc + "/point_reformat/pt_" + str(i) +
+                                  "_" + critical_fields[i][j] + ".txt")
+                    ### if we can find and want to use existing files
+                    else:
+                        qprint("reformatted " + critical_fields[i][j] + " (data " + str(i) +
+                               ") file detected, skipping.", 2)
+                        found_etc[i] = True
 
     ### create a test image in the directoru to ensure things are working
     test_img_ = np.zeros((3, 14, 14))
@@ -324,7 +335,8 @@ ptindexer = {}
 grecs = []
 ptlnames = []
 
-for pt in point_shape:
+for j in range(len(point_shape)):
+    pt = point_shape[j]
     ### only do this if we actually need to load in the big files
     ### if not we can use the reformatted data that is smaller / faster
     if not lo_mem or (gen_coords or gen_etc):
@@ -336,15 +348,15 @@ for pt in point_shape:
         grecs.append(xpoints[-1].shapeRecords())
 
         ### for each field we care about, gather the data
-        for i in range(len(critical_fields)):
+        for i in range(len(critical_fields[j])):
             ptl_idx = 0
-            for j in range(len(xpoints[-1].fields)):
-                if critical_fields[i] in xpoints[-1].fields[j][0]:
+            for k in range(len(xpoints[-1].fields)):
+                if critical_fields[j][i] in xpoints[-1].fields[k][0]:
                     ### given the layer (key) provides the ptfile #, critical field #, field index within that shape,
                     ### and id within the np array (if exists)
-                    ptindexer[len(ptlayers)] = (len(xpoints) -1, i, j, ptl_idx)
-                    ptlayers.append(critical_fields[i] + "_" + str(ptl_idx))
-                    ptlnames.append(xpoints[-1].fields[j][0])
+                    ptindexer[len(ptlayers)] = (len(xpoints) -1, i, k, ptl_idx)
+                    ptlayers.append(critical_fields[j][i] + "_" + str(ptl_idx))
+                    ptlnames.append(xpoints[-1].fields[k][0])
                     ptl_idx += 1
 
         ### save the data we gathered to make life easier later
@@ -378,10 +390,11 @@ for pt in point_shape:
             qprint("---> 50/50 (done)", 1)
 
         ### do the same thing for pointfile field data
-        for i in range(len(critical_fields)):
+        ### TODO -- introduce parallelization
+        for i in range(len(critical_fields[j])):
             if gen_etc and not found_etc[i]:
                 ### sweet progress bar
-                qprint("reformatting critical field " + critical_fields[i] + ". This could take a while...", 1)
+                qprint("reformatting critical field " + critical_fields[j][i] + ". This could take a while...", 1)
                 if verbosity > 0:
                     print("progress 0/50 ", end="", flush=True)
                 progress = 0
@@ -389,23 +402,25 @@ for pt in point_shape:
                 fields_ids = []
                 fields_names = ""
                 for k in range(len(xpoints[-1].fields)):
-                    if critical_fields[i] in xpoints[-1].fields[k][0]:
+                    if critical_fields[j][i] in xpoints[-1].fields[k][0]:
                         fields_ids.append(k)
                         fields_names += xpoints[-1].fields[k][0] + ","
                 ### header
-                os.system('echo "' + fields_names[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt')
-                for j in range(len(grecs[-1])):
+                os.system('echo "' + fields_names[:-1] + '" >> ' + fs_loc + "/point_reformat/pt_" +
+                          str(j) + "_" + critical_fields[j][i] + ".txt")
+                for jz in range(len(grecs[-1])):
                     progress += 1
                     if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
                         print("-", end="", flush=True)
                     dumpstr = ""
                     for k in fields_ids:
                     #for k in range(len(xpoints[-1].fields)):
-                        if critical_fields[i] in xpoints[-1].fields[k][0]:
-                            dumpstr += str(grecs[-1][j].record[k]) + ","
-                    os.system('echo "' + dumpstr[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt')
+                        if critical_fields[j][i] in xpoints[-1].fields[k][0]:
+                            dumpstr += str(grecs[-1][jz].record[k]) + ","
+                    os.system('echo "' + dumpstr[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' +
+                              str(j) + "_" + critical_fields[j][i] + '.txt')
                 qprint("---> 50/50 (done)", 1)
-        qprint("done reformatting " + critical_fields[i] + " data", 1)
+            qprint("done reformatting " + critical_fields[j][i] + " data", 1)
         ### clean up a bit
         if not lo_mem or (gen_coords or gen_etc):
             del xpoints[-1]
@@ -423,30 +438,27 @@ if lo_mem:
     npcoords, _ = rfloader(fs_loc + '/point_reformat/geo_coords.txt')
 
     crit_npar = []
-    #print(np.count_nonzero(np.isnan(npcoords)))
 
     ### load point indexer
     qprint("low memory mode: loading point indexer", 2)
     ptindexer = piloader(fs_loc + "/point_reformat/pt_indexer_util.txt")
     ### load in critical field data
     for i in range(len(critical_fields)):
-        ##load in
-        loaddata, fnames = rfloader(fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt')
-        crit_npar.append(loaddata)
-        ptlayers += fnames
-        ### clean up
-        del loaddata
+        crit_npar.append([])
+        for j in range(len(critical_fields[i])):
+            ##load in
+            loaddata, fnames = rfloader(fs_loc + '/point_reformat/pt_' + str(i) + "_" +
+                                        critical_fields[i][j] + '.txt')
+            crit_npar[i].append(loaddata)
+            ptlayers += fnames
+            ### clean up
+            del loaddata
 
-        qprint("critical field data shape: " + str(crit_npar[-1].shape), 2)
-        if crit_npar[-1].ndim < 2:
-            #print("reshaping")
-            cnpdim = len(crit_npar[-1])
-            #print(cnpdim)
-            crit_npar[-1] = np.reshape(crit_npar[-1], (-1, 1))
-            #print(crit_npar[-1].shape)
-            #print("np.unique", len(np.unique(crit_npar[-1])))
-        qprint("critical field nan values: " + str(qprint(np.count_nonzero(np.isnan(crit_npar[-1])))), 2)
-        #qprint(np.count_nonzero(np.isnan(crit_npar[-1])), 2)
+            qprint("critical field data shape: " + str(crit_npar[i][-1].shape), 2)
+            if crit_npar[i][-1].ndim < 2:
+                cnpdim = len(crit_npar[i][-1])
+                crit_npar[i][-1] = np.reshape(crit_npar[i][-1], (-1, 1))
+            qprint("critical field nan values: " + str(np.count_nonzero(np.isnan(crit_npar[i][-1]))), 2)
     qprint("low memory layer number audit: " +  str(len(ptlayers)), 2)
     qprint("reloaded coordinate and point field data", 1)
 
@@ -474,9 +486,9 @@ def clen():
         return len(grecs[0])
 
 ### helper to get the field value at layer (nth field), value
-def pgetter(layer, index):
+def pgetter(layer, index, i2=None):
     if lo_mem:
-        return crit_npar[ptindexer[layer][1]][index, ptindexer[layer][3]]
+        return crit_npar[i2][ptindexer[layer][1]][index, ptindexer[layer][3]]
     else:
         return grecs[ptindexer[layer][0]][index].record[ptindexer[layer][2]]
 
@@ -709,15 +721,15 @@ def parallel_dispatch(in_ids):
                 for m in range(len(ptlayers)):
                     if not h5_mode or (h5_mode and h5_scsv):
                         if channel_first:
-                            x_img[len(xr_npar) + m, si + pad_img, sj + pad_img] = pgetter(m, minpt)
+                            x_img[len(xr_npar) + m, si + pad_img, sj + pad_img] = pgetter(m, minpt, 0)
                         else:
-                            x_img[si + pad_img, sj + pad_img, len(xr_npar) + m] = pgetter(m, minpt)
+                            x_img[si + pad_img, sj + pad_img, len(xr_npar) + m] = pgetter(m, minpt, 0)
                     if h5_mode:
                         if channel_first:
-                            h5_chunk[h5tid, len(xr_npar) + m, si + pad_img, sj + pad_img] = pgetter(m, minpt)
+                            h5_chunk[h5tid, len(xr_npar) + m, si + pad_img, sj + pad_img] = pgetter(m, minpt, 0)
                         else:
-                            h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + m] = pgetter(m, minpt)
-                    if pgetter(m, minpt) > 10000 or pgetter(m, minpt) < -10000:
+                            h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + m] = pgetter(m, minpt, 0)
+                    if pgetter(m, minpt, 0) > 10000 or pgetter(m, minpt, 0) < -10000:
                         extreme_encounter[m + len(xr_npar)] += 1
 
                 ### record the data
