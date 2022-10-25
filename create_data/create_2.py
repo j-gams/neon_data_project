@@ -665,6 +665,9 @@ if h5_mode:
         h5_chunk = np.zeros((h5chunksize, imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels))
     h5_chunk.fill(-1)
 
+if testmode > 0:
+    qprint("running in test mode on " + str(testmode) + " samples", 1)
+
 ### forget what this is for ... probably not important
 diids = [ii for ii in range(101)]
 dists = [0 for ii in range(101)]
@@ -915,7 +918,8 @@ def parallel_dispatch(in_ids):
 
             sys.exit("exiting after testmode samples")
 
-#def raster_p()
+def raster_p(i):
+    pass
 
 ### iteratively build the dataset
 ### iterate over y raster dataset
@@ -943,33 +947,36 @@ for i in irange_default:
             ### iterate through every x raster dataset
             for k in range(len(xr_npar)):
                 ### iterate over output dimensions (plus padding)
-                for si in range(0 - pad_img, imgsize+pad_img):
-                    for sj in range(0 - pad_img, imgsize+pad_img):
-                        ### want -.5, .5, 1.5, 2.5, etc...
-                        ### deal with crs acrobatics
-                        sxoffset = ((2 * si) + 1) / (2 * imgsize)
-                        syoffset = ((2 * sj) + 1) / (2 * imgsize)
-                        tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
-                                                  ypxv, mode='ul')
-                        tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
-                                                  xr_params[k][2], xr_params[k][3])
-                        ### check extreme encounters
-                        if  xr_npar[k][tempi, tempj] > extreme_bounds[1] or xr_npar[k][tempi, tempj] < extreme_bounds[0]:
-                            extreme_warning = True
-                            extreme_encounter[k] += 1
-                        if k == 1 and (xr_npar[k][tempi, tempj] < 40 or xr_npar[k][tempi, tempj] > 45):
-                            nlcd_count += 1
-                        ### record sampled values
-                        if not h5_mode or (h5_mode and h5_scsv):
-                            if channel_first:
-                                x_img[k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
-                            else:
-                                x_img[si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
-                        if h5_mode:
-                            if channel_first:
-                                h5_chunk[h5tid, k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
-                            else:
-                                h5_chunk[h5tid, si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
+                if parallelize:
+                    continue
+                else:
+                    for si in range(0 - pad_img, imgsize+pad_img):
+                        for sj in range(0 - pad_img, imgsize+pad_img):
+                            ### want -.5, .5, 1.5, 2.5, etc...
+                            ### deal with crs acrobatics
+                            sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                            syoffset = ((2 * sj) + 1) / (2 * imgsize)
+                            tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
+                                                      ypxv, mode='ul')
+                            tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
+                                                      xr_params[k][2], xr_params[k][3])
+                            ### check extreme encounters
+                            if  xr_npar[k][tempi, tempj] > extreme_bounds[1] or xr_npar[k][tempi, tempj] < extreme_bounds[0]:
+                                extreme_warning = True
+                                extreme_encounter[k] += 1
+                            if k == 1 and (xr_npar[k][tempi, tempj] < 40 or xr_npar[k][tempi, tempj] > 45):
+                                nlcd_count += 1
+                            ### record sampled values
+                            if not h5_mode or (h5_mode and h5_scsv):
+                                if channel_first:
+                                    x_img[k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
+                                else:
+                                    x_img[si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
+                            if h5_mode:
+                                if channel_first:
+                                    h5_chunk[h5tid, k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
+                                else:
+                                    h5_chunk[h5tid, si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
             ### get subset of nearest neighbors to this grid square
             k_ids, rings = krings(i, j, 0)
             avgringsize += rings
