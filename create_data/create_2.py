@@ -565,12 +565,6 @@ def krings(x_in, y_in, min_k):
         ring_size += 1
     return found_list, ring_size
 
-def format_dat():
-    pass
-
-def parallel_dispatch():
-    pass
-
 ### now... actually build the dataset
 ### some progress counters
 progress = 0
@@ -643,235 +637,466 @@ else:
     irange_default = np.arange(yrsize[0])
     jrange_default = np.arange(yrsize[1])
 
-### iteratively build the dataset
-### iterate over y raster dataset
-for i in irange_default:
-    for j in jrange_default:
-        progress += 1
-        ### TODO -- check if used
-        temp_lcpercent = 0
-        extreme_warning = False
+def parallel_dispatch(in_ids):
+    i, j = in_ids
+    progress += 1
+    extreme_warning = False
 
-        ### only proceed if the y value is not the no-data value
-        if y_npar[i, j] != yndv:
-            ### initialize array for csv - data
-            if not h5_mode or (h5_mode and h5_scsv):
-                if channel_first:
-                    x_img = np.zeros((channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
-                else:
-                    x_img = np.zeros((imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
-            nlcd_count = 0
+    ### only proceed if the y value is not the no-data value
+    if y_npar[i, j] != yndv:
+        ### initialize array for csv - data
+        if not h5_mode or (h5_mode and h5_scsv):
+            if channel_first:
+                x_img = np.zeros((channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)))
+            else:
+                x_img = np.zeros((imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels))
+        nlcd_count = 0
 
-            ### iterate through every x raster dataset
-            for k in range(len(xr_npar)):
-                ### iterate over output dimensions (plus padding)
-                for si in range(0 - pad_img, imgsize+pad_img):
-                    for sj in range(0 - pad_img, imgsize+pad_img):
-                        ### want -.5, .5, 1.5, 2.5, etc...
-                        ### deal with crs acrobatics
-                        sxoffset = ((2 * si) + 1) / (2 * imgsize)
-                        syoffset = ((2 * sj) + 1) / (2 * imgsize)
-                        tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
-                                                  ypxv, mode='ul')
-                        tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
-                                                  xr_params[k][2], xr_params[k][3])
-                        ### check extreme encounters
-                        if  xr_npar[k][tempi, tempj] > extreme_bounds[1] or xr_npar[k][tempi, tempj] < extreme_bounds[0]:
-                            extreme_warning = True
-                            extreme_encounter[k] += 1
-                        if k == 1 and (xr_npar[k][tempi, tempj] < 40 or xr_npar[k][tempi, tempj] > 45):
-                            nlcd_count += 1
-                        ### record sampled values
-                        if not h5_mode or (h5_mode and h5_scsv):
-                            if channel_first:
-                                x_img[k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
-                            else:
-                                x_img[si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
-                        if h5_mode:
-                            if channel_first:
-                                h5_chunk[h5tid, k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
-                            else:
-                                h5_chunk[h5tid, si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
-            ### get subset of nearest neighbors to this grid square
-            k_ids, rings = krings(i, j, 0)
-            avgringsize += rings
-            ### record maximum ring size encountered
-            if rings > maxringsize:
-                maxringsize = rings
-            ### iterate through pixels within sampple...
-            for si in range(0-pad_img, imgsize+pad_img):
-                for sj in range(0-pad_img, imgsize+pad_img):
-                    ### crs magic
+        ### iterate through every x raster dataset
+        for k in range(len(xr_npar)):
+            ### iterate over output dimensions (plus padding)
+            for si in range(0 - pad_img, imgsize + pad_img):
+                for sj in range(0 - pad_img, imgsize + pad_img):
+                    ### want -.5, .5, 1.5, 2.5, etc...
+                    ### deal with crs acrobatics
                     sxoffset = ((2 * si) + 1) / (2 * imgsize)
                     syoffset = ((2 * sj) + 1) / (2 * imgsize)
                     tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
-                            ypxv, mode='ul')
-                    mindist = 1000000
-                    minpt = None
-                    ### brute force find nearest neighbor for this pixel from subset
-                    for pt_idx in k_ids:
-                        tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempx, tempy)
-                        if tdist < mindist:
-                            mindist = tdist
-                            minpt = pt_idx
-
-                    ### get the data from each field
-                    for m in range(len(ptlayers)):
-                        if not h5_mode or (h5_mode and h5_scsv):
-                            if channel_first:
-                                x_img[len(xr_npar) + m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
-                            else:
-                                x_img[si+pad_img, sj+pad_img, len(xr_npar) + m] = pgetter(m, minpt)
-                        if h5_mode:
-                            if channel_first:
-                                h5_chunk[h5tid, len(xr_npar)+m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
-                            else:
-                                h5_chunk[h5tid, si+pad_img, sj+pad_img, len(xr_npar)+m] = pgetter(m, minpt)
-                        if pgetter(m, minpt) > 10000 or pgetter(m, minpt) < -10000:
-                            extreme_encounter[m + len(xr_npar)] += 1
-
-                    ### record the data
+                                              ypxv, mode='ul')
+                    tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
+                                              xr_params[k][2], xr_params[k][3])
+                    ### check extreme encounters
+                    if xr_npar[k][tempi, tempj] > extreme_bounds[1] or xr_npar[k][tempi, tempj] < extreme_bounds[0]:
+                        extreme_warning = True
+                        extreme_encounter[k] += 1
+                    if k == 1 and (xr_npar[k][tempi, tempj] < 40 or xr_npar[k][tempi, tempj] > 45):
+                        nlcd_count += 1
+                    ### record sampled values
                     if not h5_mode or (h5_mode and h5_scsv):
                         if channel_first:
-                            x_img[len(xr_npar) + len(ptlayers), si + pad_img, sj + pad_img] = minpt
-                            x_img[len(xr_npar) + len(ptlayers) + 1, si + pad_img, sj + pad_img] = mindist
+                            x_img[k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
                         else:
-                            x_img[si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers)] = minpt
-                            x_img[si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
+                            x_img[si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
                     if h5_mode:
                         if channel_first:
-                            h5_chunk[h5tid, len(xr_npar) + len(ptlayers), si + pad_img, + sj + pad_img] = minpt
-                            h5_chunk[h5tid, len(xr_npar) + len(ptlayers) + 1, si + pad_img, + sj + pad_img] = mindist
+                            h5_chunk[h5tid, k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
                         else:
-                            h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers)] = minpt
-                            h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
+                            h5_chunk[h5tid, si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
+        ### get subset of nearest neighbors to this grid square
+        k_ids, rings = krings(i, j, 0)
+        avgringsize += rings
+        ### record maximum ring size encountered
+        if rings > maxringsize:
+            maxringsize = rings
+        ### iterate through pixels within sampple...
+        for si in range(0 - pad_img, imgsize + pad_img):
+            for sj in range(0 - pad_img, imgsize + pad_img):
+                ### crs magic
+                sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                syoffset = ((2 * sj) + 1) / (2 * imgsize)
+                tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
+                                          ypxv, mode='ul')
+                mindist = 1000000
+                minpt = None
+                ### brute force find nearest neighbor for this pixel from subset
+                for pt_idx in k_ids:
+                    tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempx, tempy)
+                    if tdist < mindist:
+                        mindist = tdist
+                        minpt = pt_idx
 
-            ### keep track of the distance to nearest point centroid from center of the datacube
-            if h5_mode:
-                if channel_first:
-                    avg_mid_dist = h5_chunk[
-                                       h5tid, -1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2] / 4
-                    avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (
-                                imgsize + (pad_img * 2)) // 2] / 4
-                    avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2)) // 2, (
-                                imgsize + (pad_img * 2) - 1) // 2] / 4
-                    avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (
-                                imgsize + (pad_img * 2) - 1) // 2] / 4
-                else:
-                    avg_mid_dist = h5_chunk[
-                                       h5tid, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
-                    avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2) - 1) // 2, (
-                                imgsize + (pad_img * 2)) // 2, -1] / 4
-                    avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2)) // 2, (
-                                imgsize + (pad_img * 2) - 1) // 2, -1] / 4
-                    avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2) - 1) // 2, (
-                                imgsize + (pad_img * 2) - 1) // 2, -1] / 4
-            else:
-                if channel_first:
-                    avg_mid_dist = x_img[-1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2] / 4
-                    avg_mid_dist += x_img[-1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2)) // 2] / 4
-                    avg_mid_dist += x_img[-1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
-                    avg_mid_dist += x_img[
-                                        -1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
-                else:
-                    avg_mid_dist = x_img[(imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
-                    avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
-                    avg_mid_dist += x_img[(imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
-                    avg_mid_dist += x_img[
-                                        (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
+                ### get the data from each field
+                for m in range(len(ptlayers)):
+                    if not h5_mode or (h5_mode and h5_scsv):
+                        if channel_first:
+                            x_img[len(xr_npar) + m, si + pad_img, sj + pad_img] = pgetter(m, minpt)
+                        else:
+                            x_img[si + pad_img, sj + pad_img, len(xr_npar) + m] = pgetter(m, minpt)
+                    if h5_mode:
+                        if channel_first:
+                            h5_chunk[h5tid, len(xr_npar) + m, si + pad_img, sj + pad_img] = pgetter(m, minpt)
+                        else:
+                            h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + m] = pgetter(m, minpt)
+                    if pgetter(m, minpt) > 10000 or pgetter(m, minpt) < -10000:
+                        extreme_encounter[m + len(xr_npar)] += 1
 
-            ### record y data, metadata to database
-            if (not extreme_warning and prescreen2) or not prescreen2:
-                ### if we actually want to save this point as a .csv
-                if not skip_save and (not h5_mode or (h5_mode and h5_scsv)):
+                ### record the data
+                if not h5_mode or (h5_mode and h5_scsv):
                     if channel_first:
-                        np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
-                                delimiter=",", newline="\n")
+                        x_img[len(xr_npar) + len(ptlayers), si + pad_img, sj + pad_img] = minpt
+                        x_img[len(xr_npar) + len(ptlayers) + 1, si + pad_img, sj + pad_img] = mindist
                     else:
-                        np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
-                                delimiter=",", newline="\n")
-
-                ### if we want to save this point to the h5 database
-                if not skip_save and h5_mode:
-                    h5tid += 1
-                    h5len += 1
-
-                    ### progress
-                    if h5tid % (h5chunksize//10) == 0 and verbosity > 0:
-                        print("-", end="", flush=True)
-
-                    ### if we have completed an entire chunk, we need to copy over the data being
-                    ### temporarily stored in the numpy array to the h5 file
-                    if h5tid == h5chunksize:
-                        h5chunkid += 1
-                        qprint("> resizing h5 (" + str(h5chunkid) + ")", 2)
-
-                        ### resize h5 dataset
-                        h5dset.resize(h5len, axis=0)
-
-                        ### copy the data over from numpy array
-                        h5dset[h5len-h5chunksize:h5len,:,:,:] = np.array(h5_chunk[:,:,:,:])
-
-                        ### reset the chunk
-                        h5_chunk = np.zeros(h5_chunk.shape)
-                        h5_chunk.fill(-1)
-                        h5tid = 0
-
-                ### if we actually want to save this datapoint, record y value / metadata
-                if not skip_save:
-                    database.append(["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
-                nsuccess += 1
-
-            ### if we are stoppping early and the conditions are met, stop!
-            if testmode > 0 and nsuccess > testmode:
-                qprint("", 1)
-                qprint("build summary: max ring size " + str(maxringsize), 1)
-                qprint("build summary: avg ring size " + str(avgringsize//nsuccess), 1)
-                qprint("saving ydata", 2)
-                ### create a dataframe with the y data
-                ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
-                ### save the ydata
-                ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
-                qpring("ydata saved", 1)
-
-                ### save h5set
+                        x_img[si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers)] = minpt
+                        x_img[si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
                 if h5_mode:
-                    ### need to make sure last chunk is copied over before saving the file
-                    qprint("saving last h5 chunk...", 2)
+                    if channel_first:
+                        h5_chunk[h5tid, len(xr_npar) + len(ptlayers), si + pad_img, + sj + pad_img] = minpt
+                        h5_chunk[h5tid, len(xr_npar) + len(ptlayers) + 1, si + pad_img, + sj + pad_img] = mindist
+                    else:
+                        h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers)] = minpt
+                        h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
+
+        ### keep track of the distance to nearest point centroid from center of the datacube
+        if h5_mode:
+            if channel_first:
+                avg_mid_dist = h5_chunk[
+                                   h5tid, -1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2] / 4
+                avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (
+                        imgsize + (pad_img * 2)) // 2] / 4
+                avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2)) // 2, (
+                        imgsize + (pad_img * 2) - 1) // 2] / 4
+                avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (
+                        imgsize + (pad_img * 2) - 1) // 2] / 4
+            else:
+                avg_mid_dist = h5_chunk[
+                                   h5tid, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
+                avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2) - 1) // 2, (
+                        imgsize + (pad_img * 2)) // 2, -1] / 4
+                avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2)) // 2, (
+                        imgsize + (pad_img * 2) - 1) // 2, -1] / 4
+                avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2) - 1) // 2, (
+                        imgsize + (pad_img * 2) - 1) // 2, -1] / 4
+        else:
+            if channel_first:
+                avg_mid_dist = x_img[-1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2] / 4
+                avg_mid_dist += x_img[-1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2)) // 2] / 4
+                avg_mid_dist += x_img[-1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
+                avg_mid_dist += x_img[
+                                    -1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
+            else:
+                avg_mid_dist = x_img[(imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
+                avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
+                avg_mid_dist += x_img[(imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
+                avg_mid_dist += x_img[
+                                    (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
+
+        ### record y data, metadata to database
+        if (not extreme_warning and prescreen2) or not prescreen2:
+            ### if we actually want to save this point as a .csv
+            if not skip_save and (not h5_mode or (h5_mode and h5_scsv)):
+                if channel_first:
+                    np.savetxt(fs_loc + "/datasrc/x_img/x_" + str(nsuccess) + ".csv", x_img.reshape(x_img.shape[0], -1),
+                               delimiter=",", newline="\n")
+                else:
+                    np.savetxt(fs_loc + "/datasrc/x_img/x_" + str(nsuccess) + ".csv", x_img.reshape(-1, x_img.shape[2]),
+                               delimiter=",", newline="\n")
+
+            ### if we want to save this point to the h5 database
+            if not skip_save and h5_mode:
+                h5tid += 1
+                h5len += 1
+
+                ### progress
+                if h5tid % (h5chunksize // 10) == 0 and verbosity > 0:
+                    print("-", end="", flush=True)
+
+                ### if we have completed an entire chunk, we need to copy over the data being
+                ### temporarily stored in the numpy array to the h5 file
+                if h5tid == h5chunksize:
+                    h5chunkid += 1
+                    qprint("> resizing h5 (" + str(h5chunkid) + ")", 2)
+
+                    ### resize h5 dataset
                     h5dset.resize(h5len, axis=0)
-                    h5dset[h5len-h5tid:h5len,:,:,:] = h5_chunk[:h5tid,:,:,:]
-                    qprint("saving h5 dset...", 2)
-                    h5_dataset.close()
 
-                qprint("extreme encounter report:", 2)
-                no_enc = True
-                ### do some analysis on extreme value encounters
-                for i in range(len(extreme_encounter)):
-                    if extreme_encounter[i] > 0:
-                        no_enc = False
-                        qprint("  " +  str(i) + str(extreme_encounter[i]), 2)
-                if no_enc:
-                    qprint("no extreme encounters", 2)
+                    ### copy the data over from numpy array
+                    h5dset[h5len - h5chunksize:h5len, :, :, :] = np.array(h5_chunk[:, :, :, :])
 
-                ### do some plots
-                plt.figure()
-                plt.bar(diids, dists)
-                plt.title("distribution of nlcd values over 5m regions / sample")
-                plt.savefig("../figures/nlcd_dist_.png")
-                plt.cla()
-                plt.close()
-                for i in range(len(dists)):
-                    if dists[i] != 0:
-                        dists[i] = math.log(dists[i])
-                plt.figure()
-                plt.bar(diids, dists)
-                plt.title("log distribution of nlcd values over 5m regions / sample")
-                plt.savefig("../figures/nlcd_dist_log.png")
-                plt.cla()
-                plt.close()
+                    ### reset the chunk
+                    h5_chunk = np.zeros(h5_chunk.shape)
+                    h5_chunk.fill(-1)
+                    h5tid = 0
 
-                sys.exit("exiting after testmode samples")
+            ### if we actually want to save this datapoint, record y value / metadata
+            if not skip_save:
+                database.append(
+                    ["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+            nsuccess += 1
 
+        ### if we are stoppping early and the conditions are met, stop!
+        if testmode > 0 and nsuccess > testmode:
+            qprint("", 1)
+            qprint("build summary: max ring size " + str(maxringsize), 1)
+            qprint("build summary: avg ring size " + str(avgringsize // nsuccess), 1)
+            qprint("saving ydata", 2)
+            ### create a dataframe with the y data
+            ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
+            ### save the ydata
+            ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
+            qpring("ydata saved", 1)
+
+            ### save h5set
+            if h5_mode:
+                ### need to make sure last chunk is copied over before saving the file
+                qprint("saving last h5 chunk...", 2)
+                h5dset.resize(h5len, axis=0)
+                h5dset[h5len - h5tid:h5len, :, :, :] = h5_chunk[:h5tid, :, :, :]
+                qprint("saving h5 dset...", 2)
+                h5_dataset.close()
+
+            qprint("extreme encounter report:", 2)
+            no_enc = True
+            ### do some analysis on extreme value encounters
+            for i in range(len(extreme_encounter)):
+                if extreme_encounter[i] > 0:
+                    no_enc = False
+                    qprint("  " + str(i) + str(extreme_encounter[i]), 2)
+            if no_enc:
+                qprint("no extreme encounters", 2)
+
+            ### do some plots
+            plt.figure()
+            plt.bar(diids, dists)
+            plt.title("distribution of nlcd values over 5m regions / sample")
+            plt.savefig("../figures/nlcd_dist_.png")
+            plt.cla()
+            plt.close()
+            for i in range(len(dists)):
+                if dists[i] != 0:
+                    dists[i] = math.log(dists[i])
+            plt.figure()
+            plt.bar(diids, dists)
+            plt.title("log distribution of nlcd values over 5m regions / sample")
+            plt.savefig("../figures/nlcd_dist_log.png")
+            plt.cla()
+            plt.close()
+
+            sys.exit("exiting after testmode samples")
+
+### iteratively build the dataset
+### iterate over y raster dataset
+
+if parallelize:
+    Parallel(n_jobs=-1)(delayed(parallel_dispatch)(ids) for ids in
+                        np.array(np.meshgrid(irange_default, jrange_default)).T.reshape(-1, 2))
+else:
+    for i in irange_default:
+        for j in jrange_default:
+            parallel_dispatch([i, j])
+            """
+            progress += 1
+            extreme_warning = False
+
+            ### only proceed if the y value is not the no-data value
+            if y_npar[i, j] != yndv:
+                ### initialize array for csv - data
+                if not h5_mode or (h5_mode and h5_scsv):
+                    if channel_first:
+                        x_img = np.zeros((channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
+                    else:
+                        x_img = np.zeros((imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
+                nlcd_count = 0
+
+                ### iterate through every x raster dataset
+                for k in range(len(xr_npar)):
+                    ### iterate over output dimensions (plus padding)
+                    for si in range(0 - pad_img, imgsize+pad_img):
+                        for sj in range(0 - pad_img, imgsize+pad_img):
+                            ### want -.5, .5, 1.5, 2.5, etc...
+                            ### deal with crs acrobatics
+                            sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                            syoffset = ((2 * sj) + 1) / (2 * imgsize)
+                            tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
+                                                      ypxv, mode='ul')
+                            tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
+                                                      xr_params[k][2], xr_params[k][3])
+                            ### check extreme encounters
+                            if  xr_npar[k][tempi, tempj] > extreme_bounds[1] or xr_npar[k][tempi, tempj] < extreme_bounds[0]:
+                                extreme_warning = True
+                                extreme_encounter[k] += 1
+                            if k == 1 and (xr_npar[k][tempi, tempj] < 40 or xr_npar[k][tempi, tempj] > 45):
+                                nlcd_count += 1
+                            ### record sampled values
+                            if not h5_mode or (h5_mode and h5_scsv):
+                                if channel_first:
+                                    x_img[k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
+                                else:
+                                    x_img[si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
+                            if h5_mode:
+                                if channel_first:
+                                    h5_chunk[h5tid, k, si + pad_img, sj + pad_img] = xr_npar[k][tempi, tempj]
+                                else:
+                                    h5_chunk[h5tid, si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
+                ### get subset of nearest neighbors to this grid square
+                k_ids, rings = krings(i, j, 0)
+                avgringsize += rings
+                ### record maximum ring size encountered
+                if rings > maxringsize:
+                    maxringsize = rings
+                ### iterate through pixels within sampple...
+                for si in range(0-pad_img, imgsize+pad_img):
+                    for sj in range(0-pad_img, imgsize+pad_img):
+                        ### crs magic
+                        sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                        syoffset = ((2 * sj) + 1) / (2 * imgsize)
+                        tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
+                                ypxv, mode='ul')
+                        mindist = 1000000
+                        minpt = None
+                        ### brute force find nearest neighbor for this pixel from subset
+                        for pt_idx in k_ids:
+                            tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempx, tempy)
+                            if tdist < mindist:
+                                mindist = tdist
+                                minpt = pt_idx
+
+                        ### get the data from each field
+                        for m in range(len(ptlayers)):
+                            if not h5_mode or (h5_mode and h5_scsv):
+                                if channel_first:
+                                    x_img[len(xr_npar) + m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
+                                else:
+                                    x_img[si+pad_img, sj+pad_img, len(xr_npar) + m] = pgetter(m, minpt)
+                            if h5_mode:
+                                if channel_first:
+                                    h5_chunk[h5tid, len(xr_npar)+m, si+pad_img, sj+pad_img] = pgetter(m, minpt)
+                                else:
+                                    h5_chunk[h5tid, si+pad_img, sj+pad_img, len(xr_npar)+m] = pgetter(m, minpt)
+                            if pgetter(m, minpt) > 10000 or pgetter(m, minpt) < -10000:
+                                extreme_encounter[m + len(xr_npar)] += 1
+
+                        ### record the data
+                        if not h5_mode or (h5_mode and h5_scsv):
+                            if channel_first:
+                                x_img[len(xr_npar) + len(ptlayers), si + pad_img, sj + pad_img] = minpt
+                                x_img[len(xr_npar) + len(ptlayers) + 1, si + pad_img, sj + pad_img] = mindist
+                            else:
+                                x_img[si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers)] = minpt
+                                x_img[si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
+                        if h5_mode:
+                            if channel_first:
+                                h5_chunk[h5tid, len(xr_npar) + len(ptlayers), si + pad_img, + sj + pad_img] = minpt
+                                h5_chunk[h5tid, len(xr_npar) + len(ptlayers) + 1, si + pad_img, + sj + pad_img] = mindist
+                            else:
+                                h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers)] = minpt
+                                h5_chunk[h5tid, si + pad_img, sj + pad_img, len(xr_npar) + len(ptlayers) + 1] = mindist
+
+                ### keep track of the distance to nearest point centroid from center of the datacube
+                if h5_mode:
+                    if channel_first:
+                        avg_mid_dist = h5_chunk[
+                                           h5tid, -1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2] / 4
+                        avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (
+                                    imgsize + (pad_img * 2)) // 2] / 4
+                        avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2)) // 2, (
+                                    imgsize + (pad_img * 2) - 1) // 2] / 4
+                        avg_mid_dist += h5_chunk[h5tid, -1, (imgsize + (pad_img * 2) - 1) // 2, (
+                                    imgsize + (pad_img * 2) - 1) // 2] / 4
+                    else:
+                        avg_mid_dist = h5_chunk[
+                                           h5tid, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
+                        avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2) - 1) // 2, (
+                                    imgsize + (pad_img * 2)) // 2, -1] / 4
+                        avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2)) // 2, (
+                                    imgsize + (pad_img * 2) - 1) // 2, -1] / 4
+                        avg_mid_dist += h5_chunk[h5tid, (imgsize + (pad_img * 2) - 1) // 2, (
+                                    imgsize + (pad_img * 2) - 1) // 2, -1] / 4
+                else:
+                    if channel_first:
+                        avg_mid_dist = x_img[-1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2] / 4
+                        avg_mid_dist += x_img[-1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2)) // 2] / 4
+                        avg_mid_dist += x_img[-1, (imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
+                        avg_mid_dist += x_img[
+                                            -1, (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2] / 4
+                    else:
+                        avg_mid_dist = x_img[(imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
+                        avg_mid_dist += x_img[(imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2)) // 2, -1] / 4
+                        avg_mid_dist += x_img[(imgsize + (pad_img * 2)) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
+                        avg_mid_dist += x_img[
+                                            (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
+
+                ### record y data, metadata to database
+                if (not extreme_warning and prescreen2) or not prescreen2:
+                    ### if we actually want to save this point as a .csv
+                    if not skip_save and (not h5_mode or (h5_mode and h5_scsv)):
+                        if channel_first:
+                            np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(x_img.shape[0], -1),
+                                    delimiter=",", newline="\n")
+                        else:
+                            np.savetxt(fs_loc + "/datasrc/x_img/x_" +str(nsuccess)+ ".csv", x_img.reshape(-1, x_img.shape[2]),
+                                    delimiter=",", newline="\n")
+
+                    ### if we want to save this point to the h5 database
+                    if not skip_save and h5_mode:
+                        h5tid += 1
+                        h5len += 1
+
+                        ### progress
+                        if h5tid % (h5chunksize//10) == 0 and verbosity > 0:
+                            print("-", end="", flush=True)
+
+                        ### if we have completed an entire chunk, we need to copy over the data being
+                        ### temporarily stored in the numpy array to the h5 file
+                        if h5tid == h5chunksize:
+                            h5chunkid += 1
+                            qprint("> resizing h5 (" + str(h5chunkid) + ")", 2)
+
+                            ### resize h5 dataset
+                            h5dset.resize(h5len, axis=0)
+
+                            ### copy the data over from numpy array
+                            h5dset[h5len-h5chunksize:h5len,:,:,:] = np.array(h5_chunk[:,:,:,:])
+
+                            ### reset the chunk
+                            h5_chunk = np.zeros(h5_chunk.shape)
+                            h5_chunk.fill(-1)
+                            h5tid = 0
+
+                    ### if we actually want to save this datapoint, record y value / metadata
+                    if not skip_save:
+                        database.append(["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+                    nsuccess += 1
+
+                ### if we are stoppping early and the conditions are met, stop!
+                if testmode > 0 and nsuccess > testmode:
+                    qprint("", 1)
+                    qprint("build summary: max ring size " + str(maxringsize), 1)
+                    qprint("build summary: avg ring size " + str(avgringsize//nsuccess), 1)
+                    qprint("saving ydata", 2)
+                    ### create a dataframe with the y data
+                    ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
+                    ### save the ydata
+                    ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
+                    qpring("ydata saved", 1)
+
+                    ### save h5set
+                    if h5_mode:
+                        ### need to make sure last chunk is copied over before saving the file
+                        qprint("saving last h5 chunk...", 2)
+                        h5dset.resize(h5len, axis=0)
+                        h5dset[h5len-h5tid:h5len,:,:,:] = h5_chunk[:h5tid,:,:,:]
+                        qprint("saving h5 dset...", 2)
+                        h5_dataset.close()
+
+                    qprint("extreme encounter report:", 2)
+                    no_enc = True
+                    ### do some analysis on extreme value encounters
+                    for i in range(len(extreme_encounter)):
+                        if extreme_encounter[i] > 0:
+                            no_enc = False
+                            qprint("  " +  str(i) + str(extreme_encounter[i]), 2)
+                    if no_enc:
+                        qprint("no extreme encounters", 2)
+
+                    ### do some plots
+                    plt.figure()
+                    plt.bar(diids, dists)
+                    plt.title("distribution of nlcd values over 5m regions / sample")
+                    plt.savefig("../figures/nlcd_dist_.png")
+                    plt.cla()
+                    plt.close()
+                    for i in range(len(dists)):
+                        if dists[i] != 0:
+                            dists[i] = math.log(dists[i])
+                    plt.figure()
+                    plt.bar(diids, dists)
+                    plt.title("log distribution of nlcd values over 5m regions / sample")
+                    plt.savefig("../figures/nlcd_dist_log.png")
+                    plt.cla()
+                    plt.close()
+
+                    sys.exit("exiting after testmode samples")
+            """
 qprint("", 1)
 qprint("build summary: max ring size " + str(maxringsize), 1)
 qprint("build summary: avg ring size " + str(avgringsize//nsuccess), 1)
