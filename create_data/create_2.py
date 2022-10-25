@@ -290,7 +290,7 @@ if create_fs:
 
 ### import files from elsewhere
 if import_root != None:
-    qprint("importing coordinate and field data")
+    qprint("importing coordinate and field data", 2)
     for i in range(len(critical_fields)):
         for j in range(len(critical_fields[i])):
             if os.path.exists(import_root + "/point_reformat/pt_" + str(i) +
