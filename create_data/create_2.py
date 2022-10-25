@@ -503,6 +503,7 @@ if lo_mem:
     qprint("low memory layer number audit: " +  str(len(ptlayers)), 2)
     qprint("reloaded coordinate and point field data", 1)
 
+qprint(crit_npar, 3)
 ### now we have all the data loaded in?
 ### SAVE CHANNEL NAMES
 save_channelnames = layernames + ptlayers
@@ -577,7 +578,7 @@ actual_added = 0
 ### iterate through point data and map to position in hash array
 for i in range(clen()):
     ### sweet progress bar
-    if i % pstep == 0 and verbosity > 0:
+    if i % pstep == 0: #and verbosity > 0
         print("-", end="", flush=True)
     ### get coordinates
     xi, yi = coords_idx(cgetter(i, 0), cgetter(i, 1), yulh, yulv, ypxh, ypxv)
