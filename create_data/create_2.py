@@ -710,8 +710,10 @@ for i in irange_default:
         progress += 1
         extreme_warning = False
 
+        qprint("tick", 3)
         ### only proceed if the y value is not the no-data value
         if y_npar[i, j] != yndv:
+            print("not ndv")
             ### initialize array for csv - data
             if not h5_mode or (h5_mode and h5_scsv):
                 if channel_first:
