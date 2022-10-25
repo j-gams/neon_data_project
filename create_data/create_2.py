@@ -1078,6 +1078,7 @@ for i in irange_default:
 
                 ### if we want to save this point to the h5 database
                 if not skip_save and h5_mode:
+                    print("writing saving")
                     h5tid += 1
                     h5len += 1
 
