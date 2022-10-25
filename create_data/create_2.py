@@ -50,6 +50,7 @@ hash_pad = 1
 h5chunksize = 1000
 npseed = None
 npseed_set = False
+import_root = None
 verbosity = 2
 
 import sys
@@ -130,8 +131,10 @@ else:
             h5chunksize = int(sys.argv[i][8:])
         ### set the seed for the numpy random functions
         elif sys.argv[i][:9] == "--npseed=":
-            npseed = int(sys.argv[i][:9])
+            npseed = int(sys.argv[i][9:])
             npseed_set = True
+        elif sys.argv[i][:9] == "--imroot=":
+            import_root = sys.argv[i][9:]
         ### set the verbosity
         elif sys.argv[i][:4] == "--q=":
             verbosity = int(sys.argv[i][4:])
@@ -141,7 +144,6 @@ def qprint(instr, power):
         print(instr)
 
 ### generate log of parameters used
-
 def make_log_list(source_dir):
     txt_param_out = open(source_dir + "/log.txt", "w+")
     log_param_string =  ["* DATASET CREATED WITH THE FOLLOWING PARAMETERS"]
@@ -191,6 +193,7 @@ qprint("importing packages", 2)
 ### requirements
 import os
 import math
+import glob
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -220,6 +223,7 @@ if lo_mem:
         qprint("not restructuring data fields", 2)
 
 qprint("critical fields: " + str(critical_fields), 2)
+
 ### TODO -- import coords, etc from another data dir
 
 ### create the directory structure
@@ -282,6 +286,16 @@ if create_fs:
     arrReshaped = test_img_.reshape(test_img_.shape[0], -1) #see bookmarked page on how to invert this
     np.savetxt(fs_loc + "/datasrc/x_img/x_test.csv", arrReshaped, delimiter=",", newline="\n")
     qprint("shape:" + str(arrReshaped.shape), 2)
+
+### import files from elsewhere
+if import_root != None:
+    for i in range(len(critical_fields)):
+        for j in range(len(critical_fields[i])):
+            if os.path.exists(import_root + "/point_reformat/pt_" + str(i) +
+                                    "_" + critical_fields[i][j] + ".txt"):
+                os.system("cp " + import_root + "/point_reformat/pt_" + str(i) + "_" +
+                          critical_fields[i][j] + ".txt " + fs_loc + "/point_reformat/pt_" +
+                          str(i) + "_" + critical_fields[i][j] + ".txt")
 
 ### write a log of the parameters used to create the dataset
 make_log_list(fs_loc + "/meta")
