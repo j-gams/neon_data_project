@@ -924,8 +924,7 @@ if parallelize:
 else:
     for i in irange_default:
         for j in jrange_default:
-            parallel_dispatch([i, j])
-            """
+
             progress += 1
             extreme_warning = False
 
@@ -1148,7 +1147,7 @@ else:
                     plt.close()
 
                     sys.exit("exiting after testmode samples")
-            """
+
 qprint("", 1)
 qprint("build summary: max ring size " + str(maxringsize), 1)
 qprint("build summary: avg ring size " + str(avgringsize//nsuccess), 1)
