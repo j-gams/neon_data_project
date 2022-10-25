@@ -36,7 +36,7 @@ override_regen = False
 skip_save = False
 shuffleorder = True
 prescreen2 = False
-parallelize = True
+parallelize = False
 
 ### Parameters
 h5_mode = False
@@ -335,36 +335,37 @@ ptindexer = {}
 grecs = []
 ptlnames = []
 
-def field_parallel_dispatch(gen_etc_disp, found_etc_disp, xpoints_disp, crit_fields_disp, grecs_disp):
+def field_parallel_dispatch(i_disp, gen_etc_disp, found_etc_disp, xpoints_disp, crit_fields_disp,
+                            grecs_disp, fs_loc_disp, verbosity_disp):
     if gen_etc_disp and not found_etc_disp[i]:
         ### sweet progress bar
-        qprint("reformatting critical field " + crit_fields_disp[j][i] + ". This could take a while...", 1)
-        if verbosity > 0:
-            print("progress 0/50 ", end="", flush=True)
+        qprint("reformatting critical field " + crit_fields_disp[j][i_disp] + ". This could take a while...", 1)
+        #if verbosity > 0:
+        #    print("progress 0/50 ", end="", flush=True)
         progress = 0
         ### build list of field indices, names:
         fields_ids = []
         fields_names = ""
-        for k in range(len(xpoints[-1].fields)):
-            if critical_fields[j][i] in xpoints[-1].fields[k][0]:
+        for k in range(len(xpoints_disp[-1].fields)):
+            if crit_fields_disp[j][i_disp] in xpoints_disp[-1].fields[k][0]:
                 fields_ids.append(k)
-                fields_names += xpoints[-1].fields[k][0] + ","
+                fields_names += xpoints_disp[-1].fields[k][0] + ","
         ### header
-        os.system('echo "' + fields_names[:-1] + '" >> ' + fs_loc + "/point_reformat/pt_" +
-                  str(j) + "_" + critical_fields[j][i] + ".txt")
-        for jz in range(len(grecs[-1])):
+        os.system('echo "' + fields_names[:-1] + '" >> ' + fs_loc_disp + "/point_reformat/pt_" +
+                  str(j) + "_" + crit_fields_disp[j][i_disp] + ".txt")
+        for jz in range(len(grecs_disp[-1])):
             progress += 1
-            if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
+            if verbosity_disp > 0 and progress % (len(grecs_disp[-1]) // 50) == 0:
                 print("-", end="", flush=True)
             dumpstr = ""
             for k in fields_ids:
                 # for k in range(len(xpoints[-1].fields)):
-                if critical_fields[j][i] in xpoints[-1].fields[k][0]:
-                    dumpstr += str(grecs[-1][jz].record[k]) + ","
-            os.system('echo "' + dumpstr[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' +
-                      str(j) + "_" + critical_fields[j][i] + '.txt')
+                if crit_fields_disp[j][i_disp] in xpoints_disp[-1].fields[k][0]:
+                    dumpstr += str(grecs_disp[-1][jz].record[k]) + ","
+            os.system('echo "' + dumpstr[:-1] + '" >> ' + fs_loc_disp + '/point_reformat/pt_' +
+                      str(j) + "_" + crit_fields_disp[j][i_disp] + '.txt')
         qprint("---> 50/50 (done)", 1)
-    qprint("done reformatting " + critical_fields[j][i] + " data", 1)
+    qprint("done reformatting " + crit_fields_disp[j][i_disp] + " data", 1)
 
 for j in range(len(point_shape)):
     pt = point_shape[j]
@@ -422,36 +423,44 @@ for j in range(len(point_shape)):
 
         ### do the same thing for pointfile field data
         ### TODO -- introduce parallelization
-        for i in range(len(critical_fields[j])):
-            if gen_etc and not found_etc[j][i]:
-                ### sweet progress bar
-                qprint("reformatting critical field " + critical_fields[j][i] + ". This could take a while...", 1)
-                if verbosity > 0:
-                    print("progress 0/50 ", end="", flush=True)
-                progress = 0
-                ### build list of field indices, names:
-                fields_ids = []
-                fields_names = ""
-                for k in range(len(xpoints[-1].fields)):
-                    if critical_fields[j][i] in xpoints[-1].fields[k][0]:
-                        fields_ids.append(k)
-                        fields_names += xpoints[-1].fields[k][0] + ","
-                ### header
-                os.system('echo "' + fields_names[:-1] + '" >> ' + fs_loc + "/point_reformat/pt_" +
-                          str(j) + "_" + critical_fields[j][i] + ".txt")
-                for jz in range(len(grecs[-1])):
-                    progress += 1
-                    if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
-                        print("-", end="", flush=True)
-                    dumpstr = ""
-                    for k in fields_ids:
-                    #for k in range(len(xpoints[-1].fields)):
+        if parallelize:
+            #def field_parallel_dispatch(gen_etc_disp, found_etc_disp, xpoints_disp, crit_fields_disp,
+            #                grecs_disp, fs_loc_disp, verbosity_disp):
+            Parallel(n_jobs=-1)(delayed(field_parallel_dispatch)(i, gen_etc, found_etc,
+                                                                 xpoints, critical_fields,
+                                                                 grecs, fs_loc, verbosity) for i in
+                                range(len(critical_fields[j])))
+        else:
+            for i in range(len(critical_fields[j])):
+                if gen_etc and not found_etc[j][i]:
+                    ### sweet progress bar
+                    qprint("reformatting critical field " + critical_fields[j][i] + ". This could take a while...", 1)
+                    if verbosity > 0:
+                        print("progress 0/50 ", end="", flush=True)
+                    progress = 0
+                    ### build list of field indices, names:
+                    fields_ids = []
+                    fields_names = ""
+                    for k in range(len(xpoints[-1].fields)):
                         if critical_fields[j][i] in xpoints[-1].fields[k][0]:
-                            dumpstr += str(grecs[-1][jz].record[k]) + ","
-                    os.system('echo "' + dumpstr[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' +
-                              str(j) + "_" + critical_fields[j][i] + '.txt')
-                qprint("---> 50/50 (done)", 1)
-            qprint("done reformatting " + critical_fields[j][i] + " data", 1)
+                            fields_ids.append(k)
+                            fields_names += xpoints[-1].fields[k][0] + ","
+                    ### header
+                    os.system('echo "' + fields_names[:-1] + '" >> ' + fs_loc + "/point_reformat/pt_" +
+                              str(j) + "_" + critical_fields[j][i] + ".txt")
+                    for jz in range(len(grecs[-1])):
+                        progress += 1
+                        if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
+                            print("-", end="", flush=True)
+                        dumpstr = ""
+                        for k in fields_ids:
+                        #for k in range(len(xpoints[-1].fields)):
+                            if critical_fields[j][i] in xpoints[-1].fields[k][0]:
+                                dumpstr += str(grecs[-1][jz].record[k]) + ","
+                        os.system('echo "' + dumpstr[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' +
+                                  str(j) + "_" + critical_fields[j][i] + '.txt')
+                    qprint("---> 50/50 (done)", 1)
+                qprint("done reformatting " + critical_fields[j][i] + " data", 1)
         ### clean up a bit
         if not lo_mem or (gen_coords or gen_etc):
             del xpoints[-1]
