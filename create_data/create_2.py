@@ -866,7 +866,7 @@ for i in irange_default:
                     avg_mid_dist += x_img[
                                         (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
             qprint("did mid avg", 3)
-            qprint("tick " + str(extreme_warning) + " " + str(prescreen2), 2)
+            qprint("tick " + str(extreme_warning) + " " + str(prescreen2), 3)
             ### record y data, metadata to database
             if (not extreme_warning and prescreen2) or not prescreen2:
                 ### if we actually want to save this point as a .csv
