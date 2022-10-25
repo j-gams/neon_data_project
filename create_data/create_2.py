@@ -841,6 +841,7 @@ for i in irange_default:
                     avg_mid_dist += x_img[
                                         (imgsize + (pad_img * 2) - 1) // 2, (imgsize + (pad_img * 2) - 1) // 2, -1] / 4
 
+            qprint("tick " + str(extreme_warning) + " " + str(prescreen2), 2)
             ### record y data, metadata to database
             if (not extreme_warning and prescreen2) or not prescreen2:
                 ### if we actually want to save this point as a .csv
@@ -882,6 +883,7 @@ for i in irange_default:
                 ### if we actually want to save this datapoint, record y value / metadata
                 if not skip_save:
                     database.append(["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+                qprint("success", 2)
                 nsuccess += 1
 
             ### if we are stoppping early and the conditions are met, stop!
