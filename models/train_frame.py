@@ -114,7 +114,6 @@ for mdl_str in load_list:
                                        ["batchnorm", None, 1],
                                        ["conv2d", [1028, (3,3), 1, 'same', 'relu'], 1],
                                        ["batchnorm", None, 1],
-                                       ["maxpooling2d", [2,2], 1],
                                        ["flatten", None, 1],
                                        ["Dense", [1028, 'relu', None], 1],
                                        ["batchnorm", None, 1],
