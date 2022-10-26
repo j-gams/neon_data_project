@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.ensemble import GradientBoostingRegressor
 import mutils
 
-class rfregressor:
+class gbregressor:
     def __init__ (self, hparam_dict, save_dir):
         self.verbosity = 2
         self.dropout = []
@@ -16,7 +16,7 @@ class rfregressor:
 
         self.n_ests = 100
         self.maxdepth = 3
-        self.n_jobs = -1
+        self.learning_rate = 0.1
 
         for key in hparam_dict:
             if key == "verbosity":

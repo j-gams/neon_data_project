@@ -18,6 +18,7 @@ from custom_models import kernel_regress
 from custom_models import reduce_regress
 from custom_models import svr_1
 from custom_models import rf_regress
+from custom_models import gradientboosting_regress
 from custom_models import cnn_basic
 sys.path.insert(0, '../create_data')
 
@@ -213,7 +214,16 @@ for mdl_str in load_list:
                               "n_estimators": 500,
                               "max_depth": None,
                               "n_jobs": -1})
-        save_names.append("rvr_t1")
+        save_names.append("rfr_t1")
+    elif mdl_str == "gbr":
+        models.append(gradientboosting_regress.gbregressor)
+        model_hparams.append({"model_name": "gbr_test",
+                              "save_location": "placeholder",
+                              "dropout": {"mode": "drop", "channels": [66, 67]},
+                              "n_estimators": 500,
+                              "max_depth": 3,
+                              "learning_rate": 0.1})
+        save_names.append("gradientboosting_t1")
 ### now dispatch to the model trainer...?
 
 for i in range(len(models)):
