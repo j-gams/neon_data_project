@@ -12,9 +12,9 @@ from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 
 
-class test_conv:
-    def __init__(self, hparam_dict,
-                 save_dir):  # model_name, save_location, input_size, save_checkpoints, train_metric, verbosity=2):
+class cnn:
+    def __init__(self, hparam_dict, save_dir):
+        # model_name, save_location, input_size, save_checkpoints, train_metric, verbosity=2):
         init_count = 0
         self.verbosity = 0
         self.reload_best = True
@@ -92,7 +92,7 @@ class test_conv:
 
         archlist = [keras.layers.InputLayer(input_shape=self.imgsize)]
         for layerdict in self.archdicts:
-            archlist.extend(self.convert_dict_layer(layerdict["lname"], layerdict["lparams"], layerdict["lquant"]))
+            archlist.extend(self.convert_dict_layer(layerdict[0], layerdict[1], layerdict[2]))
         archlist.append(keras.layers.Dense(1))
 
 
@@ -135,8 +135,11 @@ class test_conv:
                 retlist.append(keras.layers.MaxPooling2D(params_list[0], params_list[1]))
         elif lname == "dense":
             for i in range(quant):
-                retlist.append(keras.layers.Dense(params_list[0], activation=params_list[1],
+                if params_list[2] is not None:
+                    retlist.append(keras.layers.Dense(params_list[0], activation=params_list[1],
                                                   kernel_initializer=self.convert_initializer(params_list[2])))
+                else:
+                    retlist.append(keras.layers.Dense(params_list[0], activation=params_list[1]))
         elif lname == "flatten":
             return [keras.layers.Flatten()]
         elif lname == "res":

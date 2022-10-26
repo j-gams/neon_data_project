@@ -92,45 +92,36 @@ if override_mdl != None:
 else:
     load_list = ["cnn1"]
 for mdl_str in load_list:
-    if mdl_str == "cnn1":
-        models.append(train_1.test_conv)
-        model_hparams.append({"model_name": "basic_convmodel_1",
+    if mdl_str == "cnn":
+        models.append(cnn_basic.cnn)
+        model_hparams.append({"model_name": "basic_cnn",
                               "save_location": "placeholder",
                               "input_size": dataset.test.dims,
-                              "save_checkpoints": True,
+                              "save_checkpoints": False,
                               "train_metric": "mean_squared_error",
-                              "epochs": 15,
+                              "epochs": 5,
                               "use_best": True,
-                              "save_last_epoch": True,
+                              "save_last_epoch": False,
                               "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
-                              "verbosity": 1})
-        save_names.append("basic_convmodel_all_100e")
-    elif mdl_str == "cnn3":
-        models.append(train_3.test_conv)
-        model_hparams.append({"model_name": "basic_convmodel_1",
-                              "save_location": "placeholder",
-                              "input_size": dataset.test.dims,
-                              "save_checkpoints": True,
-                              "train_metric": "mean_squared_error",
-                              "epochs": 15,
-                              "use_best": True,
-                              "save_last_epoch": True,
-                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
-                              "verbosity": 1})
-        save_names.append("basic_convmodel3_all_100e")
-    elif mdl_str == "cnne":
-        models.append(train_noise.test_conv)
-        model_hparams.append({"model_name": "basic_convmodel_e",
-                              "save_location": "placeholder",
-                              "input_size": dataset.test.dims,
-                              "save_checkpoints": True,
-                              "train_metric": "mean_squared_error",
-                              "epochs": 100,
-                              "use_best": True,
-                              "save_last_epoch": True,
-                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
-                              "verbosity": 1})
-        save_names.append("basic_convmodelnoise_all_100e")
+                              "noise": 0.001,
+                              "arch": [["conv2d", [128, (3,3), 2, 'same', 'relu'],  1],
+                                       ["batchnorm", None, 1],
+                                       ["maxpooling2d", [2, 2], 1],
+                                       ["conv2d", [256, (3,3), 2, 'same', 'relu'], 1],
+                                       ["batchnorm", None, 1],
+                                       ["maxpooling2d", [2,2], 1],
+                                       ["conv2d", [512, (3,3), 1, 'same', 'relu'], 1],
+                                       ["batchnorm", None, 1],
+                                       ["conv2d", [1028, (3,3), 1, 'same', 'relu'], 1],
+                                       ["batchnorm", None, 1],
+                                       ["maxpooling2d", [2,2], 1],
+                                       ["flatten", None, 1],
+                                       ["Dense", [1028, 'relu', None], 1],
+                                       ["batchnorm", None, 1],
+                                       ["Dense", [512, 'relu', None], 1],
+                                       ["batchnorm", None, 1],
+                                       ["Dense", [200, 'relu', None], 1],
+                                       ["Dense", [20, 'relu', None], 1]]})
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)
         model_hparams.append({"model_name": "basic_regressor_1",
@@ -224,7 +215,7 @@ for mdl_str in load_list:
                               "max_depth": 3,
                               "learning_rate": 0.1})
         save_names.append("gradientboosting_t1")
-### now dispatch to the model trainer...?
+### now dispatch to the model trainer...
 
 for i in range(len(models)):
     print("sending " + save_names[i] + " to be trained")
