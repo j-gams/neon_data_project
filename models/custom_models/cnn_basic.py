@@ -23,6 +23,8 @@ class test_conv:
         self.crdict = dict()
         self.dropmode = "none"
         self.dropout = []
+        self.add_noise = False
+        self.noise_level = 0
 
         train_metric = "mean_squared_error"
         for key in hparam_dict:
@@ -57,6 +59,9 @@ class test_conv:
                 self.optimizerstr = hparam_dict[key]
             elif key == "arch":
                 self.archdicts = hparam_dict[key]
+            elif key == "noise":
+                self.add_noise = True
+                self.noise_level = hparam_dict[key]
 
         ### ARCHDICT STRUCTURE
         ### - "convlayers"
@@ -142,8 +147,12 @@ class test_conv:
     def train(self, train_data, validation_data):
         self.change_restore(train_data, "c", "train")
         self.change_restore(validation_data, "c", "val")
+        og_noise = train_data.noise_mode
+        og_nlevel = train_data.noise_level
+        train_data.noise_mode = self.add_noise
+        train_data.noise_level = self.noise_level
         self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data,
-                       verbose=2)  # self.verbosity)
+                       verbose=2)
         if self.save_last:
             self.model.save_weights(self.save_dir + "/last_epoch.h5")
         if self.reload_best and self.savechecks:
@@ -152,17 +161,12 @@ class test_conv:
         self.change_restore(validation_data, "r", "val")
 
     def predict(self, x_predict, typein="simg"):
-        # print(type(x_predict))
         self.change_restore(x_predict, "c", "predict")
         if typein == "simg":
             dumb_out = []
-            # og_ret = x_predict.return_format
-            # x_predict.set_return("x")
             for i in range(len(x_predict)):
                 dumb_out.append(self.model(x_predict[i][0]))
             ret_y = np.array(dumb_out).reshape(-1).flatten()
-            # self.model(x_predict)
-            # x_predict.set_return(og_ret)
         self.change_restore(x_predict, "r", "predict")
         return ret_y
 
@@ -171,7 +175,6 @@ class test_conv:
             self.crdict[name] = [data.flat_mode,
                                  data.keep_ids,
                                  data.drop_channels]
-            # data.set_return("x")
             data.set_flatten(False)
             if self.dropmode == "keep":
                 data.set_keeps(self.dropout)
@@ -187,7 +190,6 @@ class test_conv:
                 data.set_drops([])
                 data.set_keeps(data.drops_to_keeps())
         else:
-            # data.set_return(self.crdict[name][0])
             data.set_flatten(self.crdict[name][0])
             data.set_keeps(self.crdict[name][1])
             data.set_drops(self.crdict[name][2])

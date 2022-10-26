@@ -1,7 +1,7 @@
 ### Written by Jerry Gammie @j-gams
 
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 import mutils
 
 class rfregressor:
@@ -15,7 +15,7 @@ class rfregressor:
         self.avg_channel = True
 
         self.n_ests = 100
-        self.maxdepth = None
+        self.maxdepth = 3
         self.n_jobs = -1
 
         for key in hparam_dict:
@@ -32,10 +32,11 @@ class rfregressor:
                 self.n_ests = hparam_dict[key]
             elif key == "max_depth":
                 self.maxdepth = hparam_dict[key]
-            elif key == "n_jobs":
-                self.n_jobs = hparam_dict[key]
+            elif key == "learning_rate":
+                self.learning_rate = hparam_dict[key]
 
-        self.model = RandomForestRegressor(n_estimators=self.n_ests, max_depth=self.maxdepth, n_jobs=self.n_jobs)
+        self.model = GradientBoostingRegressor(n_estimators=self.n_ests, max_depth=self.maxdepth,
+                                               learning_rate=self.learning_rate)
 
     def qprint(self, item, prio, ef = False):
         if prio < self.verbosity:

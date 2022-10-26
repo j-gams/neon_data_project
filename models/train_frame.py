@@ -18,6 +18,7 @@ from custom_models import kernel_regress
 from custom_models import reduce_regress
 from custom_models import svr_1
 from custom_models import rf_regress
+from custom_models import cnn_basic
 sys.path.insert(0, '../create_data')
 
 from dat_obj import datacube_loader

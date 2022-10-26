@@ -32,6 +32,7 @@ class satimg_set (kr_utils.Sequence):
         ### expect an image of this resolution
         #self.img_size = expect_img_size
         self.noise_mode = False
+        self.noise_level = 0
 
         ### channel, height, width or height, width, channel
         self.ori = orientation
@@ -335,7 +336,7 @@ class satimg_set (kr_utils.Sequence):
                                 if m_s[1][self.keep_ids[i]] != 0:
                                     image[i] = (image[i] - m_s[0][i]) / m_s[1][i]
             if self.noise_mode:
-                noiseadd = np.random.normal(0, .05, image.shape)
+                noiseadd = np.random.normal(0, self.noise_level, image.shape)
                 image += noiseadd
             return image
         else:
