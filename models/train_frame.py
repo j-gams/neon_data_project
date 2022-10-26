@@ -122,6 +122,7 @@ for mdl_str in load_list:
                                        ["batchnorm", None, 1],
                                        ["Dense", [200, 'relu', None], 1],
                                        ["Dense", [20, 'relu', None], 1]]})
+        save_names.append("cnn_batchnorm_noise")
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)
         model_hparams.append({"model_name": "basic_regressor_1",
