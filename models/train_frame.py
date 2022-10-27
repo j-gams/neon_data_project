@@ -97,11 +97,11 @@ for mdl_str in load_list:
         model_hparams.append({"model_name": "basic_cnn",
                               "save_location": "placeholder",
                               "input_size": dataset.test.dims,
-                              "save_checkpoints": False,
+                              "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
                               "epochs": 5,
                               "use_best": True,
-                              "save_last_epoch": False,
+                              "save_last_epoch": True,
                               "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
                               "noise": 0.001,
                               "arch": [["conv2d", [128, (3,3), 2, 'same', 'relu'],  1],
@@ -202,7 +202,7 @@ for mdl_str in load_list:
         model_hparams.append({"model_name": "rfr_test",
                               "save_location": "placeholder",
                               "dropout": {"mode": "drop", "channels": [66, 67]},
-                              "n_estimators": 500,
+                              "n_estimators": 1000,
                               "max_depth": None,
                               "n_jobs": -1})
         save_names.append("rfr_t1")
@@ -211,7 +211,7 @@ for mdl_str in load_list:
         model_hparams.append({"model_name": "gbr_test",
                               "save_location": "placeholder",
                               "dropout": {"mode": "drop", "channels": [66, 67]},
-                              "n_estimators": 500,
+                              "n_estimators": 1000,
                               "max_depth": 3,
                               "learning_rate": 0.1})
         save_names.append("gradientboosting_t1")
