@@ -102,7 +102,7 @@ for mdl_str in load_list:
                               "epochs": 100,
                               "use_best": True,
                               "save_last_epoch": True,
-                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
+                              "dropout": {"mode": "drop", "channels": [66, 67]},
                               "noise": 0.001,
                               "arch": [["conv2d", [128, (3,3), 2, 'same', 'relu'],  1],
                                        ["batchnorm", None, 1],
@@ -201,7 +201,7 @@ for mdl_str in load_list:
         models.append(rf_regress.rfregressor)
         model_hparams.append({"model_name": "rfr_test",
                               "save_location": "placeholder",
-                              "dropout": {"mode": "drop", "channels": [66, 67]},
+                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
                               "n_estimators": 1000,
                               "max_depth": None,
                               "n_jobs": -1})
@@ -210,11 +210,11 @@ for mdl_str in load_list:
         models.append(gradientboosting_regress.gbregressor)
         model_hparams.append({"model_name": "gbr_test",
                               "save_location": "placeholder",
-                              "dropout": {"mode": "drop", "channels": [66, 67]},
+                              "dropout": {"mode": "drop", "channels": [0, 1, 2, 3, 66, 67]},
                               "n_estimators": 1000,
                               "max_depth": 3,
                               "learning_rate": 0.1})
-        save_names.append("gradientboosting_t1")
+        save_names.append("gradientboosting_t2_both")
 ### now dispatch to the model trainer...
 
 for i in range(len(models)):
