@@ -20,6 +20,7 @@ from custom_models import svr_1
 from custom_models import rf_regress
 from custom_models import gradientboosting_regress
 from custom_models import cnn_basic
+from custom_models import cnn_blocks
 sys.path.insert(0, '../create_data')
 
 from dat_obj import datacube_loader
@@ -115,12 +116,44 @@ for mdl_str in load_list:
                                        ["conv2d", [1028, (3,3), 1, 'same', 'relu'], 1],
                                        ["batchnorm", None, 1],
                                        ["flatten", None, 1],
-                                       ["Dense", [1028, 'relu', None], 1],
+                                       ["dense", [1028, 'relu', None], 1],
                                        ["batchnorm", None, 1],
-                                       ["Dense", [512, 'relu', None], 1],
+                                       ["dense", [512, 'relu', None], 1],
                                        ["batchnorm", None, 1],
-                                       ["Dense", [200, 'relu', None], 1],
-                                       ["Dense", [20, 'relu', None], 1]]})
+                                       ["dense", [200, 'relu', None], 1],
+                                       ["dense", [20, 'relu', None], 1]]})
+        save_names.append("cnn_batchnorm_noise")
+    elif mdl_str == "blocnn":
+        models.append(cnn_basic.cnn)
+        model_hparams.append({"model_name": "bloc_cnn",
+                              "save_location": "placeholder",
+                              "input_size": dataset.test.dims,
+                              "save_checkpoints": True,
+                              "train_metric": "mean_squared_error",
+                              "epochs": 100,
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "dropout": {"mode": "drop", "channels": [66, 67]},
+                              "arch": [["batchnorm", None],
+                                       ["conv2d", [120, (3, 3), 2, 'same', 'relu']],
+                                       ["maxpooling2d", [(3, 3), (2, 2)]],
+                                       ["fireresidual", ["fire", True]],
+                                       ["fireresidual", ["fire", True]],
+                                       ["fireresidual", ["fire", True]],
+                                       ["maxpooling2d", [(3, 3), (2, 2)]],
+                                       ["fireresidual", ["fire", True]],
+                                       ["fireresidual", ["fire", True]],
+                                       ["fireresidual", ["fire", True]],
+                                       ["fireresidual", ["fire", True]],
+                                       ["maxpooling2d", [(3, 3), (2, 2)]],
+                                       ["fireresidual", ["fire", True]],
+                                       ["conv2d", [720, (3, 3), 2, "same", "relu"]],
+                                       ["globalavg2d", None],
+                                       ["flatten", None],
+                                       ["dense", [720, 'relu', None]],
+                                       ["dense", [400, 'relu', None]],
+                                       ["dense", [1, 'relu', None]]],
+                              "metaparams": {"fire": [200, 0.45, 0.4, 2, 120]}})
         save_names.append("cnn_batchnorm_noise")
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)
