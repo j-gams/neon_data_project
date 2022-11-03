@@ -4,7 +4,7 @@ from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Input, Conv2D, BatchNormalization, AveragePooling2D, MaxPooling2D, Flatten
 from tensorflow.keras.initializers import RandomUniform
 from tensorflow.keras.optimizers import Adam
-import nnblocks
+from custom_models import nnblocks
 
 class cnn_block:
 
