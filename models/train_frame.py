@@ -124,7 +124,7 @@ for mdl_str in load_list:
                                        ["dense", [20, 'relu', None], 1]]})
         save_names.append("cnn_batchnorm_noise")
     elif mdl_str == "blocnn":
-        models.append(cnn_basic.cnn)
+        models.append(cnn_blocks.cnn_block)
         model_hparams.append({"model_name": "bloc_cnn",
                               "save_location": "placeholder",
                               "input_size": dataset.test.dims,
@@ -154,7 +154,7 @@ for mdl_str in load_list:
                                        ["dense", [400, 'relu', None]],
                                        ["dense", [1, 'relu', None]]],
                               "metaparams": {"fire": [200, 0.45, 0.4, 2, 120]}})
-        save_names.append("cnn_batchnorm_noise")
+        save_names.append("cnn_fire")
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)
         model_hparams.append({"model_name": "basic_regressor_1",
