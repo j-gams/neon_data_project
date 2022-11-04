@@ -130,7 +130,7 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
-                              "epochs": 100,
+                              "epochs": 150,
                               "use_best": True,
                               "save_last_epoch": True,
                               "dropout": {"mode": "drop", "channels": [66, 67]},
@@ -179,7 +179,7 @@ for mdl_str in load_list:
         model_hparams.append({"model_name": "lasso",
                               "save_location": "placeholder",
                               "alpha": 0.2,
-                              "dropout": {"mode": "drop", "channels": [66, 67]},
+                              "dropout": {"mode": "keep", "channels": [0, 1, 2, 3]},
                               "avg_channel": True,
                               "normalize": True,
                               "verbosity": 1})
