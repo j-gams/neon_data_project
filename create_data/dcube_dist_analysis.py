@@ -39,7 +39,10 @@ dataset.validation[0].set_flatten(True)
 dataset.test.set_flatten(True)"""
 
 d_names = ["srtm", "nlcd", "slope", "aspect"]
-hist_bounds = [[0, 4500], [0, 100], [0, 90], [0, 360]]
+hist_bounds = [[float("inf"), float("-inf")],
+               [float("inf"), float("-inf")],
+               [float("inf"), float("-inf")],
+               [float("inf"), float("-inf")]]
 
 hist_bins = np.zeros((101, 4))
 print("running")
@@ -53,16 +56,24 @@ for j in range(len(dataset.train[0])):
         for k in range(xset.shape[0]):
             for ii in range(16):
                 for ij in range(16):
-                    if xset[k, ii, ij, i] > maxs[i]:
-                        maxs[i] = xset[k, ii, ij, i]
-                    if xset[k, ii, ij, i] < mins[i]:
-                        mins[i] = xset[k, ii, ij, i]
-                    hist_i = int(xset[k, ii, ij, i] / ((hist_bounds[i][1] - hist_bounds[i][0]) / 100))
-                    if hist_i >= 0 and hist_i <= 101:
-                        hist_bins[hist_i, i] += 1
-                    else:
-                        encounters += 1
-                        enc_count[i] += 1
+                    if xset[k, ii, ij, i] > hist_bounds[i][1]:
+                        hist_bounds[i][1] = xset[k, ii, ij, i]
+                    if xset[k, ii, ij, i] < hist_bounds[i][0]:
+                        hist_bounds[i][0] = xset[k, ii, ij, i]
+
+
+                    #if xset[k, ii, ij, i] > maxs[i]:
+                    #    maxs[i] = xset[k, ii, ij, i]
+                    #if xset[k, ii, ij, i] < mins[i]:
+                    #    mins[i] = xset[k, ii, ij, i]
+                    #hist_i = int(xset[k, ii, ij, i] / ((hist_bounds[i][1] - hist_bounds[i][0]) / 100))
+                    #if hist_i >= 0 and hist_i <= 101:
+                    #    hist_bins[hist_i, i] += 1
+                    #else:
+                    #    encounters += 1
+                    #    enc_count[i] += 1
+
+print("encounters:", encounters, enc_count)
 
 for j in range(len(dataset.validation[0])):
     xset = dataset.validation[0][j][0]
@@ -70,16 +81,47 @@ for j in range(len(dataset.validation[0])):
         for k in range(xset.shape[0]):
             for ii in range(16):
                 for ij in range(16):
-                    if xset[k, ii, ij, i] > maxs[i]:
-                        maxs[i] = xset[k, ii, ij, i]
-                    if xset[k, ii, ij, i] < mins[i]:
-                        mins[i] = xset[k, ii, ij, i]
-                    hist_i = int(xset[k, ii, ij, i] / ((hist_bounds[i][1] - hist_bounds[i][0]) / 100))
-                    if hist_i >= 0 and hist_i <= 101:
-                        hist_bins[hist_i, i] += 1
-                    else:
-                        encounters += 1
-                        enc_count[i] += 1
+                    if xset[k, ii, ij, i] > hist_bounds[i][1]:
+                        hist_bounds[i][1] = xset[k, ii, ij, i]
+                    if xset[k, ii, ij, i] < hist_bounds[i][0]:
+                        hist_bounds[i][0] = xset[k, ii, ij, i]
+                    #if xset[k, ii, ij, i] > maxs[i]:
+                    #    maxs[i] = xset[k, ii, ij, i]
+                    #if xset[k, ii, ij, i] < mins[i]:
+                    #    mins[i] = xset[k, ii, ij, i]
+                    #hist_i = int(xset[k, ii, ij, i] / ((hist_bounds[i][1] - hist_bounds[i][0]) / 100))
+                    #if hist_i >= 0 and hist_i <= 101:
+                    #    hist_bins[hist_i, i] += 1
+                    #else:
+                    #    encounters += 1
+                    #    enc_count[i] += 1
+
+for j in range(len(dataset.train[0])):
+    xset = dataset.train[0][j][0]
+    for i in range(4):
+        for k in range(xset.shape[0]):
+            for ii in range(16):
+                for ij in range(16):
+                    if xset[k, ii, ij, i] > hist_bounds[i][1]:
+                        hist_bounds[i][1] = xset[k, ii, ij, i]
+                    if xset[k, ii, ij, i] < hist_bounds[i][0]:
+                        hist_bounds[i][0] = xset[k, ii, ij, i]
+                    hist_i = int(((xset[k, ii, ij, i] - hist_bounds[i][0])/(hist_bounds[i][1] - hist_bounds[i][0])) * 100)
+                    hist_bins[hist_i, i] += 1
+                    #hist_i = int(xset[k, ii, ij, i] / ((hist_bounds[i][1] - hist_bounds[i][0]) / 100))
+
+for j in range(len(dataset.validation[0])):
+    xset = dataset.validation[0][j][0]
+    for i in range(4):
+        for k in range(xset.shape[0]):
+            for ii in range(16):
+                for ij in range(16):
+                    if xset[k, ii, ij, i] > hist_bounds[i][1]:
+                        hist_bounds[i][1] = xset[k, ii, ij, i]
+                    if xset[k, ii, ij, i] < hist_bounds[i][0]:
+                        hist_bounds[i][0] = xset[k, ii, ij, i]
+                    hist_i = int(((xset[k, ii, ij, i] - hist_bounds[i][0]) / (hist_bounds[i][1] - hist_bounds[i][0])) * 100)
+                    hist_bins[hist_i, i] += 1
 
 print("saving images...")
 for i in range(4):
@@ -102,6 +144,5 @@ for i in range(4):
     plt.close()
 
 print("report:")
-print(maxs)
-print(mins)
+print(hist_bounds)
 print("done")
