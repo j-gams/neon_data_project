@@ -102,10 +102,6 @@ for j in range(len(dataset.train[0])):
         for k in range(xset.shape[0]):
             for ii in range(16):
                 for ij in range(16):
-                    if xset[k, ii, ij, i] > hist_bounds[i][1]:
-                        hist_bounds[i][1] = xset[k, ii, ij, i]
-                    if xset[k, ii, ij, i] < hist_bounds[i][0]:
-                        hist_bounds[i][0] = xset[k, ii, ij, i]
                     hist_i = int(((xset[k, ii, ij, i] - hist_bounds[i][0])/(hist_bounds[i][1] - hist_bounds[i][0])) * 100)
                     hist_bins[hist_i, i] += 1
                     #hist_i = int(xset[k, ii, ij, i] / ((hist_bounds[i][1] - hist_bounds[i][0]) / 100))
@@ -116,10 +112,6 @@ for j in range(len(dataset.validation[0])):
         for k in range(xset.shape[0]):
             for ii in range(16):
                 for ij in range(16):
-                    if xset[k, ii, ij, i] > hist_bounds[i][1]:
-                        hist_bounds[i][1] = xset[k, ii, ij, i]
-                    if xset[k, ii, ij, i] < hist_bounds[i][0]:
-                        hist_bounds[i][0] = xset[k, ii, ij, i]
                     hist_i = int(((xset[k, ii, ij, i] - hist_bounds[i][0]) / (hist_bounds[i][1] - hist_bounds[i][0])) * 100)
                     hist_bins[hist_i, i] += 1
 
