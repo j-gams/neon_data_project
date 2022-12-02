@@ -21,6 +21,7 @@ from custom_models import rf_regress
 from custom_models import gradientboosting_regress
 from custom_models import cnn_basic
 from custom_models import cnn_blocks
+from custom_models import t1
 sys.path.insert(0, '../create_data')
 
 from dat_obj import datacube_loader
@@ -155,6 +156,19 @@ for mdl_str in load_list:
                                        ["dense", [1, 'relu', None]]],
                               "metaparams": {"fire": [200, 0.45, 0.4, 2, 120]}})
         save_names.append("cnn_fire")
+    elif mdl_str == "t1":
+        models.append(t1.t1test)
+        model_hparams.append({"model_name": "transformer_cnn",
+                              "save_location": "placeholder",
+                              "input_size": dataset.test.dims,
+                              "save_checkpoints": True,
+                              "train_metric": "mean_squared_error",
+                              "epochs": 10,
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "dropout": {"mode": "drop", "channels": [66, 67]},
+                              "noise": 0.001})
+        save_names.append("transformer1")
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)
         model_hparams.append({"model_name": "basic_regressor_1",
