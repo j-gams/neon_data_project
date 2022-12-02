@@ -46,7 +46,7 @@ class PatchEncoder(layers.Layer):
         )
 
     def call(self, patch):
-        print(type(patch))
+        #print(type(patch))
         positions = tf.range(start=0, limit=self.num_patches, delta=1)
         encoded = self.projection(int(patch)) + self.position_embedding(int(positions))
         return encoded
@@ -88,7 +88,7 @@ class t1test:
             elif key == "verbosity":
                 self.verbosity = hparam_dict[key]
         self.patch_size = 8
-        self.n_patches = 16/self.patch_size
+        self.n_patches = int(16/self.patch_size)
         self.n_heads = 4
         self.projection_dim = 64
         self.t_units = [self.projection_dim * 2, self.projection_dim]
