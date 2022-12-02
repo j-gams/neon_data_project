@@ -46,6 +46,7 @@ class PatchEncoder(layers.Layer):
         )
 
     def call(self, patch):
+        print(type(patch))
         positions = tf.range(start=0, limit=self.num_patches, delta=1)
         encoded = self.projection(int(patch)) + self.position_embedding(int(positions))
         return encoded
