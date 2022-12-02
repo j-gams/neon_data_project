@@ -104,7 +104,7 @@ for mdl_str in load_list:
                               "use_best": True,
                               "save_last_epoch": True,
                               "dropout": {"mode": "drop", "channels": [66, 67]},
-                              "noise": 0.001,
+                              #"noise": 0.001,
                               "arch": [["conv2d", [128, (3,3), 2, 'same', 'relu'],  1],
                                        ["batchnorm", None, 1],
                                        ["maxpooling2d", [2, 2], 1],
