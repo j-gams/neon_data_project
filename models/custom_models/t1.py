@@ -47,7 +47,7 @@ class PatchEncoder(layers.Layer):
 
     def call(self, patch):
         positions = tf.range(start=0, limit=self.num_patches, delta=1)
-        encoded = self.projection(patch) + self.position_embedding(positions)
+        encoded = self.projection(int(patch)) + self.position_embedding(int(positions))
         return encoded
 
 class t1test:
