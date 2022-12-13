@@ -797,6 +797,7 @@ for i in irange_default:
 
             if minimode:
                 ###
+                qprint(nsuccess)
                 for k in range(len(xr_npar)):
                     for si in range(4):
                         for sj in range(4):
