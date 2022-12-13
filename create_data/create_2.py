@@ -305,7 +305,7 @@ if import_root != None:
         for j in range(len(critical_fields[i])):
             if os.path.exists(import_root + "/point_reformat/pt_" + str(i) +
                                     "_" + critical_fields[i][j] + ".txt"):
-                if old_toggle:
+                if not old_toggle:
                     os.system("cp " + import_root + "/point_reformat/pt_" + str(i) + "_" +
                               critical_fields[i][j] + ".txt " + fs_loc + "/point_reformat/pt_" +
                               str(i) + "_" + critical_fields[i][j] + ".txt")
