@@ -301,6 +301,8 @@ if create_fs:
 old_toggle = True
 if import_root != None:
     qprint("importing coordinate and field data", 2)
+    os.system("cp " + import_root + "/point_reformat/geo_coords.txt " + fs_loc + "/point_reformat/geo_coords.txt")
+    os.system("cp " + import_root + "/point_reformat/pt_coords.txt " + fs_loc + "/point_reformat/pt_coords.txt")
     for i in range(len(critical_fields)):
         for j in range(len(critical_fields[i])):
             if old_toggle:
