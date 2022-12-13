@@ -606,7 +606,7 @@ def idx_pixctr(ix, iy, ulh, ulv, psh, psv, mode='ul'):
     return cx, cy
 
 def coverlap(i, j, yulh, yulv, ypxh, ypxv, xulh, xulv, xpxh, xpxv):
-    print(yulh, yulv, ypxh, ypxv)
+    #print(yulh, yulv, ypxh, ypxv)
     ypxh /= 4
     ypxv /= 4
     yulh = yulh + i*ypxh
@@ -619,7 +619,6 @@ def coverlap(i, j, yulh, yulv, ypxh, ypxv, xulh, xulv, xpxh, xpxv):
     sideh = xpxh - abs(bh)
     sidev = xpxv - abs(bv)
     xcover = 1 - ((bh * sidev) + (bv * sideh) + (bh * bv)/abs(xpxh * xpxv))
-    print(xcover)
     return xcover
 
 
