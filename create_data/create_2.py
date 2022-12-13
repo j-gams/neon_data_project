@@ -727,8 +727,7 @@ if h5_mode:
         h5_cdim = int((4 * 2) + (64//16))
         h5dset = h5_dataset.create_dataset("data", (h5chunksize, imgsize, imgsize, h5_cdim),
                                            maxshape=(None, imgsize, imgsize, h5_cdim),
-                                           chunks=(
-                                           h5chunksize, imgsize, imgsize, h5_cdim))
+                                           chunks=(h5chunksize, imgsize, imgsize, h5_cdim))
     h5len = 0
     h5tid = 0
     h5chunkid = 0
@@ -799,7 +798,7 @@ for i in irange_default:
 
             if minimode:
                 ###
-                print("time1")
+                #print("time1")
                 qprint(nsuccess, 2)
                 for k in range(len(xr_npar)):
                     for si in range(4):
@@ -812,13 +811,13 @@ for i in irange_default:
                                                       xr_params[k][2], xr_params[k][3])
                             h5_chunk[h5tid, si, sj, k*2] = xr_npar[k][tempi, tempj]
                             ###overlap
-                            print("time1.1")
+                            #print("time1.1")
                             h5_chunk[h5tid, si, sj, k*2 + 1] = coverlap(si, sj, yulh, yulv, ypxh, ypxv, xr_params[k][0],
                                                                         xr_params[k][1], xr_params[k][2], xr_params[k][3])
-                            print("time1.2")
-                print("time2")
+                            #print("time1.2")
+                #print("time2")
                 k_ids, rings = krings(i, j, 0)
-                print("time3")
+                #print("time3")
                 mindist = 1000000
                 minpt = None
                 ### brute force find nearest neighbor for this pixel from subset
@@ -828,14 +827,14 @@ for i in irange_default:
                     if tdist < mindist:
                         mindist = tdist
                         minpt = pt_idx
-                print("time4")
+                #print("time4")
                 tptdata = []
                 for m in range(len(ptlayers)):
                     tptdata.append(pgetter(m, minpt))
                 tptdata.append(minpt)
                 tptdata.append(mindist)
                 h5_chunk[h5tid, :, :, 4*2:] = np.array(tptdata).reshape((4, 4, -1))
-                print("time5")
+                #print("time5")
                 avg_mid_dist = 0
                 if (not extreme_warning and prescreen2) or not prescreen2:
                     ### if we actually want to save this point as a .csv
@@ -898,6 +897,7 @@ for i in irange_default:
                     if h5_mode:
                         ### need to make sure last chunk is copied over before saving the file
                         qprint("saving last h5 chunk...", 2)
+                        qprint("h5len: " + str(h5len), 3)
                         h5dset.resize(h5len, axis=0)
                         h5dset[h5len - h5tid:h5len, :, :, :] = h5_chunk[:h5tid, :, :, :]
                         qprint("saving h5 dset...", 2)
