@@ -46,10 +46,75 @@ class PatchEncoder(layers.Layer):
         )
 
     def call(self, patch):
-        #print(type(patch))
         positions = tf.range(start=0, limit=self.num_patches, delta=1)
-        encoded = self.projection(int(patch)) + self.position_embedding(int(positions))
+        encoded = self.projection(patch) + self.position_embedding(positions)
         return encoded
+
+
+
+def create_vit_classifier(input_shape):
+    learning_rate = 0.001
+    weight_decay = 0.0001
+    batch_size = 256
+    num_epochs = 100
+    image_size = 16  # We'll resize input images to this size
+    patch_size = 8  # Size of the patches to be extract from the input images
+    num_patches = int((image_size // patch_size) ** 2)
+    projection_dim = 64
+    num_heads = 4
+    transformer_units = [
+        projection_dim * 2,
+        projection_dim,
+    ]  # Size of the transformer layers
+    transformer_layers = 8
+    mlp_head_units = [2048, 1024]
+    data_augmentation = keras.Sequential(
+        [
+            layers.Normalization(),
+            layers.Resizing(image_size, image_size),
+            layers.RandomFlip("horizontal"),
+            layers.RandomRotation(factor=0.02),
+            layers.RandomZoom(height_factor=0.2, width_factor=0.2),
+        ],
+        name="data_augmentation",
+    )
+
+    inputs = layers.Input(shape=input_shape)
+    # Augment data.
+    augmented = data_augmentation(inputs)
+    # Create patches.
+    patches = Patches(patch_size)(augmented)
+    # Encode patches.
+    encoded_patches = PatchEncoder(num_patches, projection_dim)(patches)
+
+    # Create multiple layers of the Transformer block.
+    for _ in range(transformer_layers):
+        # Layer normalization 1.
+        x1 = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
+        # Create a multi-head attention layer.
+        attention_output = layers.MultiHeadAttention(
+            num_heads=num_heads, key_dim=projection_dim, dropout=0.1
+        )(x1, x1)
+        # Skip connection 1.
+        x2 = layers.Add()([attention_output, encoded_patches])
+        # Layer normalization 2.
+        x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
+        # MLP.
+        x3 = mlp(x3, hidden_units=transformer_units, dropout_rate=0.1)
+        # Skip connection 2.
+        encoded_patches = layers.Add()([x3, x2])
+
+    # Create a [batch_size, projection_dim] tensor.
+    representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
+    representation = layers.Flatten()(representation)
+    representation = layers.Dropout(0.5)(representation)
+    # Add MLP.
+    features = mlp(representation, hidden_units=mlp_head_units, dropout_rate=0.5)
+    # Classify outputs.
+    logits = layers.Dense(num_classes)(features)
+    # Create the Keras model.
+    model = keras.Model(inputs=inputs, outputs=logits)
+    return model
 
 class t1test:
 
@@ -87,6 +152,8 @@ class t1test:
                 self.save_last = hparam_dict[key]
             elif key == "verbosity":
                 self.verbosity = hparam_dict[key]
+
+
         self.patch_size = 8
         self.n_patches = int(16/self.patch_size)
         self.n_heads = 4
