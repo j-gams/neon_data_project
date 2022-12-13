@@ -618,7 +618,7 @@ def coverlap(i, j, yulh, yulv, ypxh, ypxv, xulh, xulv, xpxh, xpxv):
     bv = min(ypxv - xpxv - av, 0)
     sideh = xpxh - abs(bh)
     sidev = xpxv - abs(bv)
-    xcover = 1 - ((bh * sidev) + (bv * sideh) + (bh * bv)/abs(xpxh * xpxv))
+    xcover = 1 - (((bh * sidev) + (bv * sideh) + (bh * bv))/abs(xpxh * xpxv))
     return xcover
 
 
