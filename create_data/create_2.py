@@ -903,6 +903,7 @@ for i in irange_default:
                         qprint("saving h5 dset...", 2)
                         h5_dataset.close()
 
+                    sys.exit("exiting after testmode samples")
                 continue
 
             ### iterate through every x raster dataset
