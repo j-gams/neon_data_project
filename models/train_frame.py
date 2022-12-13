@@ -156,6 +156,35 @@ for mdl_str in load_list:
                                        ["dense", [1, 'relu', None]]],
                               "metaparams": {"fire": [200, 0.45, 0.4, 2, 120]}})
         save_names.append("cnn_fire")
+    elif mdl_str == "mininn":
+        models.append(cnn_blocks.cnn_block)
+        model_hparams.append({"model_name": "mini_nn",
+                              "save_location": "placeholder",
+                              "input_size": dataset.test.dims,
+                              "save_checkpoints": True,
+                              "train_metric": "mean_squared_error",
+                              "epochs": 150,
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "dropout": {"mode": "none", "channels": [66, 67]},
+                              "arch": [["flatten", None],
+                                       ["batchnorm", None],
+                                       ["dense", [720, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [800, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [800, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [720, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [500, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [500, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [20, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [1, 'relu', None]]]})
+        save_names.append("cnn_fire")
     elif mdl_str == "t1":
         models.append(t1.t1test)
         model_hparams.append({"model_name": "transformer_cnn",

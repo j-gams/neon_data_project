@@ -96,6 +96,9 @@ else:
         ### enable multi-processing
         elif sys.argv[i] == "--parallel":
             parallelize = True
+        ### set mini mode
+        elif sys.argv[i] == "--mini":
+            minimode = True
 
         ### Other arguments
         ### run in h5 mode / save csv in addition to h5
@@ -136,9 +139,6 @@ else:
             npseed_set = True
         elif sys.argv[i][:9] == "--imroot=":
             import_root = sys.argv[i][9:]
-        ### set mini mode
-        elif sys.argv[i][:9] == "--mini=":
-            minimode = sys.argv[i][7:]
         ### set the verbosity
         elif sys.argv[i][:4] == "--q=":
             verbosity = int(sys.argv[i][4:])
@@ -298,17 +298,26 @@ if create_fs:
     qprint("shape:" + str(arrReshaped.shape), 2)
 
 ### import files from elsewhere
+old_toggle = True
 if import_root != None:
     qprint("importing coordinate and field data", 2)
     for i in range(len(critical_fields)):
         for j in range(len(critical_fields[i])):
             if os.path.exists(import_root + "/point_reformat/pt_" + str(i) +
                                     "_" + critical_fields[i][j] + ".txt"):
-                os.system("cp " + import_root + "/point_reformat/pt_" + str(i) + "_" +
-                          critical_fields[i][j] + ".txt " + fs_loc + "/point_reformat/pt_" +
-                          str(i) + "_" + critical_fields[i][j] + ".txt")
+                if old_toggle:
+                    os.system("cp " + import_root + "/point_reformat/pt_" + str(i) + "_" +
+                              critical_fields[i][j] + ".txt " + fs_loc + "/point_reformat/pt_" +
+                              str(i) + "_" + critical_fields[i][j] + ".txt")
+                else:
+                    os.system("cp " + import_root + "/point_reformat/pt_" +
+                              critical_fields[i][j] + ".txt " + fs_loc + "/point_reformat/pt_" +
+                              str(i) + "_" + critical_fields[i][j] + ".txt")
                 qprint("copied file " + "pt_" + str(i) + "_" + critical_fields[i][j] +
                        ".txt from " + import_root, 2)
+            else:
+                qprint("no such file: " + import_root + "/point_reformat/pt_" + str(i) +
+                                    "_" + critical_fields[i][j] + ".txt", 2)
 
 
 ### write a log of the parameters used to create the dataset
