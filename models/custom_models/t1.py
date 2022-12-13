@@ -87,11 +87,11 @@ class t1test:
                 self.save_last = hparam_dict[key]
             elif key == "verbosity":
                 self.verbosity = hparam_dict[key]
-        self.patch_size = 8
-        self.n_patches = int(16/self.patch_size)
-        self.n_heads = 4
+        self.patch_size = 16
+        self.n_patches = int((16/self.patch_size) ** 2)
+        self.n_heads = 64
         self.projection_dim = 64
-        self.t_units = [self.projection_dim * 2, self.projection_dim]
+        self.t_units = [self.projection_dim, self.projection_dim]
         self.t_layers = 8
         self.mlp_units = [2000, 2000]
         self.drop_rate = 0.1
@@ -124,9 +124,15 @@ class t1test:
 
         inputs = layers.Input(shape=self.imgsize)
         # Create patches.
-        patches = Patches(self.patch_size)(inputs)
-        # Encode patches.
-        encoded_patches = PatchEncoder(self.n_patches, self.projection_dim)(patches)
+        if self.n_patches > 1:
+        
+            patches = Patches(self.patch_size)(inputs)
+            # Encode patches.
+            encoded_patches = PatchEncoder(self.n_patches, self.projection_dim)(patches)
+        else:
+            patches = layers.Reshape((self.imgsize[0], self.imgsize[1],
+                self.imgsize[2], 1))(inputs)
+            encoded_patches = PatchEncoder(self.n_patches, self.projection_dim)(patches)
 
         # Create multiple layers of the Transformer block.
         for _ in range(self.t_layers):
@@ -139,6 +145,7 @@ class t1test:
             # Skip connection 1.
             x2 = layers.Add()([attention_output, encoded_patches])
             # Layer normalization 2.
+            #x2 = layers.Flatten()(x2)
             x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
             # MLP.
             x3 = mlp(x3, hidden_units=self.t_units, dropout_rate=0.1)
@@ -174,7 +181,7 @@ class t1test:
     def train(self, train_data, validation_data):
         self.change_restore(train_data, "c", "train")
         self.change_restore(validation_data, "c", "val")
-        self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data, verbose = 2)#self.verbosity)
+        self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data, verbose = 2, batch_size=12)#self.verbosity)
         if self.save_last:
             self.model.save_weights(self.save_dir + "/last_epoch.h5")
         if self.reload_best and self.savechecks:
