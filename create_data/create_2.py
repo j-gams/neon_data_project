@@ -197,7 +197,7 @@ if npseed_set:
 if minimode:
     imgsize = 4
     pad_img = 0
-    qprint("running in mini mode...")
+    qprint("running in mini mode...", 2)
 
 qprint("importing packages", 2)
 ### requirements
