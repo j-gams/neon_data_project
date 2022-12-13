@@ -303,20 +303,28 @@ if import_root != None:
     qprint("importing coordinate and field data", 2)
     for i in range(len(critical_fields)):
         for j in range(len(critical_fields[i])):
-            if os.path.exists(import_root + "/point_reformat/pt_" + str(i) +
-                                    "_" + critical_fields[i][j] + ".txt"):
-                if not old_toggle:
-                    os.system("cp " + import_root + "/point_reformat/pt_" + str(i) + "_" +
-                              critical_fields[i][j] + ".txt " + fs_loc + "/point_reformat/pt_" +
-                              str(i) + "_" + critical_fields[i][j] + ".txt")
-                else:
+            if old_toggle:
+                if os.path.exists(import_root + "/point_reformat/pt_" + critical_fields[i][j] + ".txt"):
                     os.system("cp " + import_root + "/point_reformat/pt_" +
                               critical_fields[i][j] + ".txt " + fs_loc + "/point_reformat/pt_" +
                               str(i) + "_" + critical_fields[i][j] + ".txt")
-                qprint("copied file " + "pt_" + str(i) + "_" + critical_fields[i][j] +
-                       ".txt from " + import_root, 2)
+                    qprint("copied file " + "pt_" + critical_fields[i][j] +
+                           ".txt from " + import_root, 2)
+                else:
+                    qprint("no such file: " + import_root + "/point_reformat/pt_" + critical_fields[i][j] + ".txt", 2)
             else:
-                qprint("no such file: " + import_root + "/point_reformat/pt_" + str(i) +
+                if os.path.exists(import_root + "/point_reformat/pt_" + str(i) +
+                                        "_" + critical_fields[i][j] + ".txt"):
+
+                    os.system("cp " + import_root + "/point_reformat/pt_" + str(i) + "_" +
+                                critical_fields[i][j] + ".txt " + fs_loc + "/point_reformat/pt_" +
+                                str(i) + "_" + critical_fields[i][j] + ".txt")
+
+
+                    qprint("copied file " + "pt_" + str(i) + "_" + critical_fields[i][j] +
+                        ".txt from " + import_root, 2)
+                else:
+                    qprint("no such file: " + import_root + "/point_reformat/pt_" + str(i) +
                                     "_" + critical_fields[i][j] + ".txt", 2)
 
 
