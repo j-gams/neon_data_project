@@ -51,6 +51,7 @@ h5chunksize = 1000
 npseed = None
 npseed_set = False
 import_root = None
+minimode = False
 verbosity = 2
 
 import sys
@@ -135,6 +136,9 @@ else:
             npseed_set = True
         elif sys.argv[i][:9] == "--imroot=":
             import_root = sys.argv[i][9:]
+        ### set mini mode
+        elif sys.argv[i][:9] == "--mini=":
+            minimode = sys.argv[i][7:]
         ### set the verbosity
         elif sys.argv[i][:4] == "--q=":
             verbosity = int(sys.argv[i][4:])
@@ -189,6 +193,11 @@ else:
     qprint("running in channel-third mode (hwc)", 2)
 if npseed_set:
     qprint("using ramdom seed: " + str(npseed), 2)
+
+if minimode:
+    imgsize = 4
+    pad_img = 0
+    qprint("running in mini mode...")
 
 qprint("importing packages", 2)
 ### requirements
@@ -579,6 +588,24 @@ def idx_pixctr(ix, iy, ulh, ulv, psh, psv, mode='ul'):
     cy = ulv - (iy * psv) + offsety
     return cx, cy
 
+def coverlap(i, j, yulh, yulv, ypxh, ypxv, xulh, xulv, xpxh, xpxv):
+    print(yulh, yulv, ypxh, ypxv)
+    ypxh /= 4
+    ypxv /= 4
+    yulh = yulh + i*ypxh
+    yulv = yulv - j*ypxv
+
+    ah = abs(yulh - xulh)
+    av = abs(yulv - xulv)
+    bh = min(ypxh - xpxh - ah, 0)
+    bv = min(ypxv - xpxv - av, 0)
+    sideh = xpxh - abs(bh)
+    sidev = xpxv - abs(bv)
+    xcover = 1 - ((bh * sidev) + (bv * sideh) + (bh * bv)/abs(xpxh * xpxv))
+    print(xcover)
+    return xcover
+
+
 ### helper to get euclidean distance between two coordinates
 def cdist(x1, y1, x2, y2):
     return (((x1 - x2) ** 2) + ((y1 - y2) ** 2))
@@ -669,21 +696,31 @@ if h5_mode:
     qprint("running in h5 mode!", 1)
     os.system("rm " + fs_loc + "/datasrc/x_h5.h5")
     h5_dataset = h5py.File(fs_loc + "/datasrc/x_h5.h5", "a")
-    if channel_first:
-        h5dset = h5_dataset.create_dataset("data", (h5chunksize, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)),
-                                           maxshape=(None, channels, imgsize+(2*pad_img), imgsize+(2*pad_img)),
-                                           chunks=(h5chunksize,channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
+    if not minimode:
+        if channel_first:
+            h5dset = h5_dataset.create_dataset("data", (h5chunksize, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)),
+                                               maxshape=(None, channels, imgsize+(2*pad_img), imgsize+(2*pad_img)),
+                                               chunks=(h5chunksize,channels, imgsize+(2*pad_img), imgsize+(2*pad_img)))
+        else:
+            h5dset = h5_dataset.create_dataset("data", (h5chunksize, imgsize+(2*pad_img), imgsize+(2*pad_img), channels),
+                                               maxshape=(None,imgsize+(2*pad_img), imgsize+(2*pad_img), channels),
+                                               chunks=(h5chunksize,imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
     else:
-        h5dset = h5_dataset.create_dataset("data", (h5chunksize, imgsize+(2*pad_img), imgsize+(2*pad_img), channels),
-                                           maxshape=(None,imgsize+(2*pad_img), imgsize+(2*pad_img), channels),
-                                           chunks=(h5chunksize,imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
+        h5_cdim = int((4 * 2) + (64//16))
+        h5dset = h5_dataset.create_dataset("data", (h5chunksize, imgsize, imgsize, h5_cdim),
+                                           maxshape=(None, imgsize, imgsize, h5_cdim),
+                                           chunks=(
+                                           h5chunksize, imgsize, imgsize, h5_cdim))
     h5len = 0
     h5tid = 0
     h5chunkid = 0
-    if channel_first:
-        h5_chunk = np.zeros((h5chunksize, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)))
+    if not minimode:
+        if channel_first:
+            h5_chunk = np.zeros((h5chunksize, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)))
+        else:
+            h5_chunk = np.zeros((h5chunksize, imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels))
     else:
-        h5_chunk = np.zeros((h5chunksize, imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels))
+        h5_chunk = np.zeros((h5chunksize, imgsize, imgsize, h5_cdim))
     h5_chunk.fill(-1)
 
 if testmode > 0:
@@ -741,6 +778,106 @@ for i in irange_default:
                 else:
                     x_img = np.zeros((imgsize+(2*pad_img), imgsize+(2*pad_img), channels))
             nlcd_count = 0
+
+            if minimode:
+                ###
+                for k in range(len(xr_npar)):
+                    for si in range(4):
+                        for sj in range(4):
+                            sxoffset = ((2 * si) + 1) / (2 * imgsize)
+                            syoffset = ((2 * sj) + 1) / (2 * imgsize)
+                            tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
+                                                      ypxv, mode='ul')
+                            tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
+                                                      xr_params[k][2], xr_params[k][3])
+                            h5_chunk[h5tid, si, sj, k*2] = xr_npar[k][tempi, tempj]
+                            ###overlap
+                            h5_chunk[h5tid, si, sj, k*2 + 1] = coverlap(si, sj, yulh, yulv, ypxh, ypxv, xr_params[k][0],
+                                                                        xr_params[k][1], xr_params[k][2], xr_params[k][3])
+                k_ids, rings = krings(i, j, 0)
+                mindist = 1000000
+                minpt = None
+                ### brute force find nearest neighbor for this pixel from subset
+                tempcx, tempcy = idx_pixctr(0.5, 0.5, yulh, yulv, ypxh, ypxv, mode='ul')
+                for pt_idx in k_ids:
+                    tdist = cdist(npcoords[pt_idx, 0], npcoords[pt_idx, 1], tempcx, tempcy)
+                    if tdist < mindist:
+                        mindist = tdist
+                        minpt = pt_idx
+                tptdata = []
+                for m in range(len(ptlayers)):
+                    tptdata.append(pgetter(m, minpt))
+                tptdata.append(minpt)
+                tptdata.append(mindist)
+                h5_chunk[h5tid, :, :, 4*2:] = np.array(tptdata).reshape((4, 4, -1))
+                avg_mid_dist=0
+                if (not extreme_warning and prescreen2) or not prescreen2:
+                    ### if we actually want to save this point as a .csv
+                    if not skip_save and (not h5_mode or (h5_mode and h5_scsv)):
+                        if channel_first:
+                            np.savetxt(fs_loc + "/datasrc/x_img/x_" + str(nsuccess) + ".csv",
+                                       x_img.reshape(x_img.shape[0], -1),
+                                       delimiter=",", newline="\n")
+                        else:
+                            np.savetxt(fs_loc + "/datasrc/x_img/x_" + str(nsuccess) + ".csv",
+                                       x_img.reshape(-1, x_img.shape[2]),
+                                       delimiter=",", newline="\n")
+
+                    ### if we want to save this point to the h5 database
+                    if not skip_save and h5_mode:
+                        h5tid += 1
+                        h5len += 1
+
+                        ### progress
+                        if h5tid % (h5chunksize // 10) == 0 and verbosity > 0:
+                            print("-", end="", flush=True)
+
+                        ### if we have completed an entire chunk, we need to copy over the data being
+                        ### temporarily stored in the numpy array to the h5 file
+                        if h5tid == h5chunksize:
+                            h5chunkid += 1
+                            qprint("> resizing h5 (" + str(h5chunkid) + ")", 2)
+
+                            ### resize h5 dataset
+                            h5dset.resize(h5len, axis=0)
+
+                            ### copy the data over from numpy array
+                            h5dset[h5len - h5chunksize:h5len, :, :, :] = np.array(h5_chunk[:, :, :, :])
+
+                            ### reset the chunk
+                            h5_chunk = np.zeros(h5_chunk.shape)
+                            h5_chunk.fill(-1)
+                            h5tid = 0
+
+                    ### if we actually want to save this datapoint, record y value / metadata
+                    if not skip_save:
+                        database.append(
+                            ["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j, avg_mid_dist])
+                    # qprint("success", 2)
+                    nsuccess += 1
+
+                if testmode > 0 and nsuccess > testmode:
+                    qprint("", 1)
+                    qprint("build summary: max ring size " + str(maxringsize), 1)
+                    qprint("build summary: avg ring size " + str(avgringsize // nsuccess), 1)
+                    qprint("saving ydata", 2)
+                    ### create a dataframe with the y data
+                    ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
+                    ### save the ydata
+                    ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
+                    qprint("ydata saved", 1)
+
+
+                    ### save h5set
+                    if h5_mode:
+                        ### need to make sure last chunk is copied over before saving the file
+                        qprint("saving last h5 chunk...", 2)
+                        h5dset.resize(h5len, axis=0)
+                        h5dset[h5len - h5tid:h5len, :, :, :] = h5_chunk[:h5tid, :, :, :]
+                        qprint("saving h5 dset...", 2)
+                        h5_dataset.close()
+
+                continue
 
             ### iterate through every x raster dataset
             for k in range(len(xr_npar)):
