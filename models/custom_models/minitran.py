@@ -115,72 +115,72 @@ class minitran:
             elif key == "drop_rate":
                 self.drop_rate = hparam_dict[key]
 
-            ### number of patches in the input -- (image size // patch size) ** 2
-            #self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
+        ### number of patches in the input -- (image size // patch size) ** 2
+        #self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
 
-            if self.dropmode == "keep":
-                self.keeplen = len(self.dropout)
-            elif self.dropmode == "drop":
-                self.keeplen = self.imgsize[2] - len(self.dropout)
-            else:
-                self.keeplen = self.imgsize[2]
-            self.imgsize = list(self.imgsize)
-            self.imgsize[2] = self.keeplen
-            self.imgsize = tuple(self.imgsize)
-            print("***IMGSIZE", self.imgsize)
-            self.metricset = ["mean_squared_error", "mean_absolute_error"]
-            if train_metric not in self.metricset:
-                self.tmetric = "mean_squared_error"
-            else:
-                self.tmetric = train_metric
+        if self.dropmode == "keep":
+            self.keeplen = len(self.dropout)
+        elif self.dropmode == "drop":
+            self.keeplen = self.imgsize[2] - len(self.dropout)
+        else:
+            self.keeplen = self.imgsize[2]
+        self.imgsize = list(self.imgsize)
+        self.imgsize[2] = self.keeplen
+        self.imgsize = tuple(self.imgsize)
+        print("***IMGSIZE", self.imgsize)
+        self.metricset = ["mean_squared_error", "mean_absolute_error"]
+        if train_metric not in self.metricset:
+            self.tmetric = "mean_squared_error"
+        else:
+            self.tmetric = train_metric
 
-            self.save_dir = save_dir
+        self.save_dir = save_dir
 
-            inputs = layers.Input(shape=[self.imgsize[2]])
+        inputs = layers.Input(shape=[self.imgsize[2]])
 
-            ### create transformer block layers
-            for _ in range(self.t_layers):
-                ### layer normalization (1)
-                x1 = layers.LayerNormalization(epsilon=1e-6)(inputs)
+        ### create transformer block layers
+        for _ in range(self.t_layers):
+            ### layer normalization (1)
+            x1 = layers.LayerNormalization(epsilon=1e-6)(inputs)
 
-                ### multi-head attention layer
-                attention_output = layers.MultiHeadAttention(num_heads=self.n_heads,
-                                                             key_dim=self.projection_dim,
-                                                             dropout=0.1)(x1, x1)
-                ### skip connection (1)
-                x2 = layers.Add()([attention_output, encoded_patches])
-                ### layer normalization (2)
-                x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
-                ### MLP layer
-                x3 = mlp(x3, hidden_units=self.t_units, dropout_rate=0.1)
-                ### skip connection (2)
-                encoded_patches = layers.Add()([x3, x2])
+            ### multi-head attention layer
+            attention_output = layers.MultiHeadAttention(num_heads=self.n_heads,
+                                                         key_dim=self.projection_dim,
+                                                         dropout=0.1)(x1, x1)
+            ### skip connection (1)
+            x2 = layers.Add()([attention_output, encoded_patches])
+            ### layer normalization (2)
+            x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
+            ### MLP layer
+            x3 = mlp(x3, hidden_units=self.t_units, dropout_rate=0.1)
+            ### skip connection (2)
+            encoded_patches = layers.Add()([x3, x2])
 
-            ### create a (batch size, proj dim) tensor
-            representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
-            representation = layers.Flatten()(representation)
-            representation = layers.Dropout(0.5)(representation)
-            ### append the MLP
-            features = mlp(representation, hidden_units=self.mlp_units, dropout_rate=0.5)
-            ### create regression outputs
-            out_ = layers.Dense(1)(features)
-            ### bundle everything together in a Keras model
-            self.model = keras.Model(inputs=inputs, outputs=out_)
+        ### create a (batch size, proj dim) tensor
+        representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
+        representation = layers.Flatten()(representation)
+        representation = layers.Dropout(0.5)(representation)
+        ### append the MLP
+        features = mlp(representation, hidden_units=self.mlp_units, dropout_rate=0.5)
+        ### create regression outputs
+        out_ = layers.Dense(1)(features)
+        ### bundle everything together in a Keras model
+        self.model = keras.Model(inputs=inputs, outputs=out_)
 
-            print(self.model.summary())
-            self.model.compile(loss=self.tmetric, metrics=self.metricset,
-                               optimizer=keras.optimizers.Adam(learning_rate=0.0001),
-                               )
-            self.callbacks = []
-            if self.savechecks:
-                callback = ModelCheckpoint(self.save_dir + "/checkpoint.h5",
-                                           monitor="val_mean_squared_error",
-                                           verbose=2,
-                                           mode="min",
-                                           save_best_only=True,
-                                           save_freq="epoch",
-                                           save_weights_only=True)
-                self.callbacks.append(callback)
+        print(self.model.summary())
+        self.model.compile(loss=self.tmetric, metrics=self.metricset,
+                           optimizer=keras.optimizers.Adam(learning_rate=0.0001),
+                           )
+        self.callbacks = []
+        if self.savechecks:
+            callback = ModelCheckpoint(self.save_dir + "/checkpoint.h5",
+                                       monitor="val_mean_squared_error",
+                                       verbose=2,
+                                       mode="min",
+                                       save_best_only=True,
+                                       save_freq="epoch",
+                                       save_weights_only=True)
+            self.callbacks.append(callback)
 
     def dtransform(self, data):
         if self.avg_channel:
