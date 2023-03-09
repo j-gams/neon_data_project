@@ -50,49 +50,49 @@ class mlp:
             elif key == "arch":
                 self.archdicts = hparam_dict[key]
 
-            ### number of patches in the input -- (image size // patch size) ** 2
-            self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
+        ### number of patches in the input -- (image size // patch size) ** 2
+        self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
 
-            if self.dropmode == "keep":
-                self.keeplen = len(self.dropout)
-            elif self.dropmode == "drop":
-                self.keeplen = self.imgsize[2] - len(self.dropout)
-            else:
-                self.keeplen = self.imgsize[2]
-            self.imgsize = list(self.imgsize)
-            self.imgsize[2] = self.keeplen
-            self.imgsize = tuple(self.imgsize)
-            print("***IMGSIZE", self.imgsize)
-            self.metricset = ["mean_squared_error", "mean_absolute_error"]
-            if train_metric not in self.metricset:
-                self.tmetric = "mean_squared_error"
-            else:
-                self.tmetric = train_metric
+        if self.dropmode == "keep":
+            self.keeplen = len(self.dropout)
+        elif self.dropmode == "drop":
+            self.keeplen = self.imgsize[2] - len(self.dropout)
+        else:
+            self.keeplen = self.imgsize[2]
+        self.imgsize = list(self.imgsize)
+        self.imgsize[2] = self.keeplen
+        self.imgsize = tuple(self.imgsize)
+        print("***IMGSIZE", self.imgsize)
+        self.metricset = ["mean_squared_error", "mean_absolute_error"]
+        if train_metric not in self.metricset:
+            self.tmetric = "mean_squared_error"
+        else:
+            self.tmetric = train_metric
 
-            self.save_dir = save_dir
+        self.save_dir = save_dir
 
-            x = layers.Input(shape=[self.imgsize[2]])
-            for layerdict in self.archdicts:
-                x = self.convert_dict_layer(x, layerdict[0], layerdict[1])
+        x = layers.Input(shape=[self.imgsize[2]])
+        for layerdict in self.archdicts:
+            x = self.convert_dict_layer(x, layerdict[0], layerdict[1])
 
-            out_ = keras.Dense(1)(x)
+        out_ = keras.Dense(1)(x)
 
-            self.model = keras.Model(inputs=inputs, outputs=out_)
+        self.model = keras.Model(inputs=inputs, outputs=out_)
 
-            print(self.model.summary())
-            self.model.compile(loss=self.tmetric, metrics=self.metricset,
-                               optimizer=keras.optimizers.Adam(learning_rate=0.0001),
-                               )
-            self.callbacks = []
-            if self.savechecks:
-                callback = ModelCheckpoint(self.save_dir + "/checkpoint.h5",
-                                           monitor="val_mean_squared_error",
-                                           verbose=2,
-                                           mode="min",
-                                           save_best_only=True,
-                                           save_freq="epoch",
-                                           save_weights_only=True)
-                self.callbacks.append(callback)
+        print(self.model.summary())
+        self.model.compile(loss=self.tmetric, metrics=self.metricset,
+                           optimizer=keras.optimizers.Adam(learning_rate=0.0001),
+                           )
+        self.callbacks = []
+        if self.savechecks:
+            callback = ModelCheckpoint(self.save_dir + "/checkpoint.h5",
+                                       monitor="val_mean_squared_error",
+                                       verbose=2,
+                                       mode="min",
+                                       save_best_only=True,
+                                       save_freq="epoch",
+                                       save_weights_only=True)
+            self.callbacks.append(callback)
 
     def convert_dict_layer(self, x_in, lname, params_list):
         if lname == "batchnorm":
