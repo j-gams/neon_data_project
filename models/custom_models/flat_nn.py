@@ -51,7 +51,7 @@ class mlp:
                 self.archdicts = hparam_dict[key]
 
         ### number of patches in the input -- (image size // patch size) ** 2
-        self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
+        #self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
 
         if self.dropmode == "keep":
             self.keeplen = len(self.dropout)
@@ -96,11 +96,11 @@ class mlp:
 
     def convert_dict_layer(self, x_in, lname, params_list):
         if lname == "batchnorm":
-            return keras.BatchNormalization()(x_in)
+            return keras.layers.BatchNormalization()(x_in)
         elif lname == "dense":
-            return keras.Dense(params_list[0], activation=params_list[1])(x_in)
+            return keras.layers.Dense(params_list[0], activation=params_list[1])(x_in)
         elif lname == "dropout":
-            return keras.Dropout(params_list[0])
+            return keras.layers.Dropout(params_list[0])
 
     def dtransform(self, data):
         if self.avg_channel:
