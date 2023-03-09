@@ -180,7 +180,7 @@ class multran:
                                                  self.t_layers, self.n_heads, self.t_units))
 
         representation = tf.concat(blocks_outs, 1)
-
+        representation = layers.Flatten()(representation)
         ### append the MLP
         features = mlp(representation, hidden_units=self.mlp_units, dropout_rate=0.5)
         ### create regression outputs
