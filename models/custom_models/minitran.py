@@ -45,6 +45,22 @@ class PatchEncoder(layers.Layer):
         encoded = self.projection(patch) + self.position_embedding(positions)
         return encoded
 
+def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
+    # Normalization and Attention
+    x = layers.LayerNormalization(epsilon=1e-6)(inputs)
+    x = layers.MultiHeadAttention(
+        key_dim=head_size, num_heads=num_heads, dropout=dropout
+    )(x, x)
+    x = layers.Dropout(dropout)(x)
+    res = x + inputs
+
+    # Feed Forward Part
+    x = layers.LayerNormalization(epsilon=1e-6)(res)
+    x = layers.Conv1D(filters=ff_dim, kernel_size=1, activation="relu")(x)
+    x = layers.Dropout(dropout)(x)
+    x = layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(x)
+    return x + res
+
 class minitran:
 
     def __init__(self, hparam_dict, save_dir):
@@ -137,9 +153,9 @@ class minitran:
         self.save_dir = save_dir
 
         inputs = layers.Input(shape=[self.imgsize[2]])
-        encoded_patches = PatchEncoder(1, self.projection_dim)(inputs)
+        #encoded_patches = PatchEncoder(1, self.projection_dim)(inputs)
         ### create transformer block layers
-        for _ in range(self.t_layers):
+        """ for _ in range(self.t_layers):
             ### layer normalization (1)
             x1 = layers.LayerNormalization(epsilon=1e-6)(inputs)
 
@@ -154,7 +170,11 @@ class minitran:
             ### MLP layer
             x3 = mlp(x3, hidden_units=self.t_units, dropout_rate=0.1)
             ### skip connection (2)
-            encoded_patches = layers.Add()([x3, x2])
+            encoded_patches = layers.Add()([x3, x2])"""
+
+        encoded_patches = transformer_encoder(inputs, self.head_size, self.n_heads,
+                                              self.projecion_dim,
+                                              dropout=self.drop_rate)
 
         ### create a (batch size, proj dim) tensor
         representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
