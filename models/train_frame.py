@@ -244,7 +244,7 @@ for mdl_str in load_list:
                               "dropout": {"mode": "drop", "channels": [66, 67]},
                               "avg_channel": True,
                               "noise": 0.001,
-                              "patch_size": [3, 4, 5],
+                              "patch_size": 4,
                               "heads": 6,
                               "projection_dim": 36,
                               "transformer_unit": [36, 36],
