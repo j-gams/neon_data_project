@@ -248,7 +248,7 @@ for mdl_str in load_list:
                               "heads": 6,
                               "projection_dim": 36,
                               "transformer_unit": [36, 36],
-                              "transformer_layers": 6,
+                              "transformer_layers": 3,
                               "mlp_unit": [400, 400],
                               "drop_rate": 0.1})
         save_names.append("channel_avg_transformer1")

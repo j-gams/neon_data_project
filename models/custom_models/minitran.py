@@ -172,8 +172,8 @@ class minitran:
             ### skip connection (2)
             encoded_patches = layers.Add()([x3, x2])"""
 
-        encoded_patches = transformer_encoder(inputs, self.head_size, self.n_heads,
-                                              self.projecion_dim,
+        encoded_patches = transformer_encoder(inputs, self.projection_dim, self.n_heads,
+                                              self.t_layers,
                                               dropout=self.drop_rate)
 
         ### create a (batch size, proj dim) tensor
