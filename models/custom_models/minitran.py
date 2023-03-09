@@ -116,7 +116,7 @@ class minitran:
                 self.drop_rate = hparam_dict[key]
 
             ### number of patches in the input -- (image size // patch size) ** 2
-            self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
+            #self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
 
             if self.dropmode == "keep":
                 self.keeplen = len(self.dropout)
