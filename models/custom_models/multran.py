@@ -134,7 +134,6 @@ class multran:
                 self.verbosity = hparam_dict[key]
             elif key == "patch_size":
                 self.patch_size = hparam_dict[key]
-                self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
             elif key == "heads":
                 self.n_heads = hparam_dict[key]
             elif key == "projection_dim":
