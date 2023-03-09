@@ -20,7 +20,7 @@ def mlp(x, hidden_units, dropout_rate):
 
 class Patches(layers.Layer):
     def __init__(self, patch_size):
-        super(Patches, self).__init__()
+        super().__init__()
         self.patch_size = patch_size
 
     def call(self, images):
@@ -111,7 +111,7 @@ class t1test:
                 self.t_units = hparam_dict[key]
             elif key == "transformer_layers":
                 self.t_layers = hparam_dict[key]
-            elif key == "mlp_units":
+            elif key == "mlp_unit":
                 self.mlp_units = hparam_dict[key]
             elif key == "drop_rate":
                 self.drop_rate = hparam_dict[key]
