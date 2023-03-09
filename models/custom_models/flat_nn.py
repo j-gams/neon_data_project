@@ -104,7 +104,7 @@ class mlp:
 
     def dtransform(self, data):
         if self.avg_channel:
-            if self.transformer == "mean_itr":
+            if True:
                 return self.mean_itr(data, nchannels=self.keeplen)
         else:
             return data
