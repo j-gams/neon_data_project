@@ -6,17 +6,46 @@ from tensorflow.keras import layers
 
 import numpy as np
 from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Input, Conv2D, BatchNormalization, AveragePooling2D, MaxPooling2D, Flatten
-from tensorflow.keras.initializers import RandomUniform
-from tensorflow.keras.optimizers import Adam
-from custom_models import nnblocks
 
 def mlp(x, hidden_units, dropout_rate):
     for units in hidden_units:
         x = layers.Dense(units, activation=tf.nn.gelu)(x)
         x = layers.Dropout(dropout_rate)(x)
     return x
+
+def transformer_block(input_layer, imgsize, n_patches, patch_size, projection_dim, t_layers, n_heads, t_units):
+    ### create patches
+    if n_patches > 1:
+        patches = Patches(patch_size)(input_layer)
+    else:
+        patches = layers.Reshape((imgsize[0], imgsize[1], imgsize[2], 1))(input_layer)
+
+    ### encode patches
+    encoded_patches = PatchEncoder(n_patches, projection_dim)(patches)
+
+    ### create transformer block layers
+    for _ in range(t_layers):
+        ### layer normalization (1)
+        x1 = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
+
+        ### multi-head attention layer
+        attention_output = layers.MultiHeadAttention(num_heads=n_heads,
+                                                     key_dim=projection_dim,
+                                                     dropout=0.1)(x1, x1)
+        ### skip connection (1)
+        x2 = layers.Add()([attention_output, encoded_patches])
+        ### layer normalization (2)
+        x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
+        ### MLP layer
+        x3 = mlp(x3, hidden_units=t_units, dropout_rate=0.1)
+        ### skip connection (2)
+        encoded_patches = layers.Add()([x3, x2])
+
+    representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
+    representation = layers.Flatten()(representation)
+    representation = layers.Dropout(0.5)(representation)
+
+    return representation
 
 class Patches(layers.Layer):
     def __init__(self, patch_size):
@@ -48,7 +77,7 @@ class PatchEncoder(layers.Layer):
     def call(self, patch):
         #print(type(patch))
         positions = tf.range(start=0, limit=self.num_patches, delta=1)
-        encoded = self.projection(patch) + self.position_embedding(positions)
+        encoded = self.projection(int(patch)) + self.position_embedding(int(positions))
         return encoded
 
 class t1test:
@@ -143,37 +172,8 @@ class t1test:
         ### input layer
         inputs = layers.Input(shape=self.imgsize)
 
-        ### create patches
-        if self.n_patches > 1:
-            patches = Patches(self.patch_size)(inputs)
-        else:
-            patches = layers.Reshape((self.imgsize[0], self.imgsize[1], self.imgsize[2], 1))(inputs)
 
-        ### encode patches
-        encoded_patches = PatchEncoder(self.n_patches, self.projection_dim)(patches)
 
-        ### create transformer block layers
-        for _ in range(self.t_layers):
-            ### layer normalization (1)
-            x1 = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
-
-            ### multi-head attention layer
-            attention_output = layers.MultiHeadAttention(num_heads=self.n_heads,
-                                                         key_dim=self.projection_dim,
-                                                         dropout=0.1)(x1, x1)
-            ### skip connection (1)
-            x2 = layers.Add()([attention_output, encoded_patches])
-            ### layer normalization (2)
-            x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
-            ### MLP layer
-            x3 = mlp(x3, hidden_units=self.t_units, dropout_rate=0.1)
-            ### skip connection (2)
-            encoded_patches = layers.Add()([x3, x2])
-
-        ### create a (batch size, proj dim) tensor
-        representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
-        representation = layers.Flatten()(representation)
-        representation = layers.Dropout(0.5)(representation)
         ### append the MLP
         features = mlp(representation, hidden_units=self.mlp_units, dropout_rate=0.5)
         ### create regression outputs
@@ -195,55 +195,3 @@ class t1test:
                     save_freq="epoch",
                     save_weights_only = True)
             self.callbacks.append(callback)
-
-    def train(self, train_data, validation_data):
-        self.change_restore(train_data, "c", "train")
-        self.change_restore(validation_data, "c", "val")
-        self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data, verbose = 2, batch_size=12)#self.verbosity)
-        if self.save_last:
-            self.model.save_weights(self.save_dir + "/last_epoch.h5")
-        if self.reload_best and self.savechecks:
-            self.model.load_weights(self.save_dir + "/checkpoint.h5")
-        self.change_restore(train_data, "r", "train")
-        self.change_restore(validation_data, "r", "val")
-
-    def predict(self, x_predict, typein="simg"):
-        #print(type(x_predict))
-        self.change_restore(x_predict, "c", "predict")
-        if typein == "simg":
-            dumb_out = []
-            #og_ret = x_predict.return_format
-            #x_predict.set_return("x")
-            for i in range(len(x_predict)):
-                dumb_out.append(self.model(x_predict[i][0]))
-            ret_y = np.array(dumb_out).reshape(-1).flatten()
-            #self.model(x_predict)
-            #x_predict.set_return(og_ret)
-        self.change_restore(x_predict, "r", "predict")
-        return ret_y
-
-    def change_restore(self, data, c_r, name):
-        if c_r == "c":
-            self.crdict[name] = [data.flat_mode,
-                                 data.keep_ids,
-                                 data.drop_channels]
-            #data.set_return("x")
-            data.set_flatten(False)
-            if self.dropmode == "keep":
-                data.set_keeps(self.dropout)
-                data.set_drops(data.keeps_to_drops())
-            elif self.dropmode == "drop":
-                data.set_drops(self.dropout)
-                keepsl = []
-                for i in range(data.nchannels):
-                    if i not in self.dropout:
-                        keepsl.append(i)
-                data.set_keeps(keepsl)
-            else:
-                data.set_drops([])
-                data.set_keeps(data.drops_to_keeps())
-        else:
-           #data.set_return(self.crdict[name][0])
-           data.set_flatten(self.crdict[name][0])
-           data.set_keeps(self.crdict[name][1])
-           data.set_drops(self.crdict[name][2])
