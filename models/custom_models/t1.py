@@ -67,7 +67,7 @@ class t1test:
         self.n_heads = 8
         ### p
         self.projection_dim = 64
-        unit_ratio = [self.projection_dim*2, self.projection_dim]
+        self.t_units = [self.projection_dim*2, self.projection_dim]
         self.t_layers = 8
         self.mlp_units = [800, 800]
         self.drop_rate = 0.1
@@ -108,7 +108,7 @@ class t1test:
             elif key == "projection_dim":
                 self.projection_dim = hparam_dict[key]
             elif key == "transformer_unit":
-                self.t_unit = hparam_dict[key]
+                self.t_units = hparam_dict[key]
             elif key == "transformer_layers":
                 self.t_layers = hparam_dict[key]
             elif key == "mlp_units":
