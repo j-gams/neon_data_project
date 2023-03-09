@@ -70,12 +70,12 @@ class mlp:
             self.tmetric = train_metric
 
         self.save_dir = save_dir
-
-        x = layers.Input(shape=[self.imgsize[2]])
+        inputs = layers.Input(shape=[self.imgsize[2]])
+        x = inputs
         for layerdict in self.archdicts:
             x = self.convert_dict_layer(x, layerdict[0], layerdict[1])
 
-        out_ = keras.Dense(1)(x)
+        out_ = keras.layers.Dense(1)(x)
 
         self.model = keras.Model(inputs=inputs, outputs=out_)
 
