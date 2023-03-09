@@ -22,6 +22,9 @@ from custom_models import gradientboosting_regress
 from custom_models import cnn_basic
 from custom_models import cnn_blocks
 from custom_models import t1
+from custom_models import multran
+from custom_models import minitran
+from custom_models import flat_nn
 sys.path.insert(0, '../create_data')
 
 from dat_obj import datacube_loader
@@ -195,7 +198,7 @@ for mdl_str in load_list:
                               "input_size": dataset.test.dims,
                               "save_checkpoints": True,
                               "train_metric": "mean_squared_error",
-                              "epochs": 10,
+                              "epochs": 100,
                               "use_best": True,
                               "save_last_epoch": True,
                               "dropout": {"mode": "drop", "channels": [66, 67]},
@@ -208,6 +211,75 @@ for mdl_str in load_list:
                               "mlp_unit": [400, 400],
                               "drop_rate": 0.1})
         save_names.append("transformer1")
+    elif mdl_str == "multran":
+        models.append(multran.multran)
+        model_hparams.append({"model_name": "parallel_transformer",
+                              "save_location": "placeholder",
+                              "input_size": dataset.test.dims,
+                              "save_checkpoints": True,
+                              "train_metric": "mean_squared_error",
+                              "epochs": 10,
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "dropout": {"mode": "drop", "channels": [66, 67]},
+                              "noise": 0.001,
+                              "patch_size": [3, 4, 5],
+                              "heads": 6,
+                              "projection_dim": 36,
+                              "transformer_unit": [36, 36],
+                              "transformer_layers": 6,
+                              "mlp_unit": [400, 400],
+                              "drop_rate": 0.1})
+        save_names.append("parallel_attn_transformer1")
+    elif mdl_str == "minitran":
+        models.append(minitran.minitran)
+        model_hparams.append({"model_name": "channel_avg_transformer",
+                              "save_location": "placeholder",
+                              "input_size": dataset.test.dims,
+                              "save_checkpoints": True,
+                              "train_metric": "mean_squared_error",
+                              "epochs": 10,
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "dropout": {"mode": "drop", "channels": [66, 67]},
+                              "avg_channel": True,
+                              "noise": 0.001,
+                              "patch_size": [3, 4, 5],
+                              "heads": 6,
+                              "projection_dim": 36,
+                              "transformer_unit": [36, 36],
+                              "transformer_layers": 6,
+                              "mlp_unit": [400, 400],
+                              "drop_rate": 0.1})
+        save_names.append("channel_avg_transformer1")
+    elif mdl_str == "flatnn":
+        models.append(flat_nn.mlp)
+        model_hparams.append({"model_name": "flat_nn",
+                              "save_location": "placeholder",
+                              "input_size": dataset.test.dims,
+                              "save_checkpoints": True,
+                              "train_metric": "mean_squared_error",
+                              "epochs": 150,
+                              "use_best": True,
+                              "save_last_epoch": True,
+                              "dropout": {"mode": "drop", "channels": [66, 67]},
+                              "arch": [["batchnorm", None],
+                                       ["dense", [720, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [800, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [800, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [720, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [500, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [500, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [20, 'relu', None]],
+                                       ["batchnorm", None],
+                                       ["dense", [1, 'relu', None]]]})
+        save_names.append("flat_nn")
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)
         model_hparams.append({"model_name": "basic_regressor_1",

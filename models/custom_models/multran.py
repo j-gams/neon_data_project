@@ -80,7 +80,7 @@ class PatchEncoder(layers.Layer):
         encoded = self.projection(int(patch)) + self.position_embedding(int(positions))
         return encoded
 
-class t1test:
+class multran:
 
     def __init__(self, hparam_dict, save_dir):
         init_count = 0
@@ -148,8 +148,11 @@ class t1test:
             elif key == "drop_rate":
                 self.drop_rate = hparam_dict[key]
 
+
         ### number of patches in the input -- (image size // patch size) ** 2
-        self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
+        self.n_patches = []
+        for i in range(len(self.patch_size)):
+            self.n_patches.append(int((self.imgsize[0] / self.patch_size[i]) ** 2))
 
         if self.dropmode == "keep":
             self.keeplen = len(self.dropout)
@@ -171,8 +174,13 @@ class t1test:
 
         ### input layer
         inputs = layers.Input(shape=self.imgsize)
+        blocks_outs = []
+        for i in range(len(self.patch_size)):
+            blocks_outs.append(transformer_block(inputs, self.imgsize, self.n_patches[i],
+                                                 self.patch_size[i], self.projection_dim,
+                                                 self.t_layers, self.n_heads, self.t_units))
 
-
+        representation = tf.concat(blocks_outs, 0)
 
         ### append the MLP
         features = mlp(representation, hidden_units=self.mlp_units, dropout_rate=0.5)
@@ -195,3 +203,55 @@ class t1test:
                     save_freq="epoch",
                     save_weights_only = True)
             self.callbacks.append(callback)
+
+    def train(self, train_data, validation_data):
+        self.change_restore(train_data, "c", "train")
+        self.change_restore(validation_data, "c", "val")
+        self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data, verbose = 2, batch_size=12)#self.verbosity)
+        if self.save_last:
+            self.model.save_weights(self.save_dir + "/last_epoch.h5")
+        if self.reload_best and self.savechecks:
+            self.model.load_weights(self.save_dir + "/checkpoint.h5")
+        self.change_restore(train_data, "r", "train")
+        self.change_restore(validation_data, "r", "val")
+
+    def predict(self, x_predict, typein="simg"):
+        #print(type(x_predict))
+        self.change_restore(x_predict, "c", "predict")
+        if typein == "simg":
+            dumb_out = []
+            #og_ret = x_predict.return_format
+            #x_predict.set_return("x")
+            for i in range(len(x_predict)):
+                dumb_out.append(self.model(x_predict[i][0]))
+            ret_y = np.array(dumb_out).reshape(-1).flatten()
+            #self.model(x_predict)
+            #x_predict.set_return(og_ret)
+        self.change_restore(x_predict, "r", "predict")
+        return ret_y
+
+    def change_restore(self, data, c_r, name):
+        if c_r == "c":
+            self.crdict[name] = [data.flat_mode,
+                                 data.keep_ids,
+                                 data.drop_channels]
+            #data.set_return("x")
+            data.set_flatten(False)
+            if self.dropmode == "keep":
+                data.set_keeps(self.dropout)
+                data.set_drops(data.keeps_to_drops())
+            elif self.dropmode == "drop":
+                data.set_drops(self.dropout)
+                keepsl = []
+                for i in range(data.nchannels):
+                    if i not in self.dropout:
+                        keepsl.append(i)
+                data.set_keeps(keepsl)
+            else:
+                data.set_drops([])
+                data.set_keeps(data.drops_to_keeps())
+        else:
+           #data.set_return(self.crdict[name][0])
+           data.set_flatten(self.crdict[name][0])
+           data.set_keeps(self.crdict[name][1])
+           data.set_drops(self.crdict[name][2])
