@@ -179,7 +179,7 @@ class multran:
                                                  self.patch_size[i], self.projection_dim,
                                                  self.t_layers, self.n_heads, self.t_units))
 
-        representation = tf.concat(blocks_outs, 0)
+        representation = tf.concat(blocks_outs, 1)
 
         ### append the MLP
         features = mlp(representation, hidden_units=self.mlp_units, dropout_rate=0.5)
