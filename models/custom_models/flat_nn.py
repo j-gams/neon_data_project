@@ -166,7 +166,8 @@ class mlp:
     def train(self, train_data, validation_data):
         self.drop_set(train_data.nchannels)
         npx, npy = self.aggregate(train_data)
-        self.model.fit(train_data, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=validation_data,
+        npxv, npyv = self.aggregate(validation_data)
+        self.model.fit(npx, npy, callbacks=self.callbacks, epochs=self.n_epochs, validation_data=(npxv, npyv),
                        verbose=2, batch_size=12)  # self.verbosity)
         if self.save_last:
             self.model.save_weights(self.save_dir + "/last_epoch.h5")
