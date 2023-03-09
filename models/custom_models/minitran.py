@@ -137,7 +137,7 @@ class minitran:
         self.save_dir = save_dir
 
         inputs = layers.Input(shape=[self.imgsize[2]])
-
+        encoded_patches = PatchEncoder(1, self.projection_dim)(inputs)
         ### create transformer block layers
         for _ in range(self.t_layers):
             ### layer normalization (1)
