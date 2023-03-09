@@ -40,6 +40,9 @@ if sys.argv[1] == "1":
 elif sys.argv[1] == "2":
     dataset = "data_h51"
     folding = "fold_2"
+elif sys.argv[1] == "3":
+    dataset = "data_minimode1"
+    folding = "fold_1"
 else:
     dataset = "data_interpolated"
     folding = "test_fold"
@@ -196,7 +199,14 @@ for mdl_str in load_list:
                               "use_best": True,
                               "save_last_epoch": True,
                               "dropout": {"mode": "drop", "channels": [66, 67]},
-                              "noise": 0.001})
+                              "noise": 0.001,
+                              "patch_size": 16,
+                              "heads": 8,
+                              "projection_dim": 64,
+                              "transformer_units": [128, 64],
+                              "transformer_layers": 8,
+                              "mlp_units": [800, 800],
+                              "drop_rate": 0.1})
         save_names.append("transformer1")
     elif mdl_str == "test_regress":
         models.append(regressor_test.test_regress)

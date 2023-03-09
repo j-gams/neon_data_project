@@ -59,6 +59,21 @@ class t1test:
         self.reload_best = True
         self.save_last = True
 
+        ### transformer-specific parameters
+        ### DEFAULT
+        ### patch_size -- size of patches to extract from the input
+        self.patch_size = 16
+        ### number of patches in the input -- (image size // patch size) ** 2
+        self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
+        ### number of attention heads
+        self.n_heads = 8
+        ### p
+        self.projection_dim = 64
+        unit_ratio = [self.projection_dim*2, self.projection_dim]
+        self.t_layers = 8
+        self.mlp_units = [800, 800]
+        self.drop_rate = 0.1
+
         self.crdict = dict()
         self.dropmode = "none"
         self.dropout = []
@@ -87,14 +102,21 @@ class t1test:
                 self.save_last = hparam_dict[key]
             elif key == "verbosity":
                 self.verbosity = hparam_dict[key]
-        self.patch_size = 16
-        self.n_patches = int((16/self.patch_size) ** 2)
-        self.n_heads = 64
-        self.projection_dim = 64
-        self.t_units = [self.projection_dim, self.projection_dim]
-        self.t_layers = 8
-        self.mlp_units = [2000, 2000]
-        self.drop_rate = 0.1
+            elif key == "patch_size":
+                self.patch_size = hparam_dict[key]
+                self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
+            elif key == "heads":
+                self.n_heads = hparam_dict[key]
+            elif key == "projection_dim":
+                self.projection_dim = hparam_dict[key]
+            elif key == "transformer_unit":
+                self.t_unit = hparam_dict[key]
+            elif key == "transformer_layers":
+                self.t_layers = hparam_dict[key]
+            elif key == "mlp_units":
+                self.mlp_units = hparam_dict[key]
+            elif key == "drop_rate":
+                self.drop_rate = hparam_dict[key]
 
         if self.dropmode == "keep":
             self.keeplen = len(self.dropout)
@@ -114,53 +136,45 @@ class t1test:
 
         self.save_dir = save_dir
 
-        """self.model = keras.models.Sequential([keras.layers.Dense(self.t_units[0],
-                                                                 activation=tf.nn.gelu),
-                                              keras.layers.Dropout(self.droput_rate),
-                                              keras.layers.Dense(self.t_units[0],
-                                                                 activation=tf.nn.gelu),
-                                              keras.layers.Dropout(self.droput_rate)
-                                              ])"""
-
+        ### input layer
         inputs = layers.Input(shape=self.imgsize)
-        # Create patches.
-        if self.n_patches > 1:
-        
-            patches = Patches(self.patch_size)(inputs)
-            # Encode patches.
-            encoded_patches = PatchEncoder(self.n_patches, self.projection_dim)(patches)
-        else:
-            patches = layers.Reshape((self.imgsize[0], self.imgsize[1],
-                self.imgsize[2], 1))(inputs)
-            encoded_patches = PatchEncoder(self.n_patches, self.projection_dim)(patches)
 
-        # Create multiple layers of the Transformer block.
+        ### create patches
+        if self.n_patches > 1:
+            patches = Patches(self.patch_size)(inputs)
+        else:
+            patches = layers.Reshape((self.imgsize[0], self.imgsize[1], self.imgsize[2], 1))(inputs)
+
+        ### encode patches
+        encoded_patches = PatchEncoder(self.n_patches, self.projection_dim)(patches)
+
+        ### create transformer block layers
         for _ in range(self.t_layers):
-            # Layer normalization 1.
+            ### layer normalization (1)
             x1 = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
-            # Create a multi-head attention layer.
-            attention_output = layers.MultiHeadAttention(
-                num_heads=self.n_heads, key_dim=self.projection_dim, dropout=0.1
-            )(x1, x1)
-            # Skip connection 1.
+
+            ### multi-head attention layer
+            attention_output = layers.MultiHeadAttention(num_heads=self.n_heads,
+                                                         key_dim=self.projection_dim,
+                                                         dropout=0.1)(x1, x1)
+            ### skip connection (1)
             x2 = layers.Add()([attention_output, encoded_patches])
-            # Layer normalization 2.
-            #x2 = layers.Flatten()(x2)
+            ### layer normalization (2)
             x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
-            # MLP.
+            ### MLP layer
             x3 = mlp(x3, hidden_units=self.t_units, dropout_rate=0.1)
-            # Skip connection 2.
+            ### skip connection (2)
             encoded_patches = layers.Add()([x3, x2])
 
-        # Create a [batch_size, projection_dim] tensor.
+        ### create a (batch size, proj dim) tensor
         representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
         representation = layers.Flatten()(representation)
         representation = layers.Dropout(0.5)(representation)
-        # Add MLP.
+        ### append the MLP
         features = mlp(representation, hidden_units=self.mlp_units, dropout_rate=0.5)
-        # Classify outputs.
+        ### create regression outputs
         out_ = layers.Dense(1)(features)
-        # Create the Keras model.
+        ### bundle everything together in a Keras model
         self.model = keras.Model(inputs=inputs, outputs=out_)
 
         print(self.model.summary())
