@@ -63,8 +63,6 @@ class t1test:
         ### DEFAULT
         ### patch_size -- size of patches to extract from the input
         self.patch_size = 16
-        ### number of patches in the input -- (image size // patch size) ** 2
-        self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
         ### number of attention heads
         self.n_heads = 8
         ### p
@@ -117,6 +115,9 @@ class t1test:
                 self.mlp_units = hparam_dict[key]
             elif key == "drop_rate":
                 self.drop_rate = hparam_dict[key]
+
+        ### number of patches in the input -- (image size // patch size) ** 2
+        self.n_patches = int((self.imgsize[0] / self.patch_size) ** 2)
 
         if self.dropmode == "keep":
             self.keeplen = len(self.dropout)
