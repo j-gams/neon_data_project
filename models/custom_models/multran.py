@@ -179,10 +179,10 @@ class multran:
                                                  self.patch_size[i], self.projection_dim,
                                                  self.t_layers, self.n_heads, self.t_units))
 
-        representation = tf.concat(blocks_outs, 1)
-        representation = layers.Flatten()(representation)
+        representation1 = tf.concat(blocks_outs, 1)
+        #representation1 = layers.Flatten()(representation1)
         ### append the MLP
-        features = mlp(representation, hidden_units=self.mlp_units, dropout_rate=0.5)
+        features = mlp(representation1, hidden_units=self.mlp_units, dropout_rate=0.5)
         ### create regression outputs
         out_ = layers.Dense(1)(features)
         ### bundle everything together in a Keras model

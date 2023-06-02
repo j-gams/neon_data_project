@@ -81,7 +81,7 @@ class mlp:
 
         print(self.model.summary())
         self.model.compile(loss=self.tmetric, metrics=self.metricset,
-                           optimizer=keras.optimizers.Adam(learning_rate=0.0001),
+                           optimizer=keras.optimizers.Adam(learning_rate=0.001),
                            )
         self.callbacks = []
         if self.savechecks:
