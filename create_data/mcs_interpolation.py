@@ -1,74 +1,13 @@
 ### Written by Jerry Gammie @j-gams
 
-### WHAT DOES THIS CODE DO?
-### - 
-
-
-### command line arguments
-### X raster data path(s)       [file path(s), comma separated, required]   [eg srtm, nlcd]
-###                             - raster data to combine into X samples
-### point interpol. data path   [file path(s), comma separated, required]   [eg gedi centroids]
-###                             - shapefile of points with data fields to interpolate to
-###                               spatial data
-### y raster data path          [file path, required]                       [eg ecostress]
-###                             - raster data to use as y value for samples
-###                               X data will be cut to regions the size of y datas pixels
-### y resolution                [int, required]                             [eg 70 for ecos]
-###                             - resolution in meters of y raster data
-### y pixel size                [int, required - res. of output data]       [eg 5]
-###                             - resolution in meters of X samples created in this process
-### create file structure       [T/F, required]
-###                             - create a new dataset, or work in existing file structure
-### file structure name         [file path, required]
-###                             - path to root directory of dataset
-### lo-memory mode              [--lomem or blank (defaults to high memory mode if blank), opt.]
-###                             - whether to be cautious about loading a lot of data into memory
-###                               at once. If in lo-memory mode the program will write relevant
-###                               fields (specified by critical fields argument), if generate coordinates and/or
-###                               generate other data is set to true, to individual
-###                               files so that they can be loaded in individually as np arrays
-###                             - every field containing the same keyword will be written to the
-###                               same file
-###                             - THIS WILL TAKE A LONG TIME but it might be necessary for RAM
-###                             - if gencoords are false but lo-memory mode is true then it will attempt to load
-###                               precomputed individual files
-### generate coordinates        [--gencoords or blank (defaults to false if blank), optional]
-###                             - generate a file with the lat/long to make finding neighbors
-###                               a lot less memory intensive
-### generate other data         [--genetc or blank (defaults to false if blank) optional]
-###                             - generate critical field files
-### override restructuring      [--override or blank (defaults to false if blank), optional]
-###                             - whether to override pre-existing restructured data files
-### skip save                   [--skipsave]
-### hdf5 mode                   [--h5mode]
-### hdf5 write both             [--h5both]
-### no shuffle mode             [--noshuffle]
-### prescreen extreme samples   [--prescreen]
-### critical fields             [-c comma separated field keywords, optional]
-###                             - fields to include in the output samples
-### k closest approximation     [-k int, optional (default 10)]
-### test mode                   [-t int, optional]
-### channel mode                [-m {hwc, chw}]
-###                             - whether to have channels as the first or third axis
-### pad image                   [-p int]
-###                             - whether to add pixels around the basic image (for nicer img dimensions?)
-### pad hash                    [-h int]
-###                             - how many gridsquares to add around the raster (to catch everything)
-### h5 chunk size               [-u int, chunksize]
-###
-### set numpy random seed       [-s int, random seed]
-### verbosity                   [-q {0, 1, 2}, optional (default 2, verbose)
-
 ### Usage Example:
 ### python match_create_set.py ../raw_data/srtm_raw/srtm_clipped.tif,../raw_data/nlcd_raw/nlcd_clipped.tif ../raw_data/gedi_pts/GEDI_2B_clean.shp ../raw_data/ecos_wue/WUE_Median_Composite_AOI.tif 70 5 true ../data/data_interpolated --lomem --gencoords --override --genetc -c cover,pavd,fhd -q 2
 import sys
-
 
 def isf(s):
     if s == "F" or s == "f" or s == "False" or s == "false":
         return True
     return False
-
 
 def ist(s):
     if s == "T" or s == "t" or s == "True" or s == "true":
@@ -229,12 +168,12 @@ qprint("importing packages", 2)
 import os
 import math
 import matplotlib.pyplot as plt
-import seaborn as sns
+#import seaborn as sns
 import numpy as np
 import pandas as pd
-from shapely.geometry import mapping
-import rioxarray as rxr
-import xarray as xr
+#from shapely.geometry import mapping
+#import rioxarray as rxr
+#import xarray as xr
 # import geopandas as gpd
 # import earthpy as et
 # import earthpy.plot as ep
@@ -404,140 +343,6 @@ ptindexer = {}
 grecs = []
 ptlnames = []
 qprint("loading shape-point data", 1)
-for pt in point_shape:
-    if not lo_mem or (gen_coords or gen_etc):  # or True:
-        tdataname = pt.split("/")[-1]
-        qprint("loading " + tdataname + " data...", 2)
-        xpoints.append(shapefile.Reader(pt))
-        qprint("loading " + tdataname + " records...", 2)
-        grecs.append(xpoints[-1].shapeRecords())
-
-        ### TODO - STORE PTLAYERS, PTINDEXER to avoid this every damn time
-        for i in range(len(critical_fields)):
-            ptl_idx = 0
-            for j in range(len(xpoints[-1].fields)):
-                if critical_fields[i] in xpoints[-1].fields[j][0]:
-                    ### given the layer (key) provides the ptfile #, critical field #, field index within that shape,
-                    ### and id within the np array (if exists)
-                    ptindexer[len(ptlayers)] = (len(xpoints) - 1, i, j, ptl_idx)
-                    ptlayers.append(critical_fields[i] + "_" + str(ptl_idx))
-                    ptlnames.append(xpoints[-1].fields[j][0])
-                    ptl_idx += 1
-
-        ### save
-        print("writing point indexer file")
-        if os.path.exists(fs_loc + "/point_reformat/pt_indexer_util.txt"):
-            os.system("rm " + fs_loc + "/point_reformat/pt_indexer_util.txt")
-        for lkey in ptindexer.keys():
-            lkstr = ""
-            for elt in ptindexer[lkey]:
-                lkstr += str(elt) + ","
-            os.system(
-                'echo "' + str(lkey) + ':' + lkstr[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_indexer_util.txt')
-
-    if lo_mem:
-        if gen_coords and not found_coord:
-            qprint("reformatting shapefile coordinates. This could take a while...", 1)
-            if verbosity > 0:
-                print("progress 0/50 ", end="", flush=True)
-            progress = 0
-            os.system('echo "lon,lat" >> ' + fs_loc + '/point_reformat/geo_coords.txt')
-            for i in range(len(grecs[-1])):
-                progress += 1
-                if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
-                    print("-", end="", flush=True)
-                a, b = grecs[-1][i].record[3], grecs[-1][i].record[2]
-                os.system('echo "' + str(a) + ',' + str(b) + '" >> ' + fs_loc + '/point_reformat/geo_coords.txt')
-
-            qprint("---> 50/50 (done)", 1)
-
-        for i in range(len(critical_fields)):
-            if gen_etc and not found_etc[i]:
-                qprint("reformatting critical field " + critical_fields[i] + ". This could take a while...", 1)
-                if verbosity > 0:
-                    print("progress 0/50 ", end="", flush=True)
-                progress = 0
-                ### build list of field indices, names:
-                fields_ids = []
-                fields_names = ""
-                for k in range(len(xpoints[-1].fields)):
-                    if critical_fields[i] in xpoints[-1].fields[k][0]:
-                        fields_ids.append(k)
-                        fields_names += xpoints[-1].fields[k][0] + ","
-                ### header
-                os.system('echo "' + fields_names[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' + critical_fields[
-                    i] + '.txt')
-                for j in range(len(grecs[-1])):
-                    progress += 1
-                    if verbosity > 0 and progress % (len(grecs[-1]) // 50) == 0:
-                        print("-", end="", flush=True)
-                    dumpstr = ""
-                    for k in fields_ids:
-                        # for k in range(len(xpoints[-1].fields)):
-                        if critical_fields[i] in xpoints[-1].fields[k][0]:
-                            dumpstr += str(grecs[-1][j].record[k]) + ","
-                    os.system('echo "' + dumpstr[:-1] + '" >> ' + fs_loc + '/point_reformat/pt_' + critical_fields[
-                        i] + '.txt')
-                print("---> 50/50 (done)")
-                print("done reformatting " + critical_fields[i] + " data")
-        if not lo_mem or (gen_coords or gen_etc):
-            del xpoints[-1]
-            del grecs[-1]
-
-print("layer number audit: ", len(ptlayers))
-
-### SAVE CHANNEL NAMES
-# save_channelnames = layernames + ptlnames
-# os.system("rm " + fs_loc + "/meta/channel_names.txt")
-# os.system("touch " + fs_loc + "/meta/channel_names.txt")
-# for cname in save_channelnames:
-#    os.system('echo "' + cname + '," >> ' + fs_loc + '/meta/channel_names.txt')
-
-ptlayers = []
-### now try to load the data back in
-if lo_mem:
-    ### clear hi-mem data (moved to above)
-    print("still in lo-memory mode")
-    npcoords, _ = rfloader(fs_loc + '/point_reformat/geo_coords.txt')
-    # npcoords = np.genfromtxt(fs_loc + '/point_reformat/geo_coords.txt', delimiter=',')
-    print(npcoords.shape)
-    ### load data from file
-
-    crit_npar = []
-    print("nan values:")
-    print(np.count_nonzero(np.isnan(npcoords)))
-
-    ###load ptindexer
-    print("loading ptindexer")
-    ptindexer = piloader(fs_loc + "/point_reformat/pt_indexer_util.txt")
-    for i in range(len(critical_fields)):
-        ##load in
-        loaddata, fnames = rfloader(fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt')
-        # crit_npar.append(rfloader(fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt'))
-        crit_npar.append(loaddata)
-        ptlayers += fnames
-        del loaddata
-
-        # crit_npar.append(np.genfromtxt(fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt', delimiter=','))
-        print(crit_npar[-1].shape)
-        if crit_npar[-1].ndim < 2:
-            print("reshaping")
-            cnpdim = len(crit_npar[-1])
-            print(cnpdim)
-            crit_npar[-1] = np.reshape(crit_npar[-1], (-1, 1))
-            print(crit_npar[-1].shape)
-            print("np.unique", len(np.unique(crit_npar[-1])))
-        print("nan values:")
-        print(np.count_nonzero(np.isnan(crit_npar[-1])))
-    print("layer number audit: ", len(ptlayers))
-### now we have all the data loaded in?
-### SAVE CHANNEL NAMES
-save_channelnames = layernames + ptlayers
-os.system("rm " + fs_loc + "/meta/channel_names.txt")
-os.system("touch " + fs_loc + "/meta/channel_names.txt")
-for cname in save_channelnames:
-    os.system('echo "' + cname + '," >> ' + fs_loc + '/meta/channel_names.txt')
-
 
 def cgetter(index, xy):
     if lo_mem:
@@ -615,35 +420,6 @@ avgringsize = 0
 ### hash all of the gedi footprints! (this could take a while lmao -- rip ram
 print("doing the hash thing")
 ### create it with a buffer
-ygrid_pt_hash = np.zeros((yrsize[0] + (2 * hash_pad), yrsize[1] + (2 * hash_pad)), dtype='object')
-for i in range(ygrid_pt_hash.shape[0]):
-    for j in range(ygrid_pt_hash.shape[1]):
-        ygrid_pt_hash[i, j] = []
-# ygrid_pt_hash = [list([list([]) for ii in range(yrsize[1] + 2)]) for jj in range(yrsize[0] + 2)]
-# ygrid_pt_hash[0][0].append(5)
-pstep = clen() // 50
-print(clen())
-actual_added = 0
-for i in range(clen()):
-    ### get coordinates
-    if i % pstep == 0:
-        print("-", end="", flush=True)
-    xi, yi = coords_idx(cgetter(i, 0), cgetter(i, 1), yulh, yulv, ypxh, ypxv)
-    if xi + hash_pad < 0 or yi + hash_pad < 0 or xi > yrsize[0] + (hash_pad * 2) or yi > yrsize[1] + (2 * hash_pad):
-        print("big uh-oh!!!")
-        print(i)
-        print(cgetter(i, 0), cgetter(i, 1))
-        print(xi, yi)
-    else:
-        actual_added += 1
-        ygrid_pt_hash[xi + hash_pad, yi + hash_pad].append(i)
-print("done doing the hash thing")
-print("actually added", actual_added, "gedi points to hash (within bounds)")
-# print(ygrid_pt_hash[1000:1010, 1000:1010])
-"""for i in range(ygrid_pt_hash.shape[0]):
-    for j in range(ygrid_pt_hash.shape[1]):
-        if ygrid_pt_hash[i, j] != []:
-            print(ygrid_pt_hash[i:i+10, j:j+10])"""
 
 ### TODO --- stop at sqrt(2) after the first one
 ### THE ROOT2 VERSION !!!
@@ -759,6 +535,10 @@ xsq_res = 30
 ysq_res = 70
 xsq_num = 4
 
+#python mcs_interpolation.py ../data/raster/srtm_clipped_co.tif,../data/raster/nlcd_clipped_co.tif ../data/point/GEDI_2B_clean.shp ../data/raster/WUE_Median_Composite_AOI.tif 70 5 true ../data/data_interpolated --lomem --gencoords --override --genetc -c cover,pavd,fhd -q 2 -t 10
+
+print("testing on ... samples", testmode)
+
 
 #iterate over potentially shuffled x, y
 for i in irange_default:
@@ -830,6 +610,8 @@ for i in irange_default:
                                       sqxdiff**2 + (sqwidthy - sqydiff)**2, (sqwidthx-sqxdiff)**2 + (sqwidthy - sqydiff)**2]
                         sqnorm = sum(sqweights)
                         value = 0
+                        print(len(xr_npar))
+                        print(k)
                         for sqw in range(4):
                             value += (sqweights[sqw] / sqnorm) * (xr_npar[k][sq_refs[sqw][0], sq_refs[sqw][1]])
 

@@ -9,9 +9,9 @@ from osgeo import gdal
 from data_handler import data_wrangler
 
 layer_names = ["srtm",
-               "nlcd", 
+               "nlcd",
                "aspect",
-               "slope", 
+               "slope",
                "treeage",
                "ecostress_esi",
                "gedi_biomass"]
@@ -40,7 +40,7 @@ va_wrangler = data_wrangler(rootdir, n_layers, n_folds, layer_dims, batch_size, 
 
 save_dir = "model_saves"
 
-n_epochs = 10
+n_epochs = 0
 
 def build_model_1(ldims, yoff):
     xdims = ldims[:yoff]
@@ -50,24 +50,19 @@ def build_model_1(ldims, yoff):
     for i in range(len(xdims)):
         inputs.append(Input(shape=(xdims[i], xdims[i], 1)))
         if xdims[i] < 3:
-            c1 = Conv2D(filters=8, kernel_size=(1,1), strides=(1,1))(inputs[i])
+            c1 = Conv2D(filters=8, kernel_size=(1, 1), strides=(1, 1))(inputs[i])
             #c1 = Conv2D(filters=16, kernel_size=(1,1), strides=(1,1))(c1)
         else:
-            c1 = Conv2D(filters=8, kernel_size=(3,3), strides=(1,1), padding="valid")(inputs[i])
-            c1 = Conv2D(filters=16, kernel_size=(3,3), strides=(2,2), padding="same")(c1)
-        convs.append(c1)
-    
-    ## 16x16x16*4
-    c1a = Concatenate(axis=3)([convs[0], convs[1], convs[2], convs[3]])
-    ### 8x8x16*8
-    c1b = Conv2D(filters=16*8, kernel_size=(5,5), strides=(2,2), padding="same")(c1a)
-    c1b = MaxPooling2D((2, 2))(c1b)
-    c1c = Flatten()(c1b)
-    c1d = Flatten()(convs[4])
-    c2 = Concatenate(axis=1)([c1d, c1c])
-    c2 = Flatten()(c2)
-    c2 = Dense(1600, activation="relu")(c2)
-    c2 = Dense(1200, activation="relu")(c2)
+            c1 = Conv2D(filters=8, kernel_size=(3, 3), strides=(1, 1), padding="valid")(inputs[i])
+            c1 = Conv2D(filters=16, kernel_size=(3, 3), strides=(2, 2), padding="same")(c1)
+            c1 = Conv2D(filters=16, kernel_size=(3, 3), strides=(2, 2), padding="same")(c1)
+            c1 = Conv2D(filters=16, kernel_size=(3, 3), strides=(2, 2), padding="same")(c1)
+            c1 = Conv2D(filters=16, kernel_size=(3, 3), strides=(2, 2), padding="same")(c1)
+        convs.append(Flatten()(c1))
+
+    merge = Concatenate()(convs)
+    c2 = Dense(1200, activation="relu")(merge)
+    c2 = Dense(1000, activation="relu")(c2)
     c2 = Dense(1600, activation="relu")(c2)
     ysplit = []
     for j in range(len(ydims)):
@@ -87,7 +82,7 @@ for i in range(n_folds):
 
     model = build_model_1(layer_dims, 5)
     model.compile(loss="mse")
-    model.load_weights(save_dir + "/last_epoch.h5")
+    model.load_weights(save_dir + "/last_epoch_both.h5")
 
     #model.fit(tr_wrangler, epochs=n_epochs, validation_data=va_wrangler, verbose=1)
     #model.save_weights(save_dir + "/last_epoch.h5")
@@ -110,7 +105,7 @@ for i in range(n_folds):
 
         empty = np.zeros(layer_data.shape)
         empty.fill(float("nan"))
-        
+
         ### hopefully only agb
         yhats = []
         holds = []
@@ -144,6 +139,7 @@ for i in range(n_folds):
         #plt.scatter(holds.flatten(), mse.flatten())
         #plt.savefig('scatter_holds_mse.png')
 
+        """
         import pandas as pd
 
         print(val_ids.shape)
@@ -166,3 +162,4 @@ for i in range(n_folds):
         layer_out.SetProjection(gproj)
         layer_out.GetRasterBand(1).WriteArray(empty.transpose())
         layer_out.FlushCache()
+        """

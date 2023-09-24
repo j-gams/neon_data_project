@@ -24,7 +24,7 @@ y_base = 6
 y_layers = [5, 6]
 x_layers = [0, 1, 2, 3, 4]
 np_random_seed = 100807
-fold_name = "../data/test_2"
+fold_name = "../data/test_box1"
 h5_chunk_size = 1000
 
 
@@ -173,12 +173,33 @@ print("- saved sample coords")
 
 ### now do train/test/val splits
 meta_indices = np.arange(len(legal_sample_idx_list))
-np.random.seed(np_random_seed)
-np.random.shuffle(meta_indices)
-test_indices = meta_indices[:int(len(meta_indices) * partition[0])]
-remaining_indices = meta_indices[int(len(meta_indices) * partition[0]):]
+box_mode = True
+if box_mode:
+    ### random box for test
+    rbw = 40
+    rbh = 80
+    rbulx = 200
+    rbuly = 100
+
+    test_indices = []
+    for i in range(len(legal_sample_idx_list)):
+        xx, yy = legal_sample_idx_list[i]
+        if xx >= rbulx and xx < rbulx + rbw and yy >= rbuly and yy < rbuly + rbh:
+            test_indices.append(i)
+
+    test_indices = np.array(test_indices)
+    remaining_indices = []
+    for i in range(len(meta_indices)):
+        if meta_indices[i] not in test_indices:
+            remaining_indices.append(meta_indices[i])
+
+    remaining_indices = np.array(remaining_indices)
+else:
+    test_indices = meta_indices[:int(len(meta_indices) * partition[0])]
+    remaining_indices = meta_indices[int(len(meta_indices) * partition[0]):]
 val_fold_indices = []
 train_fold_indices = []
+
 for i in range(n_splits):
     np.random.shuffle(remaining_indices)
     val_fold_indices.append(remaining_indices[:int(len(remaining_indices)*partition[1])])

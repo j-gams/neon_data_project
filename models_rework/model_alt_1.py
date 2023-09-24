@@ -4,16 +4,17 @@ from tensorflow import keras
 from keras.callbacks import ModelCheckpoint
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.callbacks import Callback
-from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Input, Conv2D, Concatenate, Flatten, Reshape, MaxPooling2D
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Input, Conv2D, Concatenate, Flatten, Reshape, \
+    MaxPooling2D
 
 from data_handler import data_wrangler
 
 import time
 
 layer_names = ["srtm",
-               "nlcd", 
+               "nlcd",
                "aspect",
-               "slope", 
+               "slope",
                "treeage",
                "ecostress_esi",
                "gedi_biomass"]
@@ -44,8 +45,9 @@ save_dir = "model_saves"
 
 n_epochs = 20
 
+
 class lossCallback(Callback):
-    def __init__ (self):
+    def __init__(self):
         self.logs = dict()
         self.init = False
         self.lasttime = -1
@@ -57,8 +59,8 @@ class lossCallback(Callback):
                 self.logs[k] = []
             self.init = True
             self.logs["time"] = []
-        #['loss', 'accuracy', 'val_loss', 'val_accuracy']
-        #print("CALLBACK: epoch", epoch, "keys:", keys)
+        # ['loss', 'accuracy', 'val_loss', 'val_accuracy']
+        # print("CALLBACK: epoch", epoch, "keys:", keys)
         ctime = time.time()
         if self.lasttime == -1:
             ttime = 0
@@ -69,6 +71,7 @@ class lossCallback(Callback):
         for k in keys:
             self.logs[k].append(logs.get(k))
 
+
 def build_model_1(ldims, yoff):
     xdims = ldims[:yoff]
     ydims = ldims[yoff:]
@@ -77,24 +80,19 @@ def build_model_1(ldims, yoff):
     for i in range(len(xdims)):
         inputs.append(Input(shape=(xdims[i], xdims[i], 1)))
         if xdims[i] < 3:
-            c1 = Conv2D(filters=8, kernel_size=(1,1), strides=(1,1))(inputs[i])
+            c1 = Conv2D(filters=8, kernel_size=(1, 1), strides=(1, 1))(inputs[i])
             #c1 = Conv2D(filters=16, kernel_size=(1,1), strides=(1,1))(c1)
         else:
-            c1 = Conv2D(filters=8, kernel_size=(3,3), strides=(1,1), padding="valid")(inputs[i])
-            c1 = Conv2D(filters=16, kernel_size=(3,3), strides=(2,2), padding="same")(c1)
-        convs.append(c1)
-    
-    ## 16x16x16*4
-    c1a = Concatenate(axis=3)([convs[0], convs[1], convs[2], convs[3]])
-    ### 8x8x16*8
-    c1b = Conv2D(filters=16*8, kernel_size=(5,5), strides=(2,2), padding="same")(c1a)
-    c1b = MaxPooling2D((2, 2))(c1b)
-    c1c = Flatten()(c1b)
-    c1d = Flatten()(convs[4])
-    c2 = Concatenate(axis=1)([c1d, c1c])
-    c2 = Flatten()(c2)
-    c2 = Dense(1600, activation="relu")(c2)
-    c2 = Dense(1200, activation="relu")(c2)
+            c1 = Conv2D(filters=8, kernel_size=(3, 3), strides=(1, 1), padding="valid")(inputs[i])
+            c1 = Conv2D(filters=16, kernel_size=(3, 3), strides=(2, 2), padding="same")(c1)
+            c1 = Conv2D(filters=16, kernel_size=(3, 3), strides=(2, 2), padding="same")(c1)
+            c1 = Conv2D(filters=16, kernel_size=(3, 3), strides=(2, 2), padding="same")(c1)
+            c1 = Conv2D(filters=16, kernel_size=(3, 3), strides=(2, 2), padding="same")(c1)
+        convs.append(Flatten()(c1))
+
+    merge = Concatenate()(convs)
+    c2 = Dense(1200, activation="relu")(merge)
+    c2 = Dense(1000, activation="relu")(c2)
     c2 = Dense(1600, activation="relu")(c2)
     ysplit = []
     for j in range(len(ydims)):
@@ -106,6 +104,7 @@ def build_model_1(ldims, yoff):
     y1d = Reshape((ydims[0], ydims[0], 1))(y1c)
     return Model(inputs=inputs, outputs=[y1d, y1a])
 
+
 for i in range(n_folds):
     tr_wrangler.set_fold(0)
     va_wrangler.set_fold(0)
@@ -116,10 +115,9 @@ for i in range(n_folds):
     model.compile(loss="mse")
     print(model.summary())
 
-
     callback1 = lossCallback()
     callbacks = []
-    #callback = ModelCheckpoint(save_dir + "/checkpoint.h5",
+    # callback = ModelCheckpoint(save_dir + "/checkpoint.h5",
     #                           monitor="val_mean_squared_error",
     #                           verbose=2,
     #                           mode="min",
@@ -132,6 +130,7 @@ for i in range(n_folds):
     model.save_weights(save_dir + "/last_epoch_both.h5")
     ### save executable
 
+    print("keys:", list(callback1.logs.keys()))
     print(callback1.logs['loss'])
     print(callback1.logs['time'])
     print(callback1.logs['val_accuracy'])

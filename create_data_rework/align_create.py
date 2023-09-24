@@ -344,100 +344,7 @@ multiprocess = True
 # - Iterate over all pointfiles
 #   - Index relevant fields in pointfile (and save)
 #
-"""
-for pt in point_shape:
-    ### INDEX POINTFILE FIELDS
-    if not lo_mem or (reformat_data or reformat_coords):
 
-        temp_dataname = pt.split("/")[-1]
-        x_point_files.append(shapefile.Reader(pt))
-        point_records.append(x_point_files[-1].shapeRecords())
-        ### farm point indexer out to align_create_helpers.py
-        ptls, ptlns, ptli, = ach.make_pt_indexer(critical_fields, x_point_files[-1],
-                                                 len(x_point_files), file_structure_loc, "")
-        point_layers.append(ptls)
-        point_layer_names.append(ptlns)
-        point_layer_indexer.update(ptli)
-
-    ### Generate reformatted coordinate file
-    if low_memory:
-        if reformat_coords and not found_coord:
-            temp_dispatch = [(0, point_records[-1])]
-            temp_dispatch += [(i, x_point_files[-1], point_records[-1], critical_fields[i-1])
-                              for i in range(1, len(critical_fields) + 1)]
-            if multiprocess and __name__ == '__main__':
-                with Pool(multiprocessing.cpu_count()) as ptp:
-                    res = ptp.map(ach.reformat_helper, temp_dispatch)
-                    ptp.close()
-            else:
-                res = []
-                for elt in temp_dispatch:
-                    res.append(ach.reformat_helper(elt))
-            ### deal with results
-            geo_coord_file = open(fs_loc + "/point_reformat/geo_coords.txt", "w")
-            geo_coord_file.write(res[0])
-            geo_coord_file.close()
-            for i in range(1, len(res)):
-                point_data_file = open(fs_loc + "/point_reformat/pt_" + critical_fields[i-1] + ".txt", "w")
-                point_data_file.write(res[i])
-                point_data_file.close()
-        else:
-            pass
-        if not low_memory or (reformat_coords or reformat_data):
-            del x_point_files[-1]
-            del point_records[-1]
-
-if stopstep == 3:
-    print("breaking at point 3")
-    sys.exit(0)
-
-### SAVE CHANNEL NAMES
-
-ptlayers = []
-### now try to load the data back in
-if lo_mem:
-    ### clear hi-mem data (moved to above)
-    print("still in lo-memory mode")
-    npcoords, _ = rfloader(fs_loc + '/point_reformat/geo_coords.txt')
-    # npcoords = np.genfromtxt(fs_loc + '/point_reformat/geo_coords.txt', delimiter=',')
-    print(npcoords.shape)
-    ### load data from file
-
-    crit_npar = []
-    print("nan values:")
-    print(np.count_nonzero(np.isnan(npcoords)))
-
-    ###load ptindexer
-    print("loading ptindexer")
-    ptindexer = piloader(fs_loc + "/point_reformat/pt_indexer_util.txt")
-    for i in range(len(critical_fields)):
-        ##load in
-        loaddata, fnames = rfloader(fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt')
-        # crit_npar.append(rfloader(fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt'))
-        crit_npar.append(loaddata)
-        ptlayers += fnames
-        del loaddata
-
-        # crit_npar.append(np.genfromtxt(fs_loc + '/point_reformat/pt_' + critical_fields[i] + '.txt', delimiter=','))
-        print(crit_npar[-1].shape)
-        if crit_npar[-1].ndim < 2:
-            print("reshaping")
-            cnpdim = len(crit_npar[-1])
-            print(cnpdim)
-            crit_npar[-1] = np.reshape(crit_npar[-1], (-1, 1))
-            print(crit_npar[-1].shape)
-            print("np.unique", len(np.unique(crit_npar[-1])))
-        print("nan values:")
-        print(np.count_nonzero(np.isnan(crit_npar[-1])))
-    print("layer number audit: ", len(ptlayers))
-### now we have all the data loaded in?
-### SAVE CHANNEL NAMES
-save_channelnames = layernames + ptlayers
-os.system("rm " + fs_loc + "/meta/channel_names.txt")
-os.system("touch " + fs_loc + "/meta/channel_names.txt")
-for cname in save_channelnames:
-    os.system('echo "' + cname + '," >> ' + fs_loc + '/meta/channel_names.txt')
-"""
 if stopstep == 4:
     print("breaking at point 4")
     sys.exit(0)
@@ -445,72 +352,8 @@ if stopstep == 4:
 maxringsize = 0
 avgringsize = 0
 
-def cgetter(index, xy):
-    if lo_mem:
-        return npcoords[index, xy]
-    else:
-        return point_records[0][index].record[3 - xy]
 
-def pgetter(layer, index):
-    # print(layer)
-    if lo_mem:
-        ### use crit_npar
-        return crit_npar[ptindexer[layer][1]][index, ptindexer[layer][3]]
-    else:
-        return point_records[ptindexer[layer][0]][index].record[ptindexer[layer][2]]
 
-def clen():
-    if lo_mem:
-        return npcoords.shape[0]
-    else:
-        return len(point_records[0])
-
-def krings(x_in, y_in, min_k):
-    ring_size = 0
-    found_list = []
-    cap = -1
-    while (cap < 0 or ring_size <= cap):
-        i_boundaries = [max(0 - hash_pad, x_in - ring_size), min(yrsize[0] + hash_pad, x_in + ring_size + 1)]
-        j_boundaries = [max(0 - hash_pad, y_in - ring_size), min(yrsize[1] + hash_pad, y_in + ring_size + 1)]
-        for i in range(i_boundaries[0], i_boundaries[1]):
-            for j in range(j_boundaries[0], j_boundaries[1]):
-                if i == i_boundaries[0] or i + 1 == i_boundaries[1] or j == j_boundaries[0] or j + 1 == j_boundaries[1]:
-                    if len(ygrid_pt_hash[i + 1, j + 1]) > 0:
-                        if cap == -1:
-                            cap = max(math.ceil(mem_root2 * ring_size), 1) + 1
-                        for k in ygrid_pt_hash[i + 1, j + 1]:
-                            found_list.append(k)
-        ring_size += 1
-    return found_list, ring_size
-"""
-### hash all of the gedi footprints! (this could take a while lmao -- rip ram)
-print("doing the hash thing")
-### create it with a buffer
-ygrid_pt_hash = np.zeros((yrsize[0] + (2 * hash_pad), yrsize[1] + (2 * hash_pad)), dtype='object')
-for i in range(ygrid_pt_hash.shape[0]):
-    for j in range(ygrid_pt_hash.shape[1]):
-        ygrid_pt_hash[i, j] = []
-# ygrid_pt_hash = [list([list([]) for ii in range(yrsize[1] + 2)]) for jj in range(yrsize[0] + 2)]
-# ygrid_pt_hash[0][0].append(5)
-pstep = clen() // 50
-print(clen())
-actual_added = 0
-for i in range(clen()):
-    ### get coordinates
-    if i % pstep == 0:
-        print("-", end="", flush=True)
-    xi, yi = ach.coords_idx(cgetter(i, 0), cgetter(i, 1), yulh, yulv, ypxh, ypxv)
-    if xi + hash_pad < 0 or yi + hash_pad < 0 or xi > yrsize[0] + (hash_pad * 2) or yi > yrsize[1] + (2 * hash_pad):
-        print("big uh-oh!!!")
-        print(i)
-        print(cgetter(i, 0), cgetter(i, 1))
-        print(xi, yi)
-    else:
-        actual_added += 1
-        ygrid_pt_hash[xi + hash_pad, yi + hash_pad].append(i)
-print("done doing the hash thing")
-print("actually added", actual_added, "gedi points to hash (within bounds)")
-"""
 ### TODO --- stop at sqrt(2) after the first one
 ### THE ROOT2 VERSION !!!
 mem_root2 = math.sqrt(2)
@@ -535,33 +378,6 @@ landmark_x, landmark_y = ach.coords_idx(-104.876653, 41.139535, yulh, yulv, ypxh
 if skip_save:
     print("warning: running in skip save mode")
 
-"""
-if h5_mode:
-    # h5chunksize=1000
-    print("running in h5 mode!")
-    os.system("rm " + fs_loc + "/datasrc/x_h5.h5")
-    h5_dataset = h5py.File(fs_loc + "/datasrc/x_h5.h5", "a")
-    if channel_first:
-        h5dset = h5_dataset.create_dataset("data",
-                                           (h5chunksize, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)),
-                                           maxshape=(None, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)),
-                                           chunks=(
-                                           h5chunksize, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)))
-    else:
-        h5dset = h5_dataset.create_dataset("data",
-                                           (h5chunksize, imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels),
-                                           maxshape=(None, imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels),
-                                           chunks=(
-                                           h5chunksize, imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels))
-    h5len = 0
-    h5tid = 0
-    h5chunkid = 0
-    if channel_first:
-        h5_chunk = np.zeros((h5chunksize, channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)))
-    else:
-        h5_chunk = np.zeros((h5chunksize, imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels))
-        h5_chunk.fill(-1)
-"""
 diids = [ii for ii in range(101)]
 dists = [0 for ii in range(101)]
 
@@ -582,24 +398,47 @@ if stopstep == 6:
 # - params xr_params.append((tulh, tulv, tpxh, tpxv))
 
 y_crs_pack = [(yulh, yulv, ypxh, ypxv), yr_crs]
-if False:
+if True:
     x_crs_pack = [[xr_params[0], xr_crs[0]],
                   [xr_params[1], xr_crs[1]],
                   [xr_params[2], xr_crs[2]],
-                  [xr_params[3], xr_crs[3]]]
+                  [xr_params[3], xr_crs[3]],
+                  [xr_params[4], xr_crs[4]],
+                  [xr_params[5], xr_crs[5]],
+                  [xr_params[6], xr_crs[6]],
+                  [xr_params[7], xr_crs[7]],
+                  [xr_params[8], xr_crs[8]],
+                  [xr_params[9], xr_crs[9]],
+                  [xr_params[10], xr_crs[10]]]
 else:
     x_crs_pack = [[xr_params[0], xr_crs[0]]]
 
-lads = [[0, ach.alignment_sampling, 30, "SRTM_30_globalUL", ("ul")]]
-        #[2, ach.alignment_sampling, 30, "Slope_30_globalUL", ("ul")],
-        #[3, ach.alignment_sampling, 30, "Aspect_30_globalUL", ("ul")],
-        #[1, ach.alignment_sampling, 30, "NLCD_30_globalUL", ("ul")]]
-        #[0, ach.alignment_sampling, 10, "SRTM_10_globalUL", ("ul")],
-        #[1, ach.alignment_sampling, 10, "Slope_10_globalUL", ("ul")],
-        #[2, ach.alignment_sampling, 10, "Aspect_10_globalUL", ("ul")],
-        #[3, ach.alignment_sampling, 10, "NLCD_10_globalUL", ("ul")]]
+if False:
+    lads = [[0, ach.alignment_sampling, 30, "SRTM_30_globalUL", ("ul")]]
+            #[2, ach.alignment_sampling, 30, "Slope_30_globalUL", ("ul")],
+            #[3, ach.alignment_sampling, 30, "Aspect_30_globalUL", ("ul")],
+            #[1, ach.alignment_sampling, 30, "NLCD_30_globalUL", ("ul")]]
+            #[0, ach.alignment_sampling, 10, "SRTM_10_globalUL", ("ul")],
+            #[1, ach.alignment_sampling, 10, "Slope_10_globalUL", ("ul")],
+            #[2, ach.alignment_sampling, 10, "Aspect_10_globalUL", ("ul")],
+            #[3, ach.alignment_sampling, 10, "NLCD_10_globalUL", ("ul")]]
+else:
+    lads = [[0, ach.alignment_average, 70, "SRTM_70_mean", ("mean", 10, 30)],
+            [2, ach.alignment_average, 70, "Slope_70_mean", ("mean", 10, 30)],
+            [3, ach.alignment_average, 70, "Aspect_70_mean", ("mean", 10, 30)],
+            [1, ach.alignment_average, 70, "NLCD_70_mode", ("mode", 10, 30)],
+            [4, ach.alignment_average, 70, "tempmin", ("mean", 10, 800)],
+            [5, ach.alignment_average, 70, "tempmax", ("mean", 10, 800)],
+            [6, ach.alignment_average, 70, "tempmean", ("mean", 10, 800)],
+            [7, ach.alignment_average, 70, "vapormin", ("mean", 10, 800)],
+            [8, ach.alignment_average, 70, "vapormax", ("mean", 10, 800)],
+            [9, ach.alignment_average, 70, "precip", ("mean", 10, 800)],
+            [10, ach.alignment_average, 70, "treeage", ("mean", 10, 1000)]]
 
-def save_raster(path, band_count, bands, srs, gt, format='GTiff', dtype = gdal.GDT_Float32):
+### python align_create.py ../data/raster/treeage_clipped_co_reproj.tif ../data/point/GEDI_2B_clean.shp ../data/raster/ecostressesi_clipped_co.tif 70 5 true ../data/set/data_h5test --lomem --gencoords --genetc --override --prescreen --h5mode=h5 --cfields=cover,pavd,fhd --orient=hwc --pad=1 --hashpad=10 --chunk=10  --q=2
+### python align_create.py ../data/raster/srtm_clipped_co.tif,../data/raster/nlcd_clipped_co_reproj.tif,../data/raster/slope_clipped_co.tif,../data/raster/aspect_clipped_co.tif ../data/point/GEDI_2B_clean.shp ../data/raster/WUE_Median_Composite_AOI.tif 70 5 true ../data/set/data_h5test --lomem --gencoords --genetc --override --prescreen --h5mode=h5 --cfields=cover,pavd,fhd --orient=hwc --pad=1 --hashpad=10 --chunk=10  --q=2
+
+def save_raster(path, band_count, bands, srs, gt, format='GTiff', dtype = gdal.GDT_Float32, rbo=-9999):
     cols,rows = bands.shape
     # Initialize driver & create file
     driver = gdal.GetDriverByName(format)
@@ -608,9 +447,10 @@ def save_raster(path, band_count, bands, srs, gt, format='GTiff', dtype = gdal.G
     dataset_out.SetProjection(srs)
     # Write file to disk
     dataset_out.GetRasterBand(1).WriteArray(bands)
+    dataset_out.GetRasterBand(1).SetNoDataValue(rbo)
     dataset_out = None
 
-collection_name = "geotifs_sampled_2"
+collection_name = "geotifs_sampled_4_esi"
 prefix = "../data/" + collection_name
 os.system("mkdir " + prefix)
 
@@ -618,9 +458,9 @@ driver = gdal.GetDriverByName("GTiff")
 for i in range(len(lads)):
     ### initialize aligner
     layer_geotif = lads[i][1](lads[i][2], (yrsize[0], yrsize[1]), 70, y_crs_pack,
-                              x_crs_pack[lads[i][0]], lads[i][4])
+                              x_crs_pack[lads[i][0]], lads[i][4], ndv_vals[lads[i][0]])
     ### perform alignment
-    layer_geotif.align(xr_npar[lads[i][0]], subset=-1)
+    layer_geotif.alignbasic(xr_npar[lads[i][0]], subset=500)
 
     ### obtain layer geotifs
     driver = gdal.GetDriverByName("GTiff")
@@ -630,6 +470,7 @@ for i in range(len(lads)):
     layer_out.SetProjection(layer_geotif.newproj)
     ### save layer geotif
     layer_out.GetRasterBand(1).WriteArray(layer_geotif.data.transpose())
+    layer_out.GetRasterBand(1).SetNoDataValue(layer_geotif.nodata_oops)
     layer_out.FlushCache()
 
     print("saved to geotif" + outname)

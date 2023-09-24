@@ -77,8 +77,8 @@ def sample_helper():
 
 # turn coordinates into an index in the data array
 def coords_idx(cx, cy, ulh, ulv, psh, psv):
-    ix = int((cx - ulh) / psh)
-    iy = int((ulv - cy) / psv)
+    ix = (cx - ulh) / psh
+    iy = (ulv - cy) / psv
     return ix, iy
 
 def crs_switch(cx, cy, fromcrs, tocrs):
@@ -185,233 +185,183 @@ class alignment_sampling:
                        yulv, 0, ypxv * (-self.grid_res/self.base_res))
         self.newproj = self.yproj
 
+class alignment_average:
+    def __init__ (self, grid_res, base_grid_size, base_grid_res, basecrs, selfcrs, params, nodata):
+        ### crs res in meters, eg 30
+        self.grid_res = grid_res
+        ### base crs res in meters, eg 70
+        self.base_res = base_grid_res
+        ### size of base crs - x, y length of np array
+        self.base_size = base_grid_size
+        ### total meters - grid l * res, grid w * res
+        total_m = (self.base_size[0]*self.base_res, self.base_size[1]*self.base_res)
+        ### grid size - total meters // layer res meters
+        self.grid_size = ((total_m[0] // grid_res) + 1, (total_m[1] // grid_res) + 1)
+        ### nd value
+        self.nodata_ignore = nodata
+        self.nodata_oops = -99999
 
-"""
-# if verbosity > 0:
-#    print("progress 0/50 ", end="", flush=True)
+        print(self.grid_size)
+        self.ycrs, self.yproj = basecrs
+        self.xcrs, self.xproj = selfcrs
 
-prescreen1 = False
-extreme_bounds = [-100000, 100000]
-prescreen_dist = 35 ** 2
-prescreen_forestp = 0.95
-if shuffleorder:
-    irange_default = np.arange(yrsize[0])
-    jrange_default = np.arange(yrsize[1])
-    np.random.shuffle(irange_default)
-    np.random.shuffle(jrange_default)
-else:
-    irange_default = np.arange(yrsize[0])
-    jrange_default = np.arange(yrsize[1])
+        self.data = np.zeros(self.grid_size) + self.nodata_oops
 
-### INTERPOLATION PARAMS
-xsq_res = 30
-ysq_res = 70
-xsq_num = 4
+        ### in ("mean", "mediam", "mode"
+        self.avg_method = params[0]
+        ### sample at this res within crs grid sq
+        self.sample_to = params[1]
+        ### expect res from current raster
+        self.expect_res = params[2]
+        if len(params) > 3:
+            self.px_mode = params[3]
+        else:
+            self.px_mode = "ul"
 
-file_batch_size = 10
+    def inbounds(self, val, grid):
+        ix, iy = val
+        if ix >= 0 and iy >= 0 and ix < grid.shape[0] and iy < grid.shape[1]:
+            return True
+        return False
+    def alignbasic(self, xr_npar, subset=-1):
+        oobcounter = 0
+        all_oob = 0
+        ### grid_res is target grid res in m
+        ### base_res is base res in m
+        ### base_size is shape of base np array
+        ### total_m is dimensions of raster in m
+        ### grid size is total_meters over target grid size
+        boundi = self.grid_size[0]
+        boundj = self.grid_size[1]
+        if subset != -1:
+            boundi = subset
+            boundj = subset
+        oobcounter = 0
+        nodcounter = 0
 
-#iterate over potentially shuffled x, y
-for i in irange_default:
-    for j in jrange_default:
+        temp_slice = max(self.grid_res // self.sample_to, 1)
+        temp_factor = max(self.expect_res // self.sample_to, 1)
+        for i in range(boundi):
+            for j in range(boundj):
+                yi = (i * self.grid_res) / self.base_res
+                yj = (j * self.grid_res) / self.base_res
+                yulh, yulv, ypxh, ypxv = self.ycrs
+                xulh, xulv, xpxh, xpxv = self.xcrs
+                idx_offset = 0
+                ### convert to coords
+                ycrs_x, ycrs_y = idx_pixctr(yi + idx_offset, yj + idx_offset,
+                                            yulh, yulv, ypxh, ypxv)
+                ### convert to fractional index in og grid
+                xi, xj = coords_idx(ycrs_x, ycrs_y, xulh, xulv, xpxh, xpxv)
+                temp = [] #np.zeros((temp_slice, temp_slice))
 
-        progress += 1
-        temp_lcpercent = 0
-        extreme_warning = False
-        #if the value at the current y is not the nodata value
-        if y_npar[i, j] != yndv:
-            #if not h5_mode or (h5_mode and h5_scsv):
-            #    if channel_first:
-            #        x_img = np.zeros((channels, imgsize + (2 * pad_img), imgsize + (2 * pad_img)))
-            #    else:
-            #        x_img = np.zeros((imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels))
-            #nlcd_count = 0
-
-
-
-            ### Assume csv
-            m1_ximg = np.zeros((xsq_num, xsq_num, len(xr_npar)))
-            m2_ximg = np.zeros((xsq_num, xsq_num, len(xr_npar)))
-            og_ximg = np.zeros((imgsize + (2 * pad_img), imgsize + (2 * pad_img), channels))
-            ### we have i, j for y...
-            ### build 4x4 grid
-            sq_relative = []
-            sq_start = [ysq_res/2 - ((xsq_num/2) * xsq_res), ysq_res/2 - ((xsq_num/2) * xsq_res)] # eg 35 - 2*30 = -25/70
-            for ii in range(xsq_num):
-                sq_relative.append([])
-                for jj in range(xsq_num):
-                    sq_relative[ii].append([(sq_start[0] + ((ii + 0.5) * xsq_res))/ysq_res,
-                                            (sq_start[1] + ((jj + 0.5) * xsq_res))/ysq_res])
-            ### so we should have (-10, -10) (20, -10) (etc..)
-            ### at each of these points we need the 4 closest in actual crs...?
-            ### METHOD 1 - CONVEX COMBO
-            ### METHOD 2 - BASIC SAMPLING
-            for ii in range(len(sq_relative)):
-                for jj in range(len(sq_relative[ii])):
-                    ### convert fractional index corresponding to centerpoints of ideal raster grid to crs
-                    tempx, tempy = idx_pixctr(sq_relative[ii][jj][0], sq_relative[ii][jj][1], yulh, yulv, ypxh, ypxv, mode='ul')
-                    for k in range(len(xr_npar)):
-                        ### convert centerpoint coords in crs to index in raster layer (upper left)
-                        tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
-                                                  xr_params[k][2], xr_params[k][3])
-                        ### get centerpoint of raster pixel in crs. Location relative to tempx, tempy will help ...
-                        ### ... to determine other 3 closest centerpoints
-                        ### stands for rasterxcenter, etc
-                        rstxc, rstyc = idx_pixctr(tempi, tempj, xr_params[k][0], xr_params[k][1],
-                                                  xr_params[k][2], xr_params[k][3], mode='ctr')
-
-                        ### get ids for convex combo
-                        ### ideal center further left than box it falls in... need to go 1 index left (<)
-                        sqxdiff = tempx - rstxc
-                        sqydiff = tempy - rstyc
-                        if sqxdiff <= 0: #tx - rx < 0 => tx < rx...
-                            sq_refi = -1
+                #oobflag = 0
+                for ii in range(temp_slice):
+                    for jj in range(temp_slice):
+                        deci = ii//temp_factor
+                        decj = jj//temp_factor
+                        if self.inbounds((xi + deci, xj + decj), xr_npar):
+                            temptemp = xr_npar[int(xi + deci), int(xj + decj)]
+                            if temptemp != self.nodata_ignore:
+                                temp.append(temptemp)
                         else:
-                            sq_refi = 1
-                        ### ideal center further up than box it falls in... need to go 1 index up (<)
-                        if sqydiff <= 0:
-                            sq_refj = -1
-                        else:
-                            sq_refj = 1
-                        sqwidthx = xr_params[k][2]  # x raster pixel width (horizontal)
-                        sqwidthy = xr_params[k][3]  # x raster pixel height (vertical)
-                        sq_refs = [(tempi, tempj), (tempi+sq_refi, tempj), (tempi, tempj+sq_refj),
-                                   (tempi+sq_refi, tempj+sq_refi)]
-                        sqweights = [sqxdiff**2 + sqydiff**2, (sqwidthx-sqxdiff)**2 + sqydiff**2,
-                                      sqxdiff**2 + (sqwidthy - sqydiff)**2, (sqwidthx-sqxdiff)**2 + (sqwidthy - sqydiff)**2]
-                        sqnorm = sum(sqweights)
-                        value = 0
-                        for sqw in range(4):
-                            value += (sqweights[sqw] / sqnorm) * (xr_npar[k][sq_refs[sqw][0], sq_refs[sqw][1]])
+                            oobcounter += 1
+                            #oobflag += 1
+                #if oobflag == temp_slice * temp_slice:
+                #    print("all oob")
+                if len(temp) == 0:
+                    temp = [self.nodata_oops]
+                    all_oob += 1
+                temp = np.array(temp)
+                if self.avg_method == "mean":
+                    self.data[i, j] = np.mean(temp)
+                elif self.avg_method == "mode":
+                    vals, counts = np.unique(temp, return_counts=True)
+                    self.data[i, j] = vals[np.argwhere(counts == np.max(counts))][0]
+        print("oobs", oobcounter)
+        print("all oobs", all_oob)
+        print("all samples",  boundi*boundj)
+        print(np.min(self.data), np.max(self.data))
+        self.newcrs = (yulh, ypxh * (self.grid_res / self.base_res), 0,
+                       yulv, 0, ypxv * (-self.grid_res / self.base_res))
+        self.newproj = self.yproj
+        self.newndv = self.nodata_oops
 
-                        m1_ximg[ii, jj, k] = value
-                        m2_ximg[ii, jj, k] = xr_npar[k][tempi, tempj]
+    def align2(self, xr_npar, subset=-1):
+        oobcounter = 0
+        ### sample... ultimate resolution // sampling resolution (7x7), eg
+        temp_slice = self.grid_res // self.sample_to
+        ### expected res of original raster // sampling resolution -- samples per og square
 
-            ### OG METHOD - 5m SAMPLING
-            for k in range(len(xr_npar)):
-                ### ... Try again with a buffer to get 16x16 image
-                for si in range(0 - pad_img, imgsize + pad_img):
-                    for sj in range(0 - pad_img, imgsize + pad_img):
-                        ### want -.5, .5, 1.5, 2.5, etc...
-                        sxoffset = ((2 * si) + 1) / (2 * imgsize)
-                        syoffset = ((2 * sj) + 1) / (2 * imgsize)
-                        tempx, tempy = idx_pixctr(i + sxoffset, j + syoffset, yulh, yulv, ypxh,
-                                                  ypxv, mode='ul')
-                        tempi, tempj = coords_idx(tempx, tempy, xr_params[k][0], xr_params[k][1],
-                                                  xr_params[k][2], xr_params[k][3])
+        temp_factor = self.expect_res // self.sample_to
+        for i in range(self.grid_size[0]):
+            for j in range(self.grid_size[1]):
+                # meter location / window grid - finding location in window-aligned tile
+                yi = (i * self.grid_res) / self.base_res
+                yj = (j * self.grid_res) / self.base_res
+                yulh, yulv, ypxh, ypxv = self.ycrs
+                xulh, xulv, xpxh, xpxv = self.xcrs
+                idx_offset = 0
+                # convert i, j from idx in ultimate grid to coord
+                ycrs_x, ycrs_y = idx_pixctr(yi + idx_offset, yj + idx_offset,
+                                            yulh, yulv, ypxh, ypxv)
+                # convert coord to x-idx
+                xi, xj = coords_idx(ycrs_x, ycrs_y, xulh, xulv, xpxh, xpxv)
+                #temp = np.zeros(temp_size)
 
-                        og_ximg[si + pad_img, sj + pad_img, k] = xr_npar[k][tempi, tempj]
 
-            ### make a string of
-            ### file name, y value, nsuccess, y raster coordinates, ..., average distance to nearest neighbor
-            # good to save
-            if not skip_save:
-                database.append(["/datasrc/x_img/x_" + str(nsuccess) + ".csv", y_npar[i, j], nsuccess, i, j])
-                np.savetxt(fs_loc + "/datasrc/m1_ximg/x_" + str(nsuccess) + ".csv",
-                           m1_ximg.reshape(-1, m1_ximg.shape[2]),
-                           delimiter=",", newline="\n")
-                np.savetxt(fs_loc + "/datasrc/m2_ximg/x_" + str(nsuccess) + ".csv",
-                           m2_ximg.reshape(-1, m2_ximg.shape[2]),
-                           delimiter=",", newline="\n")
-                np.savetxt(fs_loc + "/datasrc/og_ximg/x_" + str(nsuccess) + ".csv",
-                           og_ximg.reshape(-1, og_ximg.shape[2]),
-                           delimiter=",", newline="\n")
-            nsuccess += 1
-            if verbosity > 0 and nsuccess % (testmode // 50) == 0:
-                print("-", end="", flush=True)
-                # else:
-                #    dbins = list(failsafe_copy)
-            if testmode > 0 and nsuccess > testmode:
-                print()
-                print("max ring size: ", maxringsize)
-                print("avg ring size: ", avgringsize // nsuccess)
-                print("saving ydata")
-                ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
-                ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
-                # save h5set
-                # print("max ring size: ", maxringsize)
-                print("extreme encounter report:")
-                no_enc = True
-                for i in range(len(extreme_encounter)):
-                    if extreme_encounter[i] > 0:
-                        no_enc = False
-                        print(" ", i, extreme_encounter[i])
-                if no_enc:
-                    print("no extreme encounters")
 
-                plt.figure()
-                plt.bar(diids, dists)
-                plt.title("distribution of nlcd values over 5m regions / sample")
-                plt.savefig("../figures/nlcd_dist_.png")
-                plt.cla()
-                plt.close()
+    def align(self, xr_npar, subset=-1):
+        oobcounter = 0
+        boundi = self.grid_size[0] - 1
+        boundj = self.grid_size[1] - 1
+        if subset != -1:
+            boundi = subset
+            boundj = subset
+        temp_size = (self.grid_res // self.sample_to, self.grid_res // self.sample_to)
+        temp_slice = self.grid_res // self.sample_to
+        temp_factor = self.expect_res // self.sample_to
+        for i in range(boundi):
+            for j in range(boundj):
+                # m/70
+                yi = (i*self.grid_res)/self.base_res
+                yj = (j*self.grid_res)/self.base_res
 
-                for i in range(len(dists)):
-                    if dists[i] != 0:
-                        dists[i] = math.log(dists[i])
-                plt.figure()
-                plt.bar(diids, dists)
-                plt.title("log distribution of nlcd values over 5m regions / sample")
-                plt.savefig("../figures/nlcd_dist_log.png")
-                plt.cla()
-                plt.close()
+                yulh, yulv, ypxh, ypxv = self.ycrs
+                xulh, xulv, xpxh, xpxv = self.xcrs
 
-                ### dist things
-                # rasters_names_list = ["srtm", "nlcd", "slope", "aspect", "ecostress_WUE"]
-                # for idb in range(len(dbins)):
-                #    plt.figure()
-                #    plt.bar(dbins[idb])
-                #    plt.title(rasters_names_list[idb] + " distribution over 5m pixels")
-                #    plt.savefig("../figures/pixel_distributions/" + rasters_names_list[idb] + "_dbn.png")
-                #    plt.cla()
-                #    plt.close()
+                #incorporate ul, ctr, etc
+                idx_offset = 0
+                if self.px_mode == "ctr":
+                    idx_offset = self.grid_res/(2*self.base_res)
 
-                sys.exit("exiting after testmode samples")
+                # convert i, j to coord in y-grid
+                ycrs_x, ycrs_y = idx_pixctr(yi+idx_offset, yj+idx_offset,
+                                            yulh, yulv, ypxh, ypxv)
 
-print()
-# print(maxringsize)
+                # convert coord to x-idx
+                # UL within
+                xi, xj = coords_idx(ycrs_x, ycrs_y, xulh, xulv, xpxh, xpxv)
+                # sample at location
+                temp = np.zeros(temp_size)
+                try:
+                    ### need more thought here
+                    for ii in range(temp_slice):
+                        for jj in range(temp_slice):
+                            temp[ii, jj] = xr_npar[int(xi+(ii//temp_factor)),
+                                                   int(xj+(jj//temp_factor))]
 
-#print("max ring size: ", maxringsize)
-#print("saving ydata")
-#ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
-#ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
-
-print("max ring size: ", maxringsize)
-print("avg ring size: ", avgringsize // nsuccess)
-print("saving ydata")
-ydataframe = pd.DataFrame(data=database, columns=pd_colnames)
-ydataframe.to_csv(fs_loc + "/datasrc/ydata.csv")
-# save h5set
-if h5_mode:
-    ###need to make sure last chunk is saved
-    print("saving last h5 chunk...")
-    h5dset.resize(h5len, axis=0)
-    h5dset[h5len - h5tid:h5len, :, :, :] = h5_chunk[:h5tid, :, :, :]
-    print("saving h5 dset...")
-    h5_dataset.close()
-# print("max ring size: ", maxringsize)
-print("extreme encounter report:")
-no_enc = True
-for i in range(len(extreme_encounter)):
-    if extreme_encounter[i] > 0:
-        no_enc = False
-        print(" ", i, extreme_encounter[i])
-if no_enc:
-    print("no extreme encounters")
-
-plt.figure()
-plt.bar(diids, dists)
-plt.title("distribution of nlcd values over 5m regions / sample")
-plt.savefig("../figures/nlcd_dist_.png")
-plt.cla()
-plt.close()
-
-for i in range(len(dists)):
-    if dists[i] != 0:
-        dists[i] = math.log(dists[i])
-plt.figure()
-plt.bar(diids, dists)
-plt.title("log distribution of nlcd values over 5m regions / sample")
-plt.savefig("../figures/nlcd_dist_log.png")
-plt.cla()
-plt.close()
-"""
+                    if self.avg_method == "mean":
+                        self.data[i, j] = np.mean(temp)
+                    elif self.avg_method == "mode":
+                        vals, counts = np.unique(temp, return_counts=True)
+                        self.data[i, j] = np.argwhere(counts == np.max(counts))
+                    elif self.avg_method == "median":
+                        self.data[i, j] = np.median(temp)
+                except:
+                    oobcounter += 1
+        print(oobcounter)
+        print(np.min(self.data), np.max(self.data))
+        self.newcrs = (yulh, ypxh * (self.grid_res/self.base_res), 0,
+                       yulv, 0, ypxv * (-self.grid_res/self.base_res))
+        self.newproj = self.yproj
