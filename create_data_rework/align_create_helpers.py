@@ -1,4 +1,5 @@
 import os
+import math
 import numpy as np
 from osgeo import gdal
 from osgeo import ogr
@@ -119,6 +120,128 @@ def getkclose(shapes, centerx, centery, k, ulh, ulv, psh, psv):
     ids = [id for _, id in sorted(zip(distlist, ids), key=lambda pair: pair[0])]
     return ids[:k]
 
+def mpalign(glob_params, xr_npar1, band):
+    grid_size, temp_dsampler, temp_brfrac, ycrs, xcrs, temp_frac, nodata_ignore, nodata_oops, avg_method = glob_params
+
+    oobcounter = 0
+    all_oob = 0
+    temp_data = np.zeros(grid_size[1])
+    ### start 1-band alignment
+    ### first iteration is just band
+
+
+    weighterj = np.ones((1, temp_dsampler))
+    weighteri = np.ones((temp_dsampler, 1))
+
+    for j in range(grid_size[1]):
+        #ul of window in window index
+        yi = band #* temp_brfrac
+        yj = j #* temp_brfrac
+
+        yulh, yulv, ypxh, ypxv = ycrs
+        xulh, xulv, xpxh, xpxv = xcrs
+        #idx_offset = 0
+
+        coordyi, coordyj = idx_pixctr(yi, yj, yulh, yulv, ypxh, ypxv)
+
+        xcrs_yi, xcrs_yj = coords_idx(coordyi, coordyj, xulh, xulv, xpxh, xpxv)
+        #print("**", yi, yj)
+        #print(xcrs_yi, xcrs_yj)
+        weighteri[0, 0] = xcrs_yi % 1
+        weighterj[0, 0] = xcrs_yj % 1
+        weighteri[-1, 0] = (temp_frac - weighteri[0, 0]) % 1
+        weighterj[0,-1] = (temp_frac - weighterj[0, 0]) % 1
+
+        oobmask = inbounds2(xcrs_yi, xcrs_yj, temp_frac, xr_npar1, nodata_ignore, temp_dsampler)
+        countxy = np.where(oobmask != 0)
+        temp = xr_npar1[countxy[0]+math.floor(xcrs_yi), countxy[1]+math.floor(xcrs_yj)]
+        if len(temp) == 0:
+            all_oob += 1
+            temp_data[j] = nodata_oops
+        if avg_method == "mean":
+            temp_data[j] = np.mean(temp * (weighteri @ weighterj)[countxy])
+        elif avg_method == "mode":
+            res2 = np.unique(temp)
+            res3 = np.bincount(np.searchsorted(res2, temp), (weighteri @ weighterj)[countxy])
+            temp_data[j] = res2[res3.argmax()]
+
+        return temp_data, all_oob
+def badinbounds(val, grid):
+    ix, iy = val
+    if ix >= 0 and iy >= 0 and ix < grid.shape[0] and iy < grid.shape[1]:
+        return True
+    return False
+def badmpalign(glob_params, xr_npar1, band):
+    grid_size, temp_dsampler, temp_brfrac, ycrs, xcrs, temp_frac, nodata_ignore, nodata_oops, avg_method = glob_params
+
+    temp_slice = max(70 // 10, 1)
+    temp_factor = max(30 // 10, 1)
+    minioffset = (1/(2 * temp_factor))
+
+    oobcounter = 0
+    all_oob = 0
+    temp_data = np.zeros(grid_size[1])
+    for j in range(grid_size[1]):
+        #ul of window in window index
+        yi = band #* temp_brfrac
+        yj = j #* temp_brfrac
+
+        yulh, yulv, ypxh, ypxv = ycrs
+        xulh, xulv, xpxh, xpxv = xcrs
+        idx_offset = 0
+
+        coordyi, coordyj = idx_pixctr(yi, yj, yulh, yulv, ypxh, ypxv)
+
+        xcrs_yi, xcrs_yj = coords_idx(coordyi, coordyj, xulh, xulv, xpxh, xpxv)
+
+        temp = []
+        for ii in range(temp_slice):
+            for jj in range(temp_slice):
+                deci = ii / temp_factor + minioffset
+                decj = jj / temp_factor + minioffset
+                if badinbounds((xcrs_yi + deci, xcrs_yj + decj), xr_npar1):
+                    #print(xcrs_yi + deci, xcrs_yj + decj)
+                    temptemp = xr_npar1[int(xcrs_yi + deci), int(xcrs_yj + decj)]
+                    if temptemp != nodata_ignore:
+                        temp.append(temptemp)
+                else:
+                    oobcounter += 1
+        if len(temp) == 0:
+            all_oob += 1
+            temp_data[j] = nodata_oops
+        else:
+            temp = np.array(temp)
+            if avg_method == "mean":
+                temp_data[j] = np.mean(temp)
+            elif avg_method == "mode":
+                vals, counts = np.unique(temp, return_counts=True)
+                temp_data[j] = vals[np.argwhere(counts == np.max(counts))][0]
+    return temp_data, all_oob, oobcounter
+
+def inbounds2(uli, ulj, dim, grid, ndval, temp_dsampler):
+    oobmask = np.ones((temp_dsampler, temp_dsampler))
+    mini = 0
+    maxi = temp_dsampler
+    minj = 0
+    maxj = temp_dsampler
+    if uli < 0:
+        mini = -math.floor(uli)
+        oobmask[mini,:] = 0
+    if ulj < 0:
+        minj = -math.floor(ulj)
+        oobmask[:,minj] = 0
+    if uli + dim >= grid.shape[0]:
+        print("dim", uli, dim, grid.shape[0])
+        maxi = temp_dsampler - math.ceil(uli + dim - grid.shape[0])
+        oobmask[maxi, :] = 0
+    if ulj + dim >= grid.shape[1]:
+        maxj = temp_dsampler - math.ceil(ulj + dim - grid.shape[1])
+        oobmask[:, maxj] = 0
+    #print("basevals", mini+int(uli), maxi+int(uli), minj+int(ulj), maxj+int(ulj))
+    nn = np.where(grid[mini+int(uli): maxi+int(uli), minj+int(ulj): maxj+int(ulj)] == ndval)
+    oobmask[(nn[0] + mini, nn[1] + minj)] = 0
+
+    return oobmask
 
 class alignment_sampling:
     def __init__ (self, grid_res, base_grid_size, base_grid_res, basecrs, selfcrs, params):
@@ -218,14 +341,43 @@ class alignment_average:
         else:
             self.px_mode = "ul"
 
+        self.temp_slice = max(self.grid_res // self.sample_to, 1)
+        self.temp_factor = max(self.expect_res // self.sample_to, 1)
+        self.temp_dsampler = (self.grid_res // self.expect_res) + 2
+        self.temp_frac = self.grid_res/self.expect_res
+        self.temp_brfrac = self.grid_res / self.base_res
+
+        self.coordbasei = np.zeros((self.temp_dsampler, self.temp_dsampler))
+        self.coordbasej = np.zeros((self.temp_dsampler, self.temp_dsampler))
+        for i in range(self.temp_dsampler):
+            for j in range(self.temp_dsampler):
+                self.coordbasei[i, j] = i
+                self.coordbasej[i, j] = j
+        #self.coordbasei = self.coordbasei.flatten()
+        #self.coordbasej = self.coordbasej.flatten()
+
     def inbounds(self, val, grid):
         ix, iy = val
         if ix >= 0 and iy >= 0 and ix < grid.shape[0] and iy < grid.shape[1]:
             return True
         return False
+
+
+    def mpimport(self, datimport):
+        yulh, yulv, ypxh, ypxv = self.ycrs
+        self.newcrs = (yulh, ypxh * (self.grid_res / self.base_res), 0,
+                       yulv, 0, ypxv * (-self.grid_res / self.base_res))
+        self.newproj = self.yproj
+        self.newndv = self.nodata_oops
+        self.data = np.array(datimport)
+        print(self.data.shape)
+        print("datamin", np.min(self.data))
+        print("datamax", np.max(self.data))
+        print("complete")
+
     def alignbasic(self, xr_npar, subset=-1):
-        oobcounter = 0
         all_oob = 0
+
         ### grid_res is target grid res in m
         ### base_res is base res in m
         ### base_size is shape of base np array
@@ -238,10 +390,12 @@ class alignment_average:
             boundj = subset
         oobcounter = 0
         nodcounter = 0
-
+        print("alignment starting...")
         temp_slice = max(self.grid_res // self.sample_to, 1)
         temp_factor = max(self.expect_res // self.sample_to, 1)
         for i in range(boundi):
+            if (i+1) % (boundi//100) == 0:
+                print("1%")
             for j in range(boundj):
                 yi = (i * self.grid_res) / self.base_res
                 yj = (j * self.grid_res) / self.base_res

@@ -4,37 +4,103 @@ from osgeo import gdal
 import numpy as np
 import h5py
 import os
+import sys
+import math
+import raster_helpers
 
 print("- loaded packages")
 
 ### EPSG 4326 WSG 84
 
 ### user parameters
-layer_locs = ["../data/raster/srtm_clipped_co.tif",
-              "../data/raster/nlcd_clipped_co_reproj.tif",
-              "../data/raster/aspect_clipped_co.tif",
-              "../data/raster/slope_clipped_co.tif",
-              "../data/raster/treeage_clipped_co_reproj.tif",
-              "../data/raster/ecostressesi_clipped_co.tif",
-              "../data/raster/gedi_agforestbiomass_clipped_co.tif"]
+### location, resolution, x/y, idx
+data_info = [["../data/raster/srtm_clipped_co.tif",                 30,     "x", 0],
+             ["../data/raster/nlcd2001_clipped_co_reproj.tif",      30,     "x", 1],
+             ["../data/raster/nlcd2004_clipped_co_reproj.tif",      30,     "x", 2],
+             ["../data/raster/nlcd2006_clipped_co_reproj.tif",      30,     "x", 3],
+             ["../data/raster/nlcd2008_clipped_co_reproj.tif",      30,     "x", 4],
+             ["../data/raster/nlcd2011_clipped_co_reproj.tif",      30,     "x", 5],
+             ["../data/raster/nlcd2013_clipped_co_reproj.tif",      30,     "x", 6],
+             ["../data/raster/nlcd2016_clipped_co_reproj.tif",      30,     "x", 7],
+             ["../data/raster/nlcd_clipped_co_reproj.tif",          30,     "x", 8],
+             ["../data/raster/nlcd2021_clipped_co_reproj.tif",      30,     "x", 9],
+             ["../data/raster/aspect_clipped_co.tif",               30,     "x", 10],
+             ["../data/raster/slope_clipped_co.tif",                30,     "x", 11],
+             ["../data/raster/treeage_clipped_co_reproj.tif",       1000,   "x", 12],
+             ["../data/raster/prism_precip_30y_800m_reproj.tif",    800,    "x", 13],
+             ["../data/raster/prism_tempmin_30y_800m_reproj.tif",   800,    "x", 14],
+             ["../data/raster/prism_tempmean_30y_800m_reproj.tif",  800,    "x", 15],
+             ["../data/raster/prism_tempmax_30y_800m_reproj.tif",   800,    "x", 16],
+             ["../data/raster/prism_vapormin_30y_800m_reproj.tif",  800,    "x", 17],
+             ["../data/raster/prism_vapormax_30y_800m_reproj.tif",  800,    "x", 18],
+             ["../data/raster/ecostresswue_clipped_co.tif",         70,     "y", 19],
+             ["../data/raster/ecostressesi_clipped_co.tif",         70,     "y", 20],
+             ["../data/raster/gedi_agforestbiomass_clipped_co.tif", 1000,   "y", 21]]
+"""
+
+data_info = [["../data/raster/srtm_clipped_co.tif",                 30,     "x", 0],
+             ["../data/raster/nlcd2001_clipped_co_reproj.tif",      30,     "x", 1],
+             ["../data/raster/nlcd2004_clipped_co_reproj.tif",      30,     "x", 2],
+             ["../data/raster/nlcd2006_clipped_co_reproj.tif",      30,     "x", 3],
+             ["../data/raster/nlcd2008_clipped_co_reproj.tif",      30,     "x", 4],
+             ["../data/raster/nlcd2011_clipped_co_reproj.tif",      30,     "x", 5],
+             ["../data/raster/nlcd2013_clipped_co_reproj.tif",      30,     "x", 6],
+             ["../data/raster/nlcd2016_clipped_co_reproj.tif",      30,     "x", 7],
+             ["../data/raster/nlcd_clipped_co_reproj.tif",          30,     "x", 8],
+             ["../data/raster/nlcd2021_clipped_co_reproj.tif",      30,     "x", 9],
+             ["../data/raster/aspect_clipped_co.tif",               30,     "x", 10],
+             ["../data/raster/slope_clipped_co.tif",                30,     "x", 11],
+             ["../data/raster/treeage_clipped_co_reproj.tif",       30,     "x", 12],
+             ["../data/raster/prism_precip_30y_800m_reproj.tif",    30,     "x", 13],
+             ["../data/raster/prism_tempmin_30y_800m_reproj.tif",   30,     "x", 14],
+             ["../data/raster/prism_tempmean_30y_800m_reproj.tif",  30,     "x", 15],
+             ["../data/raster/prism_tempmax_30y_800m_reproj.tif",   30,     "x", 16],
+             ["../data/raster/prism_vapormin_30y_800m_reproj.tif",  30,     "x", 17],
+             ["../data/raster/prism_vapormax_30y_800m_reproj.tif",  30,     "x", 18],
+             ["../data/raster/ecostresswue_clipped_co.tif",         70,     "y", 19],
+             ["../data/raster/ecostressesi_clipped_co.tif",         70,     "y", 20],
+             ["../data/raster/gedi_agforestbiomass_clipped_co.tif", 1000,   "y", 21]]
+
+"""
+### split method and parameters
+y_base = len(data_info) - 1
+# how to divide geographic areas for train/val/test split
+split_method = "blocks" # in {blocks, fullrand}
+split_blocks_buffer = 10
+split_blocks_nregions = 100
+split_outer_buffer = 2
+
+### partition parameters
 n_splits = 1
 partition = (0.3, 0.2)
-cube_res = [30, 30, 30, 30, 1000, 70, 1000]
-y_base = 6
-y_layers = [5, 6]
-x_layers = [0, 1, 2, 3, 4]
+
+### input data parameters
+exclude = []
 np_random_seed = 100807
-fold_name = "../data/test_box1"
+fold_name = "../data/box_cube"
 h5_chunk_size = 1000
 
 
 
 ### auto params
+layer_locs = []
+cube_res = []
+y_layers = []
+x_layers = []
 layer_names = []
 layer_nodata = []
 layer_size = []
 layer_crs = []
+layer_proj = []
 layer_data = []
+for i in range(len(data_info)):
+    if i not in exclude:
+        layer_locs.append(data_info[i][0])
+        cube_res.append(data_info[i][1])
+        if data_info[i][2] == "x":
+            x_layers.append(i)
+        else:
+            y_layers.append(i)
 
 ### import raster layers, get data and crs info
 for item in layer_locs:
@@ -46,6 +112,7 @@ for item in layer_locs:
     tulh, tpxh, _, tulv, _, tpxv = layer_raster.GetGeoTransform()
     tpxv = abs(tpxv)
     layer_crs.append((tulh, tulv, tpxh, tpxv))
+    layer_proj.append([layer_raster.GetGeoTransform(), layer_raster.GetProjection()])
     layer_data.append(layer_raster.ReadAsArray().transpose())
     del rasterband
     del layer_raster
@@ -53,6 +120,7 @@ for item in layer_locs:
 print("- loaded raster data")
 
 ### orchestrate normalization & everything else
+### -- not implemented...???
 ### compute expected cube size
 expected_cube_size = []
 y_layer_max = cube_res[y_base]
@@ -86,13 +154,13 @@ center_offset = []
 half_offset = []
 for i in range(len(layer_data)):
     center_offset.append(expected_cube_size[i] // 2)
-    half_offset
     if expected_cube_size[i] % 2 == 0:
         half_offset.append(0.5)
     else:
         half_offset.append(0)
 
 print("- computed sampling offsets")
+
 
 ### convert from coordinates to indices
 def geo_idx(cx, cy, geopack): #ulh, ulv, psh, psv):
@@ -137,9 +205,14 @@ def roundup_layer_1(k, base_idx, buffer_ignore, crs_list, yloc, nd_vals):
     return False
 
 ### gather legal samples
+### ...batch based on regions?
 legal_sample_idx_list = []
 guide_shape = layer_data[y_base].shape
 for i in range(guide_shape[0]):
+    if i % (guide_shape[0] // 10) == 0:
+        print("-10")
+    if i == guide_shape[0] - 1:
+        print("last")
     for j in range(guide_shape[1]):
         ### determine if nodata value is involved, and ignore buffer fill values
         all_ok = True
@@ -151,16 +224,7 @@ for i in range(guide_shape[0]):
             if layer_k_np == False:
                 all_ok = False
                 break
-            """else:
-                tmins.append(layer_k_np[0])
-                tmaxs.append(layer_k_np[1])"""
         if all_ok:
-            """
-            for k in range(len(tmins)):
-                if tmins[k] != buffer_fill:
-                    samples_mins[k] = min(samples_mins[k], tmins[k])
-                if tmaxs[k] != buffer_fill:
-                    samples_maxs[k] = max(samples_maxs[k], tmaxs[k])"""
             legal_sample_idx_list.append((i, j))
 
 print("- rounded up layers: ", len(legal_sample_idx_list))
@@ -173,42 +237,158 @@ print("- saved sample coords")
 
 ### now do train/test/val splits
 meta_indices = np.arange(len(legal_sample_idx_list))
-box_mode = True
-if box_mode:
-    ### random box for test
-    rbw = 40
-    rbh = 80
-    rbulx = 200
-    rbuly = 100
-
-    test_indices = []
-    for i in range(len(legal_sample_idx_list)):
-        xx, yy = legal_sample_idx_list[i]
-        if xx >= rbulx and xx < rbulx + rbw and yy >= rbuly and yy < rbuly + rbh:
-            test_indices.append(i)
-
-    test_indices = np.array(test_indices)
-    remaining_indices = []
-    for i in range(len(meta_indices)):
-        if meta_indices[i] not in test_indices:
-            remaining_indices.append(meta_indices[i])
-
-    remaining_indices = np.array(remaining_indices)
-else:
-    test_indices = meta_indices[:int(len(meta_indices) * partition[0])]
-    remaining_indices = meta_indices[int(len(meta_indices) * partition[0]):]
+test_indices = []
 val_fold_indices = []
 train_fold_indices = []
+#idea: for each, 0 is unavail, 1 is avail, 2 is taken
+if split_method == "blocks":
+    n_test_samples = int(len(legal_sample_idx_list) * partition[0])
+    approx_each = n_test_samples/split_blocks_nregions
+    temp_each_sqrt = math.ceil(math.sqrt(approx_each))
+    ### calculate block sizes from parameters
+    minerr = 100000
+    minoff = 0
 
-for i in range(n_splits):
+    for i in range(max(temp_each_sqrt//5, 1)):
+        err1 = abs((math.ceil(approx_each / (temp_each_sqrt - (i - (temp_each_sqrt//10)))) * temp_each_sqrt) - approx_each)
+        if err1 < minerr:
+            minerr = err1
+            minoff = i - (temp_each_sqrt//10)
+    blocksizes = (temp_each_sqrt - minoff, math.ceil(approx_each / (temp_each_sqrt - minoff)))
+    underest = (blocksizes[0] * blocksizes[1]) - (n_test_samples/split_blocks_nregions)
+    intoffset = underest - int(underest)
+    n_val_samples = int(len(legal_sample_idx_list) * partition[1])
+    approx_val_each = n_val_samples / split_blocks_nregions
+    each_err_val = approx_val_each - int(approx_val_each)
+
+    n_test_samples = int(len(legal_sample_idx_list) * partition[0])
+    approx_test_each = n_test_samples / split_blocks_nregions
+    each_err_test = approx_test_each - int(approx_test_each)
+
+    print("- computed test set block sizes")
+    print("  - diagnostics:     total_blocks:", n_test_samples, "approx. each:", approx_each, "sqrt:", temp_each_sqrt)
+    print("  -                  blocksizes:", blocksizes, "block each:", blocksizes[0] * blocksizes[1], "est:", underest)
+    print("  -                  guid_shape", guide_shape)
+
+    ### make mask grid
+    block_mask = np.zeros(guide_shape)
+    metaindex_arr = np.zeros(guide_shape)
+    for i in range(len(legal_sample_idx_list)):
+        ti, tj = legal_sample_idx_list[i]
+        block_mask[ti, tj] = 1
+        metaindex_arr[ti, tj] = i
+
+    ### place blocks over region
+    nplaced = 0
+    test_selected = []
+    carrier = 0
+    while nplaced < split_blocks_nregions:
+        ruli = int(np.random.uniform(0, guide_shape[0] - blocksizes[0]))
+        rulj = int(np.random.uniform(0, guide_shape[1] - blocksizes[1]))
+        overlap = np.where(block_mask[max(ruli-split_blocks_buffer, 0): min(ruli+blocksizes[0] + split_blocks_buffer, guide_shape[0]), max(rulj-split_blocks_buffer, 0): min(rulj+blocksizes[1] + split_blocks_buffer, guide_shape[1])] == 2)
+        if len(overlap[0]) == 0 and block_mask[ruli, rulj] == 1:
+            if nplaced % (split_blocks_nregions // 10) == 0:
+                print("-10")
+            nplaced += 1
+            carrier += each_err_test
+            reqd = int(approx_test_each) + int(carrier)
+            carrier = carrier % 1
+            ### good to go! start with centerpoint
+            total1 = 0
+            tradius = -1
+            iteri = (int(np.random.uniform(0, 2)) * 2) - 1
+            iterj = (int(np.random.uniform(0, 2)) * 2) - 1
+            while total1 < reqd:
+                tradius += 2
+                ### need to account for oob
+                for i in range(tradius):
+                    for j in range(tradius):
+                        ti = ruli - (iteri * (tradius // 2)) + (iteri * i)
+                        tj = rulj - (iterj * (tradius // 2)) + (iterj * j)
+                        if ti >= 0 and ti < block_mask.shape[0] and tj >= 0 and tj < block_mask.shape[1]:
+                            if block_mask[ti, tj] == 1:
+                                total1 += 1
+                                block_mask[ti, tj] = 2
+                                if total1 >= reqd:
+                                    break
+                    if total1 >= reqd:
+                        break
+
+    overlap3 = np.where(block_mask == 2)
+    test_indices = metaindex_arr[overlap3]
+    remaining_indices = metaindex_arr[np.where(block_mask == 1)]
+    print("- found test indices:", len(test_indices), "out of", n_test_samples, "desired")
+
+    ### make tifs for visual confirmation
+    os.system("rm " + fold_name + "/fold_box_geotifs/*")
+    os.system("mkdir " + fold_name + "/fold_box_geotifs")
+    raster_helpers.save_raster(fold_name + "/fold_box_geotifs", "test_extent", block_mask, layer_proj[y_base][0], layer_proj[y_base][1], -1)
+
+    block_mask[overlap3] = 0
+
+    ### now do xval-splits
+    for ii in range(n_splits):
+        split_mask_i = block_mask.copy()
+        ### place blocks over region
+        nplaced_i = 0
+        carrier = 0
+        while nplaced_i < split_blocks_nregions:
+            ruli = int(np.random.uniform(split_outer_buffer, guide_shape[0] - split_outer_buffer))
+            rulj = int(np.random.uniform(split_outer_buffer, guide_shape[1] - split_outer_buffer))
+            overlap = np.where(block_mask[max(ruli - split_blocks_buffer, 0): min(ruli + blocksizes[0] + split_blocks_buffer, guide_shape[0]),
+                               max(rulj - split_blocks_buffer, 0): min(rulj + blocksizes[1] + split_blocks_buffer, guide_shape[1])] == 2)
+            if len(overlap[0]) == 0 and split_mask_i[ruli, rulj] == 1:
+                nplaced_i += 1
+                carrier += each_err_val
+                reqd = int(approx_val_each) + int(carrier)
+                carrier = carrier % 1
+                ### good to go! start with centerpoint
+                total1 = 0
+                tradius = -1
+                iteri = (int(np.random.uniform(0, 2)) * 2) - 1
+                iterj = (int(np.random.uniform(0, 2)) * 2) - 1
+                while total1 < reqd:
+                    tradius += 2
+                    ### need to account for oob
+                    for i in range(tradius):
+                        for j in range(tradius):
+                            ti = ruli - (iteri * (tradius // 2)) + (iteri * i)
+                            tj = rulj - (iterj * (tradius // 2)) + (iterj * j)
+                            if ti >= 0 and ti < split_mask_i.shape[0] and tj >= 0 and tj < split_mask_i.shape[1]:
+                                if split_mask_i[ti, tj] == 1:
+                                    total1 += 1
+                                    split_mask_i[ti, tj] = 2
+                                    if total1 >= reqd:
+                                        break
+                        if total1 >= reqd:
+                            break
+        overlap4 = np.where(split_mask_i == 2)
+        val_fold_indices.append(metaindex_arr[overlap4])
+        train_fold_indices.append(metaindex_arr[np.where(split_mask_i == 1)])
+        np.savetxt(fold_name + "/train_" + str(ii) + ".csv", train_fold_indices[-1], delimiter=",")
+        np.savetxt(fold_name + "/val_" + str(ii) + ".csv", val_fold_indices[-1], delimiter=",")
+
+        ### make geotif for visual inspection
+        raster_helpers.save_raster(fold_name + "/fold_box_geotifs", "val_extent_" + str(ii), split_mask_i, layer_proj[y_base][0], layer_proj[y_base][1], -1)
+
+    np.savetxt(fold_name + "/test.csv", test_indices, delimiter=",")
+    np.savetxt(fold_name + "/remaining.csv", remaining_indices, delimiter=",")
+
+
+elif split_method == "fullrand":
+    np.random.shuffle(meta_indices)
+    test_indices = meta_indices[:int(len(meta_indices) * partition[0])]
+    remaining_indices = meta_indices[int(len(meta_indices) * partition[0]):]
     np.random.shuffle(remaining_indices)
-    val_fold_indices.append(remaining_indices[:int(len(remaining_indices)*partition[1])])
-    train_fold_indices.append(remaining_indices[int(len(remaining_indices)*partition[1]):])
-    np.savetxt(fold_name + "/train_" + str(i) + ".csv", train_fold_indices[-1], delimiter=",")
-    np.savetxt(fold_name + "/val_" + str(i) + ".csv", val_fold_indices[-1], delimiter=",")
+    for i in range(n_splits):
+        np.random.shuffle(remaining_indices)
+        val_fold_indices.append(remaining_indices[:int(len(remaining_indices)*partition[1])])
+        train_fold_indices.append(remaining_indices[int(len(remaining_indices)*partition[1]):])
+        np.savetxt(fold_name + "/train_" + str(i) + ".csv", train_fold_indices[-1], delimiter=",")
+        np.savetxt(fold_name + "/val_" + str(i) + ".csv", val_fold_indices[-1], delimiter=",")
 
-np.savetxt(fold_name + "/test.csv", test_indices, delimiter=",")
-np.savetxt(fold_name + "/remaining.csv", remaining_indices, delimiter=",")
+    np.savetxt(fold_name + "/test.csv", test_indices, delimiter=",")
+    np.savetxt(fold_name + "/remaining.csv", remaining_indices, delimiter=",")
 
 print("- performed and saved train/val/test splits")
 
@@ -325,3 +505,124 @@ for i in range(n_splits):
 
 print("- saved min/max normalization parameters")
 print("- done")
+
+
+"""
+
+            if tlr == 0 and ttb == 0:
+                if tr == 0:
+                    iupdate = 1
+                else:
+                    jupdate = 1
+            if tlr == 0 and ttb == 1:
+                if tr == 0:
+                    jupdate = -1
+                else:
+                    iupdate = 1
+            if tlr == 1 and ttb == 1:
+                if tr == 0:
+                    iupdate = -1
+                else:
+                    jupdate = -1
+            if tlr == 1 and ttb == 0:
+                if tr == 0:
+                    jupdate = 1
+                else:
+                    iupdate = -1
+            tlr = (tlr * (blocksizes[0]-1)) + ruli
+            ttb = (ttb * (blocksizes[1]-1)) + rulj
+            if leaveoff > 0:
+                tlo = leaveoff
+                while tlo > 0:
+                    if block_mask[tlr, ttb] == 2:
+                        block_mask[tlr, ttb] = 1
+                        tlo -= 1
+                    ### update pos... need a much better way to do this...
+                    if tlr + iupdate >= ibds[0][0] and tlr + iupdate < ibds[0][1] and ttb + jupdate >= ibds[1][0] and ttb + jupdate < ibds[1][1]:
+                        pass
+                    elif tlr + iupdate < ibds[0][0]:
+                        if tr == 0:
+                            iupdate = 0
+                            jupdate = -1
+                            ibds[1][1] -= 1
+                        else:
+                            iupdate = 0
+                            jupdate = 1
+                            ibds[1][0] += 1
+                    elif tlr + iupdate >= ibds[0][1]:
+                        if tr == 0:
+                            iupdate = 0
+                            jupdate = 1
+                            ibds[1][0] += 1
+                        else:
+                            iupdate = 0
+                            jupdate = -1
+                            ibds[1][1] -= 1
+                    elif ttb + jupdate < ibds[1][0]:
+                        if tr == 0:
+                            iupdate = 1
+                            jupdate = 0
+                            ibds[0][0] += 1
+                        else:
+                            iupdate = -1
+                            jupdate = 0
+                            ibds[0][1] -= 1
+                    elif ttb + jupdate < ibds[1][1]:
+                        if tr == 0:
+                            iupdate = -1
+                            jupdate = 0
+                            ibds[0][1] -= 1
+                        else:
+                            iupdate = 1
+                            jupdate = 0
+                            ibds[0][0] += 1
+                    tlr += iupdate
+                    ttb += jupdate
+
+            elif leaveoff < 0:
+                print("error... leaveoff < 0")
+                pass"""
+
+"""overlap2 = np.where(block_mask[ruli: ruli+blocksizes[0], rulj:rulj+blocksizes[1]] == 1)
+            if len(overlap2[0]) > ((blocksizes[0] * blocksizes[1]) - underest):
+                nplaced += 1
+                block_mask[overlap2] = 2
+                ### do occlusion
+                carrier += intoffset
+                leaveoff = int(underest) - ((blocksizes[0] * blocksizes[1]) - len(overlap2[0])) + int(carrier)
+                print(underest, blocksizes[0], blocksizes[1], len(overlap2[0]), int(carrier))
+                print("base leaveoff:", leaveoff)
+                carrier = carrier % 1
+                tlr = int(np.random.uniform(0, 2))
+                ttb = int(np.random.uniform(0, 2))
+                tr = int(np.random.uniform(0, 2))
+                ibds = np.array([ruli, ruli+blocksizes[0], rulj, rulj+blocksizes[1]])
+                ### see stupid matrix math in small notebook for explanation of what is going on here
+                ijvec = np.array([[tr * (1 - tlr - ttb) + (1-tr) * (ttb - tlr)], [tr * (tlr - ttb) + (1-tr) * (1 - tlr - ttb)]])
+                rmat = np.array([[0, 1 - (2*tr)], [(2*tr) - 1, 0]])
+
+                tlr = int((tlr * (blocksizes[0]-1)) + ruli)
+                ttb = int((ttb * (blocksizes[1]-1)) + rulj)
+                if leaveoff > 0:
+                    tlo = leaveoff
+                    while tlo > 0:
+                        if block_mask[tlr, ttb] == 2:
+                            block_mask[tlr, ttb] = 1
+                            tlo -= 1
+                        if tlr + ijvec[0] < ibds[0][0] or tlr + ijvec[0] >= ibds[0][1] or ttb + ijvec[1] < ibds[1][0] or ttb + ijvec[1] >= ibds[1][1]:
+                            ### apply crop
+                            ### see equations in small notebook for explanation of what is going on here
+                            crop = np.array([0.5 * ijvec[1] * (1 - ijvec[0]) * (1 + ijvec[1] - 2*tr),
+                                    -0.5 * (1-ijvec[0]) * ijvec[1] * (2*tr + ijvec[1] -1),
+                                    0.5 * ijvec[0] * (1 - ijvec[1]) * (2*tr + ijvec[0] - 1),
+                                    -0.5 * ijvec[0] * (1 - ijvec[1]) * (ijvec[0] + 1 - 2*tr)])
+                            ibds += crop
+                            ### apply rotate
+                            ijvec = rmat @ ijvec
+                        ### apply transform
+                        tlr += int(ijvec[0])
+                        ttb += int(ijvec[1])
+
+                elif leaveoff < 0:
+                    print("error at step", nplaced, "... leaveoff < 0 (", leaveoff, ")")
+                    pass"""

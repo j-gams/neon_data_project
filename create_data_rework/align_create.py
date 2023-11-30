@@ -1,8 +1,10 @@
 ### Written by Jerry Gammie @j-gams
 import multiprocessing
 import sys
+import math
 import numpy as np
 import align_create_helpers as ach
+import multiprocessing
 
 ### TODO -- incorporate meta file
 
@@ -398,7 +400,7 @@ if stopstep == 6:
 # - params xr_params.append((tulh, tulv, tpxh, tpxv))
 
 y_crs_pack = [(yulh, yulv, ypxh, ypxv), yr_crs]
-if True:
+if False:
     x_crs_pack = [[xr_params[0], xr_crs[0]],
                   [xr_params[1], xr_crs[1]],
                   [xr_params[2], xr_crs[2]],
@@ -412,6 +414,7 @@ if True:
                   [xr_params[10], xr_crs[10]]]
 else:
     x_crs_pack = [[xr_params[0], xr_crs[0]]]
+                 # [xr_params[1], xr_crs[1]]]
 
 if False:
     lads = [[0, ach.alignment_sampling, 30, "SRTM_30_globalUL", ("ul")]]
@@ -422,7 +425,7 @@ if False:
             #[1, ach.alignment_sampling, 10, "Slope_10_globalUL", ("ul")],
             #[2, ach.alignment_sampling, 10, "Aspect_10_globalUL", ("ul")],
             #[3, ach.alignment_sampling, 10, "NLCD_10_globalUL", ("ul")]]
-else:
+elif False:
     lads = [[0, ach.alignment_average, 70, "SRTM_70_mean", ("mean", 10, 30)],
             [2, ach.alignment_average, 70, "Slope_70_mean", ("mean", 10, 30)],
             [3, ach.alignment_average, 70, "Aspect_70_mean", ("mean", 10, 30)],
@@ -434,6 +437,20 @@ else:
             [8, ach.alignment_average, 70, "vapormax", ("mean", 10, 800)],
             [9, ach.alignment_average, 70, "precip", ("mean", 10, 800)],
             [10, ach.alignment_average, 70, "treeage", ("mean", 10, 1000)]]
+
+else:
+    lads = [#[0, ach.alignment_average, 70, "NLC2001_70_mode", ("mode", 10, 30)],
+            #[1, ach.alignment_average, 70, "NLCD2004_70_mode", ("mode", 10, 30)],
+            #[2, ach.alignment_average, 70, "NLCD2006_70_mode", ("mode", 10, 30)],
+            #[3, ach.alignment_average, 70, "NLCD2008_70_mode", ("mode", 10, 30)],
+            #[4, ach.alignment_average, 70, "NLCD2011_70_mode", ("mode", 10, 30)],
+            #[0, ach.alignment_average, 70, "NLCD2013_70_mode", ("mode", 10, 30)],
+            [0, ach.alignment_average, 70, "NLCD2011_70_mode", ("mode", 10, 30)]]
+            #[7, ach.alignment_average, 70, "NLCD2021_70_mode", ("mode", 10, 30)]]
+
+print("available cpus", multiprocessing.cpu_count())
+print("xr_npar", xr_npar[0].shape)
+### most recent?
 
 ### python align_create.py ../data/raster/treeage_clipped_co_reproj.tif ../data/point/GEDI_2B_clean.shp ../data/raster/ecostressesi_clipped_co.tif 70 5 true ../data/set/data_h5test --lomem --gencoords --genetc --override --prescreen --h5mode=h5 --cfields=cover,pavd,fhd --orient=hwc --pad=1 --hashpad=10 --chunk=10  --q=2
 ### python align_create.py ../data/raster/srtm_clipped_co.tif,../data/raster/nlcd_clipped_co_reproj.tif,../data/raster/slope_clipped_co.tif,../data/raster/aspect_clipped_co.tif ../data/point/GEDI_2B_clean.shp ../data/raster/WUE_Median_Composite_AOI.tif 70 5 true ../data/set/data_h5test --lomem --gencoords --genetc --override --prescreen --h5mode=h5 --cfields=cover,pavd,fhd --orient=hwc --pad=1 --hashpad=10 --chunk=10  --q=2
@@ -450,27 +467,93 @@ def save_raster(path, band_count, bands, srs, gt, format='GTiff', dtype = gdal.G
     dataset_out.GetRasterBand(1).SetNoDataValue(rbo)
     dataset_out = None
 
-collection_name = "geotifs_sampled_4_esi"
-prefix = "../data/" + collection_name
-os.system("mkdir " + prefix)
+def mpdispatch(inparams):
+    bands, xrnum, params = inparams
+    res = []
+    for elt in bands:
+        if (elt + 1) % (6000 // 100) == 0:
+            print("1%")
+        res.append(ach.mpalign(params, xr_npar[xrnum], elt))
+    return res
 
-driver = gdal.GetDriverByName("GTiff")
-for i in range(len(lads)):
-    ### initialize aligner
-    layer_geotif = lads[i][1](lads[i][2], (yrsize[0], yrsize[1]), 70, y_crs_pack,
-                              x_crs_pack[lads[i][0]], lads[i][4], ndv_vals[lads[i][0]])
-    ### perform alignment
-    layer_geotif.alignbasic(xr_npar[lads[i][0]], subset=500)
+def chunk_list(nelts, nchunks, idx):
+    size = math.ceil(nelts / nchunks)
+    return [ii for ii in range(idx*size, min((idx + 1)*size, nelts))]
 
-    ### obtain layer geotifs
+if __name__ == "__main__":
+    collection_name = "geotifs_sampled_4_esi"
+    prefix = "../data/" + collection_name
+    os.system("mkdir " + prefix)
+
     driver = gdal.GetDriverByName("GTiff")
-    outname = prefix + "/" + lads[i][3] + ".tif"
-    layer_out = driver.Create(outname, layer_geotif.data.shape[0], layer_geotif.data.shape[1], 1, gdal.GDT_Float32)
-    layer_out.SetGeoTransform(layer_geotif.newcrs)
-    layer_out.SetProjection(layer_geotif.newproj)
-    ### save layer geotif
-    layer_out.GetRasterBand(1).WriteArray(layer_geotif.data.transpose())
-    layer_out.GetRasterBand(1).SetNoDataValue(layer_geotif.nodata_oops)
-    layer_out.FlushCache()
 
-    print("saved to geotif" + outname)
+    ### deal with multiprocessing
+    for i in range(len(lads)):
+        ### initialize aligner (below...?)
+
+        ### deal with multiprocessing
+
+        tgrid_res = lads[i][2]
+        texpect_res = lads[i][4][2]
+        tbase_res = 70
+        ndignore = ndv_vals[lads[i][0]]
+        ndoops = -99999
+        avg_method = lads[i][4][0]
+
+        dsampler = (tgrid_res // texpect_res) + 2
+        brfrac = tgrid_res/tbase_res
+        tfrac = tgrid_res / texpect_res
+        total_m = (yrsize[0] * tbase_res, yrsize[1] * tbase_res)
+        grid_size = ((total_m[0] // tgrid_res) + 1, (total_m[1] // tgrid_res) + 1)
+        print("GRID SHAPE", grid_size)
+
+        const_params = [grid_size, dsampler, brfrac, y_crs_pack[0], x_crs_pack[lads[i][0]][0],
+                        tfrac, ndignore, ndoops, avg_method]
+
+        paramarr = []
+        ncpu = multiprocessing.cpu_count()
+        for j in range(ncpu):
+            paramarr.append([chunk_list(total_m[0], ncpu, j), lads[i][0], const_params])
+        with Pool(None) as mpool:
+            resarr = mpool.map(mpdispatch, paramarr)
+
+        trueres = []
+        for arr1 in resarr:
+            trueres.extend(arr1)
+            del arr1
+
+
+        layer_geotifs.append(lads[i][1](lads[i][2], (yrsize[0], yrsize[1]), 70, y_crs_pack,
+                                        x_crs_pack[lads[i][0]], lads[i][4], ndv_vals[lads[i][0]]))
+        layer_geotif.mpimport(trueres)
+
+        ### obtain layer geotifs
+        driver = gdal.GetDriverByName("GTiff")
+        outname = prefix + "/" + lads[i][3] + ".tif"
+        layer_out = driver.Create(outname, layer_geotif.data.shape[0], layer_geotif.data.shape[1], 1, gdal.GDT_Float32)
+        layer_out.SetGeoTransform(layer_geotif.newcrs)
+        layer_out.SetProjection(layer_geotif.newproj)
+        ### save layer geotif
+        layer_out.GetRasterBand(1).WriteArray(layer_geotif.data.transpose())
+        layer_out.GetRasterBand(1).SetNoDataValue(layer_geotif.nodata_oops)
+        layer_out.FlushCache()
+
+    """for i in range(len(lads)):
+        ### initialize aligner
+        layer_geotif = lads[i][1](lads[i][2], (yrsize[0], yrsize[1]), 70, y_crs_pack,
+                                  x_crs_pack[lads[i][0]], lads[i][4], ndv_vals[lads[i][0]])
+        ### perform alignment
+        layer_geotif.alignbasic(xr_npar[lads[i][0]], subset=100)
+
+        ### obtain layer geotifs
+        driver = gdal.GetDriverByName("GTiff")
+        outname = prefix + "/" + lads[i][3] + ".tif"
+        layer_out = driver.Create(outname, layer_geotif.data.shape[0], layer_geotif.data.shape[1], 1, gdal.GDT_Float32)
+        layer_out.SetGeoTransform(layer_geotif.newcrs)
+        layer_out.SetProjection(layer_geotif.newproj)
+        ### save layer geotif
+        layer_out.GetRasterBand(1).WriteArray(layer_geotif.data.transpose())
+        layer_out.GetRasterBand(1).SetNoDataValue(layer_geotif.nodata_oops)
+        layer_out.FlushCache()
+
+        print("saved to geotif" + outname)"""
