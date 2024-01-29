@@ -5,7 +5,7 @@ from scipy import stats
 ### compile results in table & save
 
 ### compute mse
-def metric_mse(y, yhat, mode="geo", granularity=["single"]):
+def metric_mse(y, yhat, mode="geo", granularity=["single"], singletask=None):
     # mode is either overall - average for whole sample, or each - each individual sample
     # assume y, yhat are shape (samples, i, j)
     ret = []
@@ -35,7 +35,7 @@ def metric_mse(y, yhat, mode="geo", granularity=["single"]):
     return ret
 
 ### compute mae
-def metric_mae(y, yhat, mode="geo", granularity=["single"]):
+def metric_mae(y, yhat, mode="geo", granularity=["single"], singletask=None):
     # mode is either overall - average for whole sample, or each - each individual sample
     # assume y, yhat are shape (samples, i, j)
     ret = []

@@ -13,6 +13,7 @@ class data_wrangler (kr_utils.Sequence):
         self.cube_res = cube_dims
         self.x_ids = x_ids
         self.y_ids = y_ids
+        self.use_y_ids = list(y_ids)
         self.batch_size = batch_size
         self.mode = "train"
         self.train_fold = 0
@@ -88,6 +89,10 @@ class data_wrangler (kr_utils.Sequence):
         else:
             return (npar - self.combined_min[k]) / (self.combined_max[k] - self.combined_min[k])
 
+    def set_single_y(self, set_to):
+        self.use_y_ids = [self.y_ids[set_to]]
+    def set_multi_y(self):
+        self.use_y_ids = list(self.y_ids)
 
     def __getitem__ (self, idx):
         ### load cubes
@@ -99,13 +104,17 @@ class data_wrangler (kr_utils.Sequence):
         ret_y = []
         for i in range(len(self.x_ids)):
             ret_x.append(np.zeros((len(ret_indices), self.cube_res[self.x_ids[i]], self.cube_res[self.x_ids[i]])))
-        for i in range(len(self.y_ids)):
-            ret_y.append(np.zeros((len(ret_indices), self.cube_res[self.y_ids[i]], self.cube_res[self.y_ids[i]])))
+        #for i in range(len(self.y_ids)):
+        #    ret_y.append(np.zeros((len(ret_indices), self.cube_res[self.y_ids[i]], self.cube_res[self.y_ids[i]])))
+        for i in range(len(self.use_y_ids)):
+            ret_y.append(np.zeros((len(ret_indices), self.cube_res[self.use_y_ids[i]], self.cube_res[self.use_y_ids[i]])))
         for j in range(len(self.x_ids)):
             ret_x[j][:,:,:] = self.apply_norm(np.array(self.h5_data[self.x_ids[j]][ret_indices, :, :]), self.x_ids[j])
 
-        for j in range(len(self.y_ids)):
-            ret_y[j][:,:,:] = self.apply_norm(np.array(self.h5_data[self.y_ids[j]][ret_indices, :, :]), self.y_ids[j])
+        #for j in range(len(self.y_ids)):
+        #    ret_y[j][:,:,:] = self.apply_norm(np.array(self.h5_data[self.y_ids[j]][ret_indices, :, :]), self.y_ids[j])
+        for j in range(len(self.use_y_ids)):
+            ret_y[j][:,:,:] = self.apply_norm(np.array(self.h5_data[self.use_y_ids[j]][ret_indices, :, :]), self.use_y_ids[j])
 
         return ret_x, ret_y
 

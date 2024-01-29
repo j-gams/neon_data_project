@@ -1,5 +1,7 @@
 ### create_pyramid_set.py
 if __name__ == "__main__":
+    import time
+    starttime = time.process_time()
     from osgeo import gdal
     import numpy as np
     import h5py
@@ -20,15 +22,15 @@ if __name__ == "__main__":
     data_input_crs = "EPSG4326WSG84"
 
     ### location, base resolution, sample resolution, x/y, idx
-    data_info = [["../data/raster/srtm_clipped_co.tif",                 30,     30,     "x", 0,     "srtm"],
+    """ data_info = [["../data/raster/srtm_clipped_co.tif",                 30,     30,     "x", 0,     "srtm"],
                  ["../data/raster/nlcd_clipped_co_reproj.tif",          30,     30,     "x", 8,     "nlcd2019"],
                  ["../data/raster/aspect_clipped_co.tif",               30,     30,     "x", 10,    "aspect"],
                  ["../data/raster/slope_clipped_co.tif", 30, 30, "x", 11, "slope"],
                  ["../data/raster/treeage_clipped_co_reproj.tif", 1000, 1000, "x", 12, "treeage"],
                  ["../data/raster/ecostresswue_clipped_co.tif",         70,     70,     "y", 19,    "ecostresswue"],
                  ["../data/raster/ecostressesi_clipped_co.tif",         70,     70,     "y", 20,    "ecostressesi"],
-                 ["../data/raster/gedi_agforestbiomass_clipped_co.tif", 1000,   1000,   "y", 21,    "gediagb"]]
-    """data_info = [["../data/raster/srtm_clipped_co.tif",                 30,     30,     "x", 0,     "srtm"],
+                 ["../data/raster/gedi_agforestbiomass_clipped_co.tif", 1000,   1000,   "y", 21,    "gediagb"]]"""
+    data_info = [["../data/raster/srtm_clipped_co.tif",                 30,     30,     "x", 0,     "srtm"],
                  ["../data/raster/nlcd2001_clipped_co_reproj.tif",      30,     30,     "x", 1,     "nlcd2001"],
                  ["../data/raster/nlcd2004_clipped_co_reproj.tif",      30,     30,     "x", 2,     "nlcd2004"],
                  ["../data/raster/nlcd2006_clipped_co_reproj.tif",      30,     30,     "x", 3,     "nlcd2006"],
@@ -40,16 +42,16 @@ if __name__ == "__main__":
                  ["../data/raster/nlcd2021_clipped_co_reproj.tif",      30,     30,     "x", 9,     "nlcd2021"],
                  ["../data/raster/aspect_clipped_co.tif",               30,     30,     "x", 10,    "aspect"],
                  ["../data/raster/slope_clipped_co.tif",                30,     30,     "x", 11,    "slope"],
-                 ["../data/raster/treeage_clipped_co_reproj.tif",       1000,   1000,     "x", 12,    "treeage"],
-                 ["../data/raster/prism_precip_30y_800m_reproj.tif",    800,    800,     "x", 13,    "precip"],
-                 ["../data/raster/prism_tempmin_30y_800m_reproj.tif",   800,    800,     "x", 14,    "tempmin"],
-                 ["../data/raster/prism_tempmean_30y_800m_reproj.tif",  800,    800,     "x", 15,    "tempmean"],
-                 ["../data/raster/prism_tempmax_30y_800m_reproj.tif",   800,    800,     "x", 16,    "tempmax"],
-                 ["../data/raster/prism_vapormin_30y_800m_reproj.tif",  800,    800,     "x", 17,    "vapormin"],
-                 ["../data/raster/prism_vapormax_30y_800m_reproj.tif",  800,    800,     "x", 18,    "vapormax"],
+                 ["../data/raster/treeage_clipped_co_reproj.tif",       1000,   1000,   "x", 12,    "treeage"],
+                 ["../data/raster/prism_precip_30y_800m_reproj.tif",    800,    800,    "x", 13,    "precip"],
+                 ["../data/raster/prism_tempmin_30y_800m_reproj.tif",   800,    800,    "x", 14,    "tempmin"],
+                 ["../data/raster/prism_tempmean_30y_800m_reproj.tif",  800,    800,    "x", 15,    "tempmean"],
+                 ["../data/raster/prism_tempmax_30y_800m_reproj.tif",   800,    800,    "x", 16,    "tempmax"],
+                 ["../data/raster/prism_vapormin_30y_800m_reproj.tif",  800,    800,    "x", 17,    "vapormin"],
+                 ["../data/raster/prism_vapormax_30y_800m_reproj.tif",  800,    800,    "x", 18,    "vapormax"],
                  ["../data/raster/ecostresswue_clipped_co.tif",         70,     70,     "y", 19,    "ecostresswue"],
                  ["../data/raster/ecostressesi_clipped_co.tif",         70,     70,     "y", 20,    "ecostressesi"],
-                 ["../data/raster/gedi_agforestbiomass_clipped_co.tif", 1000,   1000,   "y", 21,    "gediagb"]]"""
+                 ["../data/raster/gedi_agforestbiomass_clipped_co.tif", 1000,   1000,   "y", 21,    "gediagb"]]
 
     ### split method and parameters
     y_base = len(data_info) - 1
@@ -65,7 +67,7 @@ if __name__ == "__main__":
 
     ### input data parameters
     exclude = []
-    run_name = "mf_test"
+    run_name = "pyrtimetest"
     fold_name = "../data/pyramid_sets/" + run_name
 
     print('- creating fold "' + run_name +'"')
@@ -182,6 +184,7 @@ if __name__ == "__main__":
 
     ### parallelize pyramid setup
     ### checkpoint 3
+    sampletime = time.process_time()
     if checkpoint_prev <= 3:
         cpf.set_checkpoint(fold_name, checkpoint_number=3)
         if parallelize:
@@ -199,6 +202,8 @@ if __name__ == "__main__":
 
     ### checkpoint 4
     cpf.set_checkpoint(fold_name, checkpoint_number=4)
-
+    endtime = time.process_time()
+    print("sampling time:", endtime - sampletime)
+    print("total process time:", endtime - starttime)
 
 

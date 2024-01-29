@@ -1,12 +1,39 @@
 import os
-
+import sys
 aws_pem_loc = '"/Users/Jerry/aws_pems/jega7451.firerx.pem"'
-aws_instance = "ubuntu@ec2-54-149-167-121.us-west-2.compute.amazonaws.com"
+
+### TODO -
+# (3) - cube - 3, 4 - 4, 3
+# (3) - pyr - 1, 2 - 2, 1
+# (3) - pac - 5, 6 - 6, 5
+# (3) - cascade - 7 - 7
+
+#box1 ssh -i "jega7451.firerx.pem" ubuntu@ec2-52-10-17-184.us-west-2.compute.amazonaws.com
+#box2 ssh -i "jega7451.firerx.pem" ubuntu@ec2-52-24-100-137.us-west-2.compute.amazonaws.com
+#box3 ssh -i "jega7451.firerx.pem" ubuntu@ec2-54-149-167-121.us-west-2.compute.amazonaws.com
+#box4 ssh -i "jega7451.firerx.pem" ubuntu@ec2-54-184-127-233.us-west-2.compute.amazonaws.com
+#box5 ssh -i "jega7451.firerx.pem" ubuntu@ec2-54-68-14-126.us-west-2.compute.amazonaws.com
+#ssh -i "jega7451.firerx.pem" ubuntu@ec2-54-149-167-121.us-west-2.compute.amazonaws.com
+#box6 using box1 --
+#box7 using box3 --
+
+instance_num = int(sys.argv[1])
+instance_list = ["ubuntu@ec2-52-10-17-184.us-west-2.compute.amazonaws.com",
+                 "ubuntu@ec2-52-24-100-137.us-west-2.compute.amazonaws.com",
+                 "ubuntu@ec2-54-149-167-121.us-west-2.compute.amazonaws.com",
+                 "ubuntu@ec2-54-184-127-233.us-west-2.compute.amazonaws.com",
+                 "ubuntu@ec2-54-68-14-126.us-west-2.compute.amazonaws.com"]
 destination = ":/home/ubuntu/models"
 
+aws_instance = instance_list[instance_num]
+
 local_base = "/Users/jerry/Desktop/work/earthlab/neon_data_project/"
-files_transfer = [""]
-directories_transfer = ["models_3"]
+files_transfer = ["models_3/model_frame.py",
+                  "models_3/model_bank.py",
+                  "models_3/data_handler.py"]
+#files_transfer = ["visualize/viz_functions.py",
+#                  "visualize/main_viz.py"]
+directories_transfer = []#["models_3"]
 
 check_hist = False
 hist_loc = "aws_progress.txt"
@@ -28,9 +55,10 @@ fail_limit = 10
 #"/Users/jerry/Desktop/work/earthlab/neon_data_project/data/pyramid_sets/box_pyramid"
 
 print("* TRANSFERING LOOSE FILES")
-f_list = []
 for file in files_transfer:
-    pass
+    os.system("scp -i " + aws_pem_loc + " " + local_base + file + " " +
+              aws_instance + destination)
+
 
 print("* TRANSFERING DIRECTORIES")
 df_list = []
